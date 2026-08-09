@@ -1,11 +1,13 @@
 #!/usr/bin/env bash
-# Deep Database Component Setup (ADR-0049 / #188).
+# Deep Database Component Setup (ADR-0049 / #188 / #189).
 # Sourced by Database pre-workloads.sh / post-workloads.sh.
 # Standing Component: TLS interior, admin EnvironmentFile, Postgres on Service Network
 # dial name `database`, idle allowed with zero Workload claimants.
+# pre-workloads also gathers Intent-run Manifest database:true Declarations and
+# publishes passwordless mTLS bindings (#189).
 #
 # Ambient (optional overrides for offline tests):
-#   USER_NAME, DATA_ROOT
+#   USER_NAME, DATA_ROOT, WORKLOADS_ROOT
 # After begin: HOME_DIR / UNIT_DIR / SYSTEMD_USER_DIR via quadlet_user_session_begin.
 #
 # Args: component_tree [staged_admin_env_src]
@@ -21,6 +23,8 @@ source "${_database_setup_lib_dir}/database-tls-host.sh"
 source "${_database_setup_lib_dir}/database-admin-env-host.sh"
 # shellcheck source=database-auth-conf-host.sh
 source "${_database_setup_lib_dir}/database-auth-conf-host.sh"
+# shellcheck source=database-fulfill-host.sh
+source "${_database_setup_lib_dir}/database-fulfill-host.sh"
 
 # Wait until Postgres accepts connections inside the database-postgres container.
 database_wait_ready() {
@@ -67,6 +71,7 @@ database_setup() {
 
   USER_NAME="${USER_NAME:-platform}"
   DATA_ROOT="${DATA_ROOT:-/var/lib/host-volume/data/components/database}"
+  WORKLOADS_ROOT="${WORKLOADS_ROOT:-/var/lib/host-volume/internals/workloads}"
   ADMIN_ENV="${DATA_ROOT}/admin/environment"
   PGDATA_DIR="${DATA_ROOT}/pgdata"
   CLIENTS_DIR="${DATA_ROOT}/clients"
@@ -114,13 +119,15 @@ database_setup() {
   }
 }
 
+# Standing ensure + Declaration fulfill/publish before Workload apps start.
 database_setup_pre_workloads() {
   local component_tree="${1:?database_setup_pre_workloads: component tree required}"
   local staged_admin_env="${2:-}"
-  database_setup "${component_tree}" "${staged_admin_env}"
+  database_setup "${component_tree}" "${staged_admin_env}" || return 1
+  database_fulfill_declarations || return 1
 }
 
-# post-workloads: same standing ensure for #188 (claim cleanup lands in later tickets).
+# post-workloads: standing ensure for now (claim cleanup lands in later tickets).
 database_setup_post_workloads() {
   local component_tree="${1:?database_setup_post_workloads: component tree required}"
   local staged_admin_env="${2:-}"

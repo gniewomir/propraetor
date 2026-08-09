@@ -73,6 +73,23 @@ if environment_configuration_keys "${MANIFEST}" >/dev/null 2>&1; then
 fi
 pass "declaration non-string element fails closed"
 
+# Reserved Database admin credentials must not appear on Manifest environment (ADR-0049 / #189).
+cat >"${MANIFEST}" <<'EOF'
+{ "intent": "run", "environment": ["ROOT_DB_USER"] }
+EOF
+if environment_configuration_keys "${MANIFEST}" >/dev/null 2>&1; then
+  fail "ROOT_DB_USER on Manifest environment must fail closed"
+fi
+pass "ROOT_DB_USER on Manifest environment fails closed"
+
+cat >"${MANIFEST}" <<'EOF'
+{ "intent": "run", "environment": ["OK", "ROOT_DB_PASSWORD"] }
+EOF
+if environment_configuration_keys "${MANIFEST}" >/dev/null 2>&1; then
+  fail "ROOT_DB_PASSWORD on Manifest environment must fail closed"
+fi
+pass "ROOT_DB_PASSWORD on Manifest environment fails closed"
+
 # --- bag resolve (operator-side; uses declaration keys) ---
 
 cat >"${MANIFEST}" <<'EOF'
@@ -162,7 +179,8 @@ grep -F 'from-file' "${app_dropin}" >/dev/null && fail "values must not appear i
 pass "module stage→apply → EnvironmentFile + drop-ins"
 
 environment_configuration_clear "${WL_NAME}" || fail "module clear should succeed"
-[[ ! -e "$(dirname "${env_path}")" ]] || fail "clear should remove EnvironmentFile tree"
+[[ ! -f "${env_path}" ]] || fail "clear should remove EnvironmentFile"
+[[ ! -e "$(dirname "${env_path}")" ]] || fail "clear should remove empty Workload config dir"
 [[ ! -f "${app_dropin}" ]] || fail "clear should remove Setup drop-in"
 pass "module clear removes install artifacts"
 
@@ -177,7 +195,8 @@ cat >"${MANIFEST}" <<'EOF'
 { "intent": "run" }
 EOF
 envcfg_stage_and_apply || fail "omit stage→apply should succeed"
-[[ ! -e "$(dirname "${env_path}")" ]] || fail "omit stage→apply should clear EnvironmentFile tree"
+[[ ! -f "${env_path}" ]] || fail "omit stage→apply should clear EnvironmentFile"
+[[ ! -e "$(dirname "${env_path}")" ]] || fail "omit stage→apply should remove empty Workload config dir"
 pass "module stage→apply omit → clear"
 
 # fail closed: non-empty without containers (gate once in prepare)

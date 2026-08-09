@@ -27,11 +27,17 @@ if "environment" not in m:
 env = m["environment"]
 if not isinstance(env, list):
     raise SystemExit("manifest.environment must be a JSON array when present")
+reserved = ("ROOT_DB_USER", "ROOT_DB_PASSWORD")
 for i, item in enumerate(env):
     if not isinstance(item, str) or item == "":
         raise SystemExit(
             "manifest.environment elements must be non-empty strings "
             f"(bad index {i})"
+        )
+    if item in reserved:
+        raise SystemExit(
+            f"manifest.environment must not list Database admin credential "
+            f"{item} (ADR-0049)"
         )
     print(item)
 PY

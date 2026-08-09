@@ -53,7 +53,12 @@ environment_configuration_install_host() {
 
   if [[ -z "${resolved_src}" ]]; then
     workload_environment_remove_dropins_for_dir "${sot_quadlets}"
-    rm -rf "${dest_dir}"
+    # Remove only the EnvironmentFile — sibling Database bindings live under
+    # the same Platform User Workload tree (ADR-0049 / #189).
+    rm -f "${env_path}"
+    if [[ -d "${dest_dir}" ]] && [[ -z "$(ls -A "${dest_dir}" 2>/dev/null || true)" ]]; then
+      rmdir "${dest_dir}" 2>/dev/null || true
+    fi
     return 0
   fi
 

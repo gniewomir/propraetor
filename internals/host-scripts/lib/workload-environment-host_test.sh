@@ -45,13 +45,21 @@ grep -Fx "EnvironmentFile=${env_path}" "${worker_dropin}" >/dev/null \
 grep -F 'from-resolved' "${app_dropin}" >/dev/null && fail "values must not appear in drop-in unit text"
 pass "install EnvironmentFile + drop-ins for listed containers"
 
+# Sibling Database binding must survive Environment Configuration clear (#189).
+mkdir -p "$(dirname "${env_path}")/database"
+printf 'keep\n' >"$(dirname "${env_path}")/database/marker"
+
 # --- clear on empty/omit ---
 environment_configuration_clear "${WL_NAME}" \
   || fail "omit clear should succeed"
-[[ ! -e "$(dirname "${env_path}")" ]] || fail "omit should remove EnvironmentFile tree"
+[[ ! -f "${env_path}" ]] || fail "omit should remove EnvironmentFile"
+[[ -f "$(dirname "${env_path}")/database/marker" ]] \
+  || fail "omit clear must not remove sibling database/ binding"
 [[ ! -f "${app_dropin}" ]] || fail "omit should remove app drop-in"
 [[ ! -f "${worker_dropin}" ]] || fail "omit should remove worker drop-in"
 pass "clear on empty/omit"
+
+rm -rf "$(dirname "${env_path}")"
 
 # --- install with no SoT *.container still writes EnvironmentFile (gate is prepare's job) ---
 rm -f "${WORKLOADS_ROOT}/${WL_NAME}/quadlets"/*.container
@@ -71,7 +79,8 @@ environment_configuration_install_host "${WL_NAME}" "${RESOLVED}" \
 
 environment_configuration_clear "${WL_NAME}" \
   || fail "Purge-style clear should succeed"
-[[ ! -e "$(dirname "${env_path}")" ]] || fail "Purge clear should remove EnvironmentFile tree"
+[[ ! -f "${env_path}" ]] || fail "Purge clear should remove EnvironmentFile"
+[[ ! -e "$(dirname "${env_path}")" ]] || fail "Purge clear should remove empty Workload config dir"
 [[ ! -f "$(workload_environment_dropin_path "app.container")" ]] \
   || fail "Purge clear should remove Setup drop-in"
 pass "Purge-style clear"

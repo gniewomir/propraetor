@@ -58,7 +58,7 @@ import json, shlex, sys
 m = json.load(open(sys.argv[1]))
 if not isinstance(m, dict):
     raise SystemExit("manifest must be a JSON object")
-allowed = {"intent", "description", "environment"}
+allowed = {"intent", "description", "environment", "database"}
 extra = sorted(set(m) - allowed)
 if extra:
     raise SystemExit("manifest unknown keys (ADR-0024 allowlist): " + ", ".join(extra))
@@ -67,6 +67,8 @@ if intent not in ("run", "stop", "trash"):
     raise SystemExit("manifest.intent must be run|stop|trash")
 if "description" in m and not isinstance(m["description"], str):
     raise SystemExit("manifest.description must be a string when present")
+if "database" in m and not isinstance(m["database"], bool):
+    raise SystemExit("manifest.database must be a boolean when present")
 print(f"WL_INTENT={shlex.quote(intent)}")
 PY
 )"

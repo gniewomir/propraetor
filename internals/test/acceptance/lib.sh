@@ -441,3 +441,10 @@ ensure_edge_route_fulfillment() {
   [[ -n "${REPO_ROOT:-}" ]] || fail "ensure_edge_route_fulfillment: REPO_ROOT required"
   "${REPO_ROOT}/internals/ensure-components.sh" post-workloads --env "${PLATFORM_ENV:-test}"
 }
+
+# Re-run Component Setup pre-workloads so Database gathers Declarations (ADR-0049 / #189).
+# Workload Setup syncs SoT only; create/publish is Database Component Setup.
+ensure_database_fulfillment() {
+  [[ -n "${REPO_ROOT:-}" ]] || fail "ensure_database_fulfillment: REPO_ROOT required"
+  "${REPO_ROOT}/internals/ensure-components.sh" pre-workloads --env "${PLATFORM_ENV:-test}"
+}

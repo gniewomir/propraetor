@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
-# Write Database pg_hba.conf + empty pg_ident.conf (ADR-0049 / #188).
-# Dual auth: SCRAM for admin role over TLS; cert+verify-full for Workloads.
+# Write Database pg_hba.conf + pg_ident.conf (ADR-0049 / #188 / #189).
+# Dual auth: SCRAM for admin role over TLS; cert+verify-full for Workloads via map.
 # Expects: DATA_ROOT, ADMIN_ENV. Optional: USER_NAME.
+
+# Map name for Workload cert CN → role (pg_ident + hostssl cert map=).
+DATABASE_PG_IDENT_MAP="propraetor"
 
 database_write_auth_conf() {
   local conf_dir="${DATA_ROOT}/conf"
@@ -22,20 +25,51 @@ host    all             all             ::1/128                 scram-sha-256
 # Admin SCRAM over TLS (Database admin credentials).
 hostssl all             ${admin_user}   0.0.0.0/0               scram-sha-256
 hostssl all             ${admin_user}   ::/0                    scram-sha-256
-# Workload client certificates (CN → role via pg_ident; gather fills map later).
-hostssl all             all             0.0.0.0/0               cert clientcert=verify-full
-hostssl all             all             ::/0                    cert clientcert=verify-full
+# Workload client certificates (CN → role via pg_ident map ${DATABASE_PG_IDENT_MAP}).
+hostssl all             all             0.0.0.0/0               cert clientcert=verify-full map=${DATABASE_PG_IDENT_MAP}
+hostssl all             all             ::/0                    cert clientcert=verify-full map=${DATABASE_PG_IDENT_MAP}
 EOF
 
+  # Create-if-missing empty map header; gather rewrites claimant rows.
   if [[ ! -f "${ident}" ]]; then
-    cat >"${ident}" <<'EOF'
-# MAPNAME       SYSTEM-USERNAME         PG-USERNAME
-# Database Component pg_ident — Workload cert CNs mapped by Setup gather.
-EOF
+    database_write_pg_ident_file /dev/null
   fi
 
   chmod 0644 "${hba}" "${ident}"
   if [[ -n "${USER_NAME:-}" ]]; then
     chown -R "${USER_NAME}:${USER_NAME}" "${conf_dir}" 2>/dev/null || true
+  fi
+}
+
+# Ensure pg_ident map rows for basenames in file (create-if-missing lines).
+# Does not remove existing map rows (Intent unpublish / orphan cleanup is later).
+database_write_pg_ident_file() {
+  local path="${1:?database_write_pg_ident_file: path required}"
+  local conf_dir="${DATA_ROOT}/conf"
+  local ident="${conf_dir}/pg_ident.conf"
+  local basename line
+  mkdir -p "${conf_dir}"
+
+  if [[ ! -f "${ident}" ]]; then
+    printf '%s\n' \
+      "# MAPNAME       SYSTEM-USERNAME         PG-USERNAME" \
+      "# Database Component pg_ident — Workload cert CNs mapped by Setup gather." \
+      >"${ident}"
+  fi
+
+  if [[ -f "${path}" ]]; then
+    while IFS= read -r basename; do
+      [[ -n "${basename}" ]] || continue
+      line="$(printf '%s\t%s\t%s' "${DATABASE_PG_IDENT_MAP}" "${basename}" "${basename}")"
+      if grep -Fxq "${line}" "${ident}" 2>/dev/null; then
+        continue
+      fi
+      printf '%s\n' "${line}" >>"${ident}"
+    done <"${path}"
+  fi
+
+  chmod 0644 "${ident}"
+  if [[ -n "${USER_NAME:-}" ]]; then
+    chown "${USER_NAME}:${USER_NAME}" "${ident}" 2>/dev/null || true
   fi
 }
