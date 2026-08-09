@@ -1,11 +1,11 @@
 [Unit]
-Description=Propraetor welcome Host usage sampler timer
+Description=Propraetor panel Host usage sampler timer
 
 [Timer]
 OnActiveSec=15s
 OnUnitActiveSec=1min
 Persistent=true
-Unit=welcome-stats.service
+Unit=panel-stats.service
 
 [Install]
 WantedBy=timers.target

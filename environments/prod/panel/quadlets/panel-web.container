@@ -1,0 +1,16 @@
+[Unit]
+Description=Propraetor panel
+
+[Container]
+Image=docker.io/library/nginx:alpine
+ContainerName=panel-web
+Pod=panel.pod
+Volume=/var/lib/host-volume/internals/workloads/panel/www:/usr/share/nginx/html:ro
+Volume=/var/lib/host-volume/data/workloads/panel:/var/lib/workload:rw
+Volume=/var/lib/host-volume/data/workloads/panel/stats:/usr/share/nginx/html/stats:ro
+
+[Service]
+Restart=on-failure
+
+[Install]
+WantedBy=default.target

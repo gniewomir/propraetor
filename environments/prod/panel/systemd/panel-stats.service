@@ -1,0 +1,6 @@
+[Unit]
+Description=Propraetor panel Host usage sampler
+
+[Service]
+Type=oneshot
+ExecStart=/bin/bash /var/lib/host-volume/internals/workloads/panel/scripts/panel-stats.sh

@@ -1,6 +1,0 @@
-[Unit]
-Description=Propraetor welcome Host usage sampler
-
-[Service]
-Type=oneshot
-ExecStart=/bin/bash /var/lib/host-volume/internals/workloads/welcome/scripts/welcome-stats.sh
