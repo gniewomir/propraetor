@@ -32,6 +32,7 @@ sed \
   -e "s|/var/lib/host-volume|${HV}|g" \
   -e "s|/tmp/platform-acme-want-list|${TMP}/want-handoff|g" \
   -e "s|/tmp/platform-acme.env|${TMP}/acme-env-handoff|g" \
+  -e "s|/tmp/platform-database-admin.env|${TMP}/db-admin-handoff|g" \
   "${HOST_SCRIPT}" >"${TMP}/ensure-run.sh"
 chmod +x "${TMP}/ensure-run.sh"
 
@@ -128,6 +129,42 @@ grep -Eqi 'ACME EnvironmentFile|platform-acme\.env' "${TMP}/stderr-acme-env" \
   || fail "missing ACME env rejection unclear: $(cat "${TMP}/stderr-acme-env")"
 mv "${TMP}/platform-acme.env.bak" "${TMP}/platform-acme.env"
 pass "missing staged ACME EnvironmentFile fails closed"
+
+# --- missing staged Database admin EnvironmentFile fails closed when Database selected ---
+printf '%s\n' 'POSTGRES_USER=dbadmin' 'POSTGRES_PASSWORD=secret' >"${TMP}/platform-database-admin.env"
+mkdir -p "${TMP}/database"
+cat >"${TMP}/database/pre-workloads.sh" <<EOF
+#!/usr/bin/env bash
+set -euo pipefail
+printf '%s\\n' "database-pre" >>"${TMP}/setup.order"
+EOF
+chmod +x "${TMP}/database/pre-workloads.sh"
+cat >"${TMP}/database/post-workloads.sh" <<EOF
+#!/usr/bin/env bash
+set -euo pipefail
+printf '%s\\n' "database-post" >>"${TMP}/setup.order"
+EOF
+chmod +x "${TMP}/database/post-workloads.sh"
+mv "${TMP}/platform-database-admin.env" "${TMP}/platform-database-admin.env.bak"
+if bash "${TMP}/ensure-run.sh" "${USER_NAME}" pre-workloads --component database 2>"${TMP}/stderr-db-admin"; then
+  fail "missing platform-database-admin.env must fail closed when Database is selected"
+fi
+grep -Eqi 'Database admin|platform-database-admin' "${TMP}/stderr-db-admin" \
+  || fail "missing Database admin rejection unclear: $(cat "${TMP}/stderr-db-admin")"
+mv "${TMP}/platform-database-admin.env.bak" "${TMP}/platform-database-admin.env"
+pass "missing staged Database admin EnvironmentFile fails closed"
+
+# --- Database Component runs beside Edge when both selected ---
+: >"${TMP}/setup.order"
+bash "${TMP}/ensure-run.sh" "${USER_NAME}" pre-workloads --component edge --component database \
+  2>"${TMP}/stderr-both" \
+  || fail "ensure-run with edge+database failed: $(cat "${TMP}/stderr-both")"
+order="$(cat "${TMP}/setup.order")"
+printf '%s\n' "${order}" | grep -Fxq 'edge-pre' || fail "edge-pre missing in dual run: ${order}"
+printf '%s\n' "${order}" | grep -Fxq 'database-pre' || fail "database-pre missing in dual run: ${order}"
+[[ -f "${HV}/internals/components/database/pre-workloads.sh" ]] \
+  || fail "database pre-workloads.sh not installed"
+pass "ensure-components runs Edge and Database Setup in one slot"
 
 # --- post-workloads runs the post script only ---
 : >"${TMP}/setup.order"

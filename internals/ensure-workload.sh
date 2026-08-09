@@ -55,6 +55,11 @@ if [[ -z "${WL_NAME}" || "${WL_NAME}" == "." || "${WL_NAME}" == ".." ]] ||
   echo "workload name must be a single non-hidden path segment: '${WL_NAME}'" >&2
   exit 1
 fi
+# Service Network dial name for the Database Component (ADR-0049 / #188).
+if [[ "${WL_NAME}" == "database" ]]; then
+  echo "workload basename 'database' is reserved for the Database Component dial identity" >&2
+  exit 1
+fi
 
 MANIFEST_DIR="${REPO_ROOT}/environments/${PLATFORM_ENV}/${WL_NAME}"
 MANIFEST_ABS="${MANIFEST_DIR}/manifest.json"

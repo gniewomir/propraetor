@@ -1,0 +1,3 @@
+[Pod]
+Network=service-network.network
+NetworkAlias=database

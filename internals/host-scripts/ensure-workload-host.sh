@@ -42,6 +42,11 @@ if [[ -z "${WL_NAME}" || "${WL_NAME}" == "." || "${WL_NAME}" == ".." ]] ||
   echo "workload identity (directory basename) must be a single path segment: '${WL_NAME}'" >&2
   exit 1
 fi
+# Service Network dial name for the Database Component (ADR-0049 / #188).
+if [[ "${WL_NAME}" == "database" ]]; then
+  echo "workload basename 'database' is reserved for the Database Component dial identity" >&2
+  exit 1
+fi
 
 command -v python3 >/dev/null || {
   echo "python3 required on Host for Workload Manifest parsing" >&2

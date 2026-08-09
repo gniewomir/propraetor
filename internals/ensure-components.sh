@@ -1,20 +1,22 @@
 #!/usr/bin/env bash
 # Ensure Components on the Host after Initial Host Provisioning.
 # Waits for IHP Done (Host is Substrate), ships Component source, host-scripts, the
-# ACME want-list, and ACME EnvironmentFile via Host delivery, then runs one Component
-# Setup slot (pre-workloads | post-workloads). Idempotent — re-run freely. Does not run
-# Fabric Setup (see ensure-fabric.sh). No combined "full" mode — Deploy (or the caller)
-# runs both slots in order when Components must be fully correct (ADR-0043 / #181).
+# ACME want-list, ACME EnvironmentFile, and Database admin credentials via Host
+# delivery, then runs one Component Setup slot (pre-workloads | post-workloads).
+# Idempotent — re-run freely. Does not run Fabric Setup (see ensure-fabric.sh). No
+# combined "full" mode — Deploy (or the caller) runs both slots in order when
+# Components must be fully correct (ADR-0043 / #181 / ADR-0049 / #188).
 # Environment: omitted / --env default|test → workspace default; --env <slug> otherwise (ADR-0019).
 # Usage: ./internals/ensure-components.sh <pre-workloads|post-workloads> [--env <slug>]
 # Optional: PLATFORM_USER=platform
 # Requires: Operator Configuration private key path (PROPRAETOR_PRIVATE_KEY_PATH).
+# Requires: Database admin credentials ROOT_DB_USER / ROOT_DB_PASSWORD (Environment .env or shell).
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 STACK_DIR="${REPO_ROOT}/internals/terraform"
 USER_NAME="${PLATFORM_USER:-platform}"
-COMPONENTS=(edge)
+COMPONENTS=(edge database)
 HOST_SCRIPT="${REPO_ROOT}/internals/host-scripts/ensure-components-host.sh"
 # shellcheck source=lib/cli.sh
 source "${REPO_ROOT}/internals/lib/cli.sh"
@@ -24,6 +26,8 @@ source "${REPO_ROOT}/internals/lib/environment/environment.sh"
 source "${REPO_ROOT}/internals/lib/domains/domains.sh"
 # shellcheck source=lib/acme/acme.sh
 source "${REPO_ROOT}/internals/lib/acme/acme.sh"
+# shellcheck source=lib/database/database-admin-credentials.sh
+source "${REPO_ROOT}/internals/lib/database/database-admin-credentials.sh"
 # shellcheck source=lib/ssh.sh
 source "${REPO_ROOT}/internals/lib/ssh.sh"
 # shellcheck source=lib/host-delivery.sh
@@ -95,6 +99,12 @@ trap 'rm -rf "${STAGE}"' EXIT
 # stage into the delivery payload; Host half places Edge handoff paths; Edge Setup installs.
 domains_acme_fqdns_for "${PLATFORM_ENV}" >"${STAGE}/platform-acme-want-list"
 acme_config_dotenv_for "${PLATFORM_ENV}" >"${STAGE}/platform-acme.env"
+
+# Database admin credentials (ADR-0049 / #188): Environment .env + shell → Postgres EnvironmentFile.
+# Not Environment Configuration — never selected by Manifest environment.
+database_admin_credentials_dotenv_for \
+  "${REPO_ROOT}/environments/${PLATFORM_ENV}" \
+  "${STAGE}/platform-database-admin.env"
 
 cp -a "${REPO_ROOT}/internals/host-scripts/lib" "${STAGE}/lib"
 cp "${HOST_SCRIPT}" "${STAGE}/ensure-components-host.sh"

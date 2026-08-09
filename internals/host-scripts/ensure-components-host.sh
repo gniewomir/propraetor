@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 # Host-local half of ensure-components. Invoked after Host delivery unpacks the stage.
 # Installs staged Component trees onto the Host Volume, places the staged ACME want-list
-# and ACME EnvironmentFile at the Edge-owned handoff paths, ships host-scripts, then applies
-# one Component Setup slot (pre-workloads | post-workloads) — ADR-0043 / ADR-0040 / ADR-0010 /
-# ADR-0041 / ADR-0045 / #181.
+# and ACME EnvironmentFile at the Edge-owned handoff paths, places Database admin
+# EnvironmentFile when Database is selected, ships host-scripts, then applies one
+# Component Setup slot (pre-workloads | post-workloads) — ADR-0043 / ADR-0040 / ADR-0010 /
+# ADR-0041 / ADR-0045 / ADR-0049 / #181 / #188.
 # Does not install Fabric. No combined "full" mode.
 # Usage:
 #   ensure-components-host.sh <platform-user> <pre-workloads|post-workloads> [--component <name>]...
@@ -58,9 +59,19 @@ WANT_STAGE="${HERE}/platform-acme-want-list"
 WANT_HANDOFF=/tmp/platform-acme-want-list
 ACME_ENV_STAGE="${HERE}/platform-acme.env"
 ACME_ENV_HANDOFF=/tmp/platform-acme.env
+DB_ADMIN_STAGE="${HERE}/platform-database-admin.env"
+DB_ADMIN_HANDOFF=/tmp/platform-database-admin.env
 SETUP_SCRIPT="${SLOT}.sh"
 # shellcheck source=lib/sync-tree-host.sh
 source "${HERE}/lib/sync-tree-host.sh"
+
+need_database=0
+for name in "${COMPONENTS[@]}"; do
+  if [[ "${name}" == "database" ]]; then
+    need_database=1
+    break
+  fi
+done
 
 [[ -f "${WANT_STAGE}" ]] || {
   echo "ensure-components: staged ACME FQDN list missing at ${WANT_STAGE}" >&2
@@ -70,9 +81,20 @@ source "${HERE}/lib/sync-tree-host.sh"
   echo "ensure-components: staged ACME EnvironmentFile missing at ${ACME_ENV_STAGE}" >&2
   exit 1
 }
+if [[ "${need_database}" == "1" ]]; then
+  [[ -f "${DB_ADMIN_STAGE}" ]] || {
+    echo "ensure-components: staged Database admin EnvironmentFile missing at ${DB_ADMIN_STAGE}" >&2
+    exit 1
+  }
+fi
 cp "${WANT_STAGE}" "${WANT_HANDOFF}"
 cp "${ACME_ENV_STAGE}" "${ACME_ENV_HANDOFF}"
-trap 'rm -f "${WANT_HANDOFF}" "${ACME_ENV_HANDOFF}"' EXIT
+HANDOFF_CLEANUP=("${WANT_HANDOFF}" "${ACME_ENV_HANDOFF}")
+if [[ "${need_database}" == "1" ]]; then
+  cp "${DB_ADMIN_STAGE}" "${DB_ADMIN_HANDOFF}"
+  HANDOFF_CLEANUP+=("${DB_ADMIN_HANDOFF}")
+fi
+trap 'rm -f "${HANDOFF_CLEANUP[@]}"' EXIT
 
 # Hard cut (ADR-0018 / ADR-0041): retire components/ + components_data/.
 rm -rf "${HV_ROOT:?}/components" "${HV_ROOT:?}/components_data"

@@ -1,0 +1,128 @@
+#!/usr/bin/env bash
+# Deep Database Component Setup (ADR-0049 / #188).
+# Sourced by Database pre-workloads.sh / post-workloads.sh.
+# Standing Component: TLS interior, admin EnvironmentFile, Postgres on Service Network
+# dial name `database`, idle allowed with zero Workload claimants.
+#
+# Ambient (optional overrides for offline tests):
+#   USER_NAME, DATA_ROOT
+# After begin: HOME_DIR / UNIT_DIR / SYSTEMD_USER_DIR via quadlet_user_session_begin.
+#
+# Args: component_tree [staged_admin_env_src]
+
+_database_setup_lib_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=quadlet-user-session.sh
+source "${_database_setup_lib_dir}/quadlet-user-session.sh"
+# shellcheck source=component-units-host.sh
+source "${_database_setup_lib_dir}/component-units-host.sh"
+# shellcheck source=database-tls-host.sh
+source "${_database_setup_lib_dir}/database-tls-host.sh"
+# shellcheck source=database-admin-env-host.sh
+source "${_database_setup_lib_dir}/database-admin-env-host.sh"
+# shellcheck source=database-auth-conf-host.sh
+source "${_database_setup_lib_dir}/database-auth-conf-host.sh"
+
+# Wait until Postgres accepts connections inside the database-postgres container.
+database_wait_ready() {
+  local _
+  local cname="database-postgres"
+  local admin_user=""
+  if [[ -f "${ADMIN_ENV:-}" ]]; then
+    admin_user="$(database_admin_user_from_env "${ADMIN_ENV}" 2>/dev/null || true)"
+  fi
+  for _ in $(seq 1 180); do
+    if [[ -n "${admin_user}" ]]; then
+      if quadlet_user env "HOME=${HOME_DIR}" bash -c \
+        "cd \"\$HOME\" && podman exec ${cname} pg_isready -U $(printf '%q' "${admin_user}") -q" \
+        >/dev/null 2>&1; then
+        return 0
+      fi
+    else
+      if quadlet_user env "HOME=${HOME_DIR}" bash -c \
+        "cd \"\$HOME\" && podman exec ${cname} pg_isready -q" >/dev/null 2>&1; then
+        return 0
+      fi
+    fi
+    sleep 1
+  done
+  echo "Database: Postgres did not become ready (pg_isready)" >&2
+  return 1
+}
+
+# Deep Database Setup success: units active + Postgres ready on Service Network.
+# Args: component_tree [staged_admin_env_src]
+database_setup() {
+  local component_tree="${1:?database_setup: component tree required}"
+  shift
+  local staged_admin_env=""
+
+  if [[ $# -gt 0 && "$1" != --* ]]; then
+    staged_admin_env="$1"
+    shift
+  fi
+  if [[ $# -gt 0 ]]; then
+    echo "database_setup: unknown argument: $1" >&2
+    return 1
+  fi
+
+  USER_NAME="${USER_NAME:-platform}"
+  DATA_ROOT="${DATA_ROOT:-/var/lib/host-volume/data/components/database}"
+  ADMIN_ENV="${DATA_ROOT}/admin/environment"
+  PGDATA_DIR="${DATA_ROOT}/pgdata"
+  CLIENTS_DIR="${DATA_ROOT}/clients"
+
+  quadlet_user_session_begin
+
+  mkdir -p "${DATA_ROOT}" "${PGDATA_DIR}" "${CLIENTS_DIR}" "${DATA_ROOT}/admin"
+
+  database_install_admin_env "${staged_admin_env}" || return 1
+  database_tls_ensure || return 1
+  database_write_auth_conf || return 1
+
+  component_units_install "${component_tree}" || return 1
+  [[ -f "${component_tree}/entrypoint.sh" ]] || {
+    echo "Database entrypoint.sh missing at ${component_tree}/entrypoint.sh" >&2
+    return 1
+  }
+  chmod a+x "${component_tree}/entrypoint.sh"
+
+  # Do not chown pgdata — Podman :U maps it to the container postgres uid on start.
+  # Host Setup chown of a live cluster causes Permission denied / PANIC (ADR-0049 / #188).
+  chown -R "${USER_NAME}:${USER_NAME}" "${HOME_DIR}/.config" 2>/dev/null || true
+  for leaf in ca server admin conf clients; do
+    if [[ -e "${DATA_ROOT}/${leaf}" ]]; then
+      chown -R "${USER_NAME}:${USER_NAME}" "${DATA_ROOT}/${leaf}" 2>/dev/null || true
+    fi
+  done
+  chown "${USER_NAME}:${USER_NAME}" "${DATA_ROOT}" 2>/dev/null || true
+
+  quadlet_user_session_reload
+  quadlet_user systemctl --user reset-failed \
+    database-pod.service database-postgres.service 2>/dev/null || true
+
+  # Always restart so unit/config mounts and :U ownership stay coherent after Setup.
+  quadlet_user systemctl --user restart database-pod.service
+  quadlet_user systemctl --user --quiet is-active database-pod.service || {
+    echo "Database: database-pod.service is not active" >&2
+    quadlet_user systemctl --user status database-pod.service database-postgres.service --no-pager >&2 || true
+    return 1
+  }
+
+  database_wait_ready || {
+    quadlet_user systemctl --user status database-pod.service database-postgres.service --no-pager >&2 || true
+    return 1
+  }
+}
+
+database_setup_pre_workloads() {
+  local component_tree="${1:?database_setup_pre_workloads: component tree required}"
+  local staged_admin_env="${2:-}"
+  database_setup "${component_tree}" "${staged_admin_env}"
+}
+
+# post-workloads: same standing ensure for #188 (claim cleanup lands in later tickets).
+database_setup_post_workloads() {
+  local component_tree="${1:?database_setup_post_workloads: component tree required}"
+  local staged_admin_env="${2:-}"
+  database_setup "${component_tree}" "${staged_admin_env}"
+}
