@@ -18,9 +18,17 @@ That's it. An ADR can be a single paragraph. The value is in recording *that* a 
 
 Only include these when they add genuine value. Most ADRs won't need them.
 
-- **Status** frontmatter (`proposed | accepted | deprecated | superseded by ADR-NNNN`) — useful when decisions are revisited
+- **Status** YAML frontmatter — use **only for non-default lifecycle**:
+  - `status: superseded by ADR-NNNN` when the whole decision is replaced
+  - `status: deprecated` when retired but not replaced
+  - Omit frontmatter when the ADR is current (**silent = accepted**)
+  - Do **not** add `status: accepted` YAML to every file
+  - Execution / cutover notes belong in body prose (`**Executed:**`, `**Cutover:**`, `**Amended by ADR-NNNN:**`), not as Status
+  - When a later ADR supersedes only a *slice* of an older ADR whose body was rewritten to current truth, say so in a one-line note at the top — do **not** mark the whole file `superseded`
 - **Considered Options** — only when the rejected alternatives are worth remembering
 - **Consequences** — only when non-obvious downstream effects need to be called out
+
+Historical ADR *filenames* may keep retired terms (e.g. Prefect) when ADR-0027 allows; prefer renaming when the slug actively misleads (e.g. Desired State → Intent) and update any path links in the same change.
 
 ## Numbering
 

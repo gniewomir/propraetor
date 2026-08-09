@@ -10,4 +10,4 @@ Propraetor’s Host-side ladder is **Substrate** → **Fabric** → **Component*
 
 **Amended by ADR-0043:** **Deploy** runs Component Setup in two slots (`pre-workloads` then, after Workloads + Purge, `post-workloads`); Declaration fulfillment that depends on Workload identity is the post slot.
 
-**Status:** accepted (glossary updated; Host cutover complete — Edge Component Setup gathers Routes; ensure distinguishes Fabric Setup vs Component Setup).
+**Cutover:** glossary updated; Host cutover complete — Edge Component Setup gathers Routes; ensure distinguishes Fabric Setup vs Component Setup.

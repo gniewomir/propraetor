@@ -1,4 +1,4 @@
-# Component Setup, ensure-components, and Host Volume layout
+# Component Setup and Host Volume layout
 
 **Amended by ADR-0040:** Service Network is **Fabric** (Fabric Setup), not a Component; Edge is the Component on that bring-up path. IHP establishes **Substrate** (including the Host Volume mount); IHP Done asserts Substrate readiness for Fabric Setup — not that Fabric is present. Route fulfillment gather is **Edge Component Setup** (ADR-0040 / refined ADR-0022).
 

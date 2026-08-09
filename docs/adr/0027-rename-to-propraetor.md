@@ -1,6 +1,6 @@
 # Rename the project to Propraetor
 
-**Status:** accepted; executed (Teardown-first cutover — empty provider State before Apply under the new name).
+**Executed:** Teardown-first cutover — empty provider State before Apply under the new name.
 
 The former project name **Prefect** collided with [prefect.io](https://www.prefect.io/) (workflow orchestration): same spelling, overlapping “run infrastructure” neighborhood. Every search, README, and conversation paid a standing tax. The project is **Propraetor** (*propraetor*: delegated provincial command on the same Roman magistracy ladder as *praefectus* / *legatus*). Rejected: keep Prefect; **Legate** (NVIDIA HPC runtime owns the name); other offices with live software brands (**Consul**, **Praetor**, **Praeses**, …).
 

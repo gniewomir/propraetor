@@ -8,4 +8,4 @@ Kind order on **Deploy** (Components before Workloads) is not the full readiness
 
 **Rejected:** Deferred DNS in every Route as the primary fix (operator contract change; still needs gather refresh); Workloads before Components on the ladder (breaks cold ACME/:80); only Edge special-cased in Deploy (bitrots when a second Declaration-fulfilling Component appears); semantic phase names (`platform` / `declarations`) as Deploy vocabulary; a `full` ensure-components mode; auto-invoking `post-workloads` from each `ensure-workload` / Purge (N front-door disruptions; blurs fulfillment ownership); inferring pre vs post from Host state; transactional rollback of Route files after a failed mid-Deploy.
 
-**Status:** accepted (glossary updated; Host/ensure implementation follows).
+**Cutover:** glossary updated; Host/ensure implementation follows.

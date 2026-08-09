@@ -1,7 +1,3 @@
----
-status: accepted
----
-
 # Adopt allowlisted provider facts into State during lifecycle commands
 
 Amends ADR-0025’s operator convergence promise. Apply, Park, and Teardown must still converge by repeating the same normal operator command and must never require the operator to run imports, edit State, use targets, or perform provider-console surgery. Lifecycle commands may **Adopt**: bind an already-existing provider fact into State under the Environment’s known Stack-owned identity. Adopt always starts with preflight before the plan.

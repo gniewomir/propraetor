@@ -1,7 +1,3 @@
----
-status: accepted
----
-
 # Lifecycle convergence by structural class and single ownership
 
 Apply and Park must converge from Applied, Parked, and supported partially failed lifecycle operations by repeating the same normal operator command; convergence ends with an empty plan and never requires the operator to use targets, imports, State edits, provider-console work, or prescribed ordering ceremony. Allowlisted **Adopt** during those commands is defined in [ADR-0026](0026-adopt-into-state.md). An Additive Stack Change must not remove, replace, or temporarily relocate any existing managed fact. External drift, unmanaged collisions, ambiguity, and provider/account hard failures remain outside this guarantee and fail closed with an actionable error.
