@@ -6,7 +6,7 @@ Committed, Environment-scoped intent ([ADR-0033](../docs/adr/0033-environment-fi
 environments/<cloud-slug>/domains.json
 environments/<cloud-slug>/domains.override.json   # internal; gitignored (ADR-0021)
 environments/<cloud-slug>/acme.json               # Edge ACME directory only (ADR-0045)
-environments/<cloud-slug>/.env                    # Environment Configuration; gitignored (ADR-0035)
+environments/<cloud-slug>/.env                    # Environment Configuration; load path (ADR-0035); never commit **/.env* (ADR-0048)
 environments/<cloud-slug>/.env.example            # committed key-name teaching; Setup never reads it
 environments/<cloud-slug>/.ssh/known_hosts        # Host-session TOFU; gitignored — Park forgets IP; Teardown resets (ADR-0046)
 environments/<cloud-slug>/<workload-name>/          # directory = Workload (ADR-0033)
@@ -31,7 +31,7 @@ Non-committed key/value pairs for Workload containers ([ADR-0035](../docs/adr/00
 
 | Artifact | Role |
 |----------|------|
-| `.env` | Local bag for this Environment. Gitignored (`*/.env`). Optional — if absent, listed keys must come from the shell. |
+| `.env` | Local bag for this Environment. Optional — if absent, listed keys must come from the shell. Never commit any `**/.env*` except basename `.env.example` ([ADR-0048](../docs/adr/0048-env-star-commit-and-agent-ignore.md)). |
 | `.env.example` | Committed teaching of expected key names. **Workload Setup never reads it.** |
 | Manifest `environment` | Optional JSON array of key names on a Workload Manifest. Omit or `[]` ⇒ that Workload consumes none. Values never live in the Manifest. |
 

@@ -2,8 +2,7 @@
 # never commit it — a leftover file silently changes Apply/Park/Adopt Domain loading.
 */domains.override.json
 
-# Environment Configuration bag (ADR-0035). Local values only; commit `.env.example`.
-*/.env
+# Environment Configuration `.env*` ignore is root-only (ADR-0048).
 
 # Host-session known_hosts (lib/ssh.sh). Local TOFU store per Environment; never commit.
 */.ssh/

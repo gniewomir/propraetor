@@ -1,6 +1,5 @@
 # Secrets — block from Cursor indexing, @mentions, Tab, and Agent file tools.
-# Keep committed examples visible. See ADR-0038 / ADR-0035.
-**/.env
-**/.env.*
+# Keep committed examples visible. Mirror root .gitignore (ADR-0048).
+**/.env*
 !**/.env.example
 !.env.example

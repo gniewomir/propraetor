@@ -1,0 +1,5 @@
+# Repo-wide `**/.env*` ignore; only `.env.example` is committed
+
+Secrets and local dotenv baselines must never enter the repository or agent context under any basename that looks like an env file. Propraetor therefore treats **`**/.env*`** as forbidden everywhere: root `.gitignore` is the sole git SoT; `.cursorignore` and the always-apply agent rule mirror the same pattern so indexing/`@`/file tools stay aligned. The only exception is the exact basename **`.env.example`** (teaching / allowlist docs). Loaders still read the exact file `.env` (repo-root for Provider Credential and Operator Configuration — ADR-0038; `environments/<slug>/.env` for Environment Configuration — ADR-0035); the broader forbid must not be read as expanding that load path. Nested `.env` gitignore lines are omitted so the rule cannot drift in a subdirectory.
+
+**Rejected:** exact `.env` only; `.env` + `.env.*` (misses names like `.envsth` / `.envrc`); variants such as `.env.*.example` / `.env.dist` as commit exceptions; keeping redundant env rules under `environments/` or `internals/terraform/`.

@@ -38,7 +38,7 @@ Make Host capacity changes routine and low-disruption. Prefer vertical scaling w
 
 ## Credentials
 
-Repo-root gitignored `.env` (see `.env.example`) baselines **Provider Credential** and **Operator Configuration**; non-empty process-environment values win ([ADR-0038](docs/adr/0038-repo-root-operator-dotenv.md)).
+Repo-root `.env` (see `.env.example`) baselines **Provider Credential** and **Operator Configuration**; non-empty process-environment values win ([ADR-0038](docs/adr/0038-repo-root-operator-dotenv.md)). Never commit any `**/.env*` except basename `.env.example` ([ADR-0048](docs/adr/0048-env-star-commit-and-agent-ignore.md)).
 
 ```bash
 # .env (or export in the shell)
@@ -57,7 +57,7 @@ Every operator script takes an optional `--env <slug>`.
 
 Safe by default: nothing touches a non-test Environment unless you pass `--env` explicitly. Details: [ADR-0019](docs/adr/0019-environments.md).
 
-Layout, Domains, and **Environment Configuration** (gitignored `.env`, committed `.env.example`, Manifest `environment`): [`environments/README.md`](environments/README.md), [ADR-0035](docs/adr/0035-environment-configuration-injection.md).
+Layout, Domains, and **Environment Configuration** (`.env` load path, committed `.env.example`, Manifest `environment`): [`environments/README.md`](environments/README.md), [ADR-0035](docs/adr/0035-environment-configuration-injection.md); never-commit rule: [ADR-0048](docs/adr/0048-env-star-commit-and-agent-ignore.md).
 
 ## Durables
 

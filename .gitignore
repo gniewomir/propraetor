@@ -1,5 +1,4 @@
-# Provider Credential + Operator Configuration baseline (ADR-0038).
-# Commit `.env.example`; never commit local values.
+# Never commit **/.env* except basename .env.example (ADR-0048).
 **/.env*
 !**/.env.example
 !.env.example
