@@ -4,7 +4,7 @@ The Host Volume must end up mounted at `/var/lib/host-volume` even when DigitalO
 
 **Config-stage oneshot over runcmd wait:** runcmd never runs when vendor final fails; linger already moved to config-stage files for that reason.
 
-**IHP-owned convergence over ensure-components / IHP Done healing:** a second mount policy would blur the carrier contract and hide IHP bugs.
+**IHP-owned convergence over ensure-components / IHP Done healing:** a second mount policy would blur the Substrate / IHP contract and hide IHP bugs.
 
 **udev + tmpfiles enablement over runcmd-only start:** post-create attach is designed; the unit must enter its restart loop without `scripts_user`.
 

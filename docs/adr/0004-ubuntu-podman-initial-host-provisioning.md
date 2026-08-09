@@ -6,4 +6,4 @@ Public Hosts pin Ubuntu 26.04 LTS. The container engine is Podman from Ubuntu’
 
 **Podman over Docker:** daemonless (no privileged daemon as a standing attack surface), rootless-capable for unprivileged users, and Quadlets use systemd instead of a Docker-specific stack — skills stay transferable.
 
-**Initial Host Provisioning over Ansible (etc.):** the Host is a carrier for pods/containers and stays oblivious to workloads; first-boot setup stays minimal and does not justify a config-management tool.
+**Initial Host Provisioning over Ansible (etc.):** IHP produces **Substrate** (engine, later Platform User / ports / Host Volume mount) and stays oblivious to Workloads; first-boot setup stays minimal and does not justify a config-management tool.

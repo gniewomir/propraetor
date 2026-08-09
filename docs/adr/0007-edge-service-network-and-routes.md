@@ -12,4 +12,4 @@ Public Hosts get a mandatory **Edge** (Propraetor Component — HTTP/HTTPS front
 
 **Workload-owned Routes over a monolithic Edge config or dynamic discovery:** each Workload’s Route is an operator-authored Declaration under the Workload tree (ADR-0022 / ADR-0040); Edge Component Setup gathers and fulfills into Domain fronts. Alpine-family nginx image; Host bind mounts for Routes and certs (and ACME webroot — ADR-0015).
 
-**Unchanged from ADR-0004 / ADR-0006:** user Quadlets / rootless only; no Quadlet install in Initial Host Provisioning; Host stays a carrier. Platform User + linger are Initial Host Provisioning (ADR-0008).
+**Unchanged from ADR-0004 / ADR-0006:** user Quadlets / rootless only; no Quadlet install in Initial Host Provisioning; IHP produces **Substrate**, not Workloads. Platform User + linger are Initial Host Provisioning (ADR-0008).

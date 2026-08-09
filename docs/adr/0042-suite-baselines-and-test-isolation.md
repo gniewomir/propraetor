@@ -10,4 +10,4 @@ Shared Host / Host Volume for Acceptance and Lifecycle has no DB-style transacti
 
 **Rejected:** Full case-owned Host rollback (B) or assert-only (G) as the primary Acceptance isolation story; Host Volume snapshot/restore; namespaced fixtures as isolation; fresh Host per Acceptance case; declared-mutation hybrid restore; Lifecycle on non-**test**; Deployed canary-G in v1; a runtime classifier of which Intent flips “imply undeclared Host data loss”; diagnose escape hatch for a dirty Environment tree.
 
-Amends ADR-0005 (fixture-once → Deploy before each Acceptance case); ADR-0036 (Lifecycle `--env` other than test no longer valid). Glossary: Acceptance / Lifecycle / Unit Test. Issue #159.
+Amends ADR-0005 (fixture-once → Deploy before each Acceptance case); ADR-0019 (Lifecycle hard-bound to **test**, not the general default-safe `--env` rule); ADR-0036 (Lifecycle `--env` other than test no longer valid). Glossary: Acceptance / Lifecycle / Unit Test. Issue #159.

@@ -4,4 +4,4 @@ The **Platform User** (`platform`) and linger are created in Initial Host Provis
 
 **Initial Host Provisioning over post-apply ensure:** the account is mandatory Host shape for Edge (not optional deploy garnish); baking it into first boot removes a manual/harness step and matches “Edge is part of Propraetor.” Cost: user_data changes recreate the Host. Post-apply ensure-user scripts (and runner invocation) are removed.
 
-**Unchanged from ADR-0004 / ADR-0006:** still no Quadlet units in Initial Host Provisioning; the Host stays a carrier for workloads installed later as user Quadlets.
+**Unchanged from ADR-0004 / ADR-0006:** still no Quadlet units in Initial Host Provisioning; IHP produces **Substrate** — Workloads are installed later as user Quadlets.
