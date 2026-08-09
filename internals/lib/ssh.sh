@@ -162,6 +162,25 @@ host_ssh() {
   ssh "${_HOST_SESSION_OPTS[@]}" "root@${_HOST_SESSION_IP}" "$@"
 }
 
+# Run ssh with extra OpenSSH *client* options before the destination (e.g. -L).
+# Tokens before `--` are client opts; tokens after are the remote command (optional).
+# Usage: host_ssh_client_opts -o ExitOnForwardFailure=yes -N -L 15432:10.0.0.5:5432
+#        host_ssh_client_opts -L 15432:10.0.0.5:5432 -- true
+host_ssh_client_opts() {
+  local -a client_opts=()
+  _host_session_build_opts || return 1
+  while [[ $# -gt 0 ]]; do
+    if [[ "$1" == -- ]]; then
+      shift
+      break
+    fi
+    client_opts+=("$1")
+    shift
+  done
+  ssh "${_HOST_SESSION_OPTS[@]}" ${client_opts[@]+"${client_opts[@]}"} \
+    "root@${_HOST_SESSION_IP}" "$@"
+}
+
 # scp local_path to root@IP:remote_path using the ambient Host-session.
 host_scp() {
   local local_path="${1:?host_scp requires local_path}"

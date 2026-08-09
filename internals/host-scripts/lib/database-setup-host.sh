@@ -118,6 +118,9 @@ database_setup() {
     quadlet_user systemctl --user status database-pod.service database-postgres.service --no-pager >&2 || true
     return 1
   }
+
+  # Align live admin SCRAM with staged Environment credentials (initdb is create-once).
+  database_sync_admin_password "${ADMIN_ENV}" || return 1
 }
 
 # Standing ensure + Declaration fulfill/publish before Workload apps start.

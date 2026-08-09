@@ -49,3 +49,58 @@ database_admin_user_from_env() {
   fi
   printf '%s\n' "${user}"
 }
+
+# Keep live SCRAM password aligned with staged admin EnvironmentFile.
+# Official image applies POSTGRES_PASSWORD only at first initdb; Setup re-syncs
+# so operator database.sh / Environment credentials stay authoritative (#192).
+# Uses local trust inside the container (pg_hba local). Does not print secrets.
+database_sync_admin_password() {
+  local env_file="${1:?database_sync_admin_password: EnvironmentFile required}"
+  local sql
+
+  [[ -f "${env_file}" ]] || {
+    echo "database_sync_admin_password: missing ${env_file}" >&2
+    return 1
+  }
+
+  sql="$(
+    python3 - "${env_file}" <<'PY'
+import sys
+
+path = sys.argv[1]
+vals = {}
+with open(path, encoding="utf-8") as f:
+    for raw in f:
+        line = raw.rstrip("\n")
+        if not line or "=" not in line or line.lstrip().startswith("#"):
+            continue
+        key, _, val = line.partition("=")
+        vals[key] = val
+user = vals.get("POSTGRES_USER", "")
+password = vals.get("POSTGRES_PASSWORD", "")
+if not user or not password:
+    raise SystemExit("Database admin EnvironmentFile missing POSTGRES_USER/PASSWORD")
+if any(ch in user for ch in " \t\r\n/\"'\\"):
+    raise SystemExit("Database admin user is not a simple role name")
+
+def lit(s: str) -> str:
+    return "'" + s.replace("'", "''") + "'"
+
+# Identifiers: simple role names only (validated above).
+print(user)
+print(f"ALTER ROLE {user} WITH PASSWORD {lit(password)};")
+PY
+  )" || return 1
+
+  local admin_user
+  admin_user="$(printf '%s\n' "${sql}" | head -n1)"
+  sql="$(printf '%s\n' "${sql}" | tail -n +2)"
+
+  quadlet_user env "HOME=${HOME_DIR}" bash -c \
+    "cd \"\$HOME\" && podman exec -i database-postgres \
+      psql -v ON_ERROR_STOP=1 -U $(printf '%q' "${admin_user}") -d postgres -f -" \
+    <<<"${sql}" >/dev/null || {
+    echo "Database: failed to sync admin SCRAM password from staged credentials" >&2
+    return 1
+  }
+}
