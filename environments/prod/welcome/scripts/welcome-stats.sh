@@ -1,11 +1,15 @@
 #!/usr/bin/env bash
-# Sample Host CPU / memory / disk usage into Workload durable JSON for welcome.
+# Sample Host CPU / memory / disk / Host Volume usage into Workload durable JSON.
 # Invoked by welcome-stats.service (Platform User systemd --user).
 # Paths overridable for Unit Tests (read at call time).
 set -euo pipefail
 
 welcome_stats_proc_root() {
   printf '%s\n' "${WELCOME_STATS_PROC:-/proc}"
+}
+
+welcome_stats_disk_path() {
+  printf '%s\n' "${WELCOME_STATS_DISK_PATH:-/}"
 }
 
 welcome_stats_host_volume() {
@@ -77,9 +81,10 @@ welcome_stats_mem_percent() {
   printf '%s\n' "${used}"
 }
 
-welcome_stats_disk_percent() {
-  local pct
-  pct="$(df -P "$(welcome_stats_host_volume)" 2>/dev/null | awk 'NR == 2 { gsub(/%/, "", $5); print $5; exit }')"
+# Percent used for the filesystem that contains PATH (df -P).
+welcome_stats_fs_percent() {
+  local path="$1" pct
+  pct="$(df -P "${path}" 2>/dev/null | awk 'NR == 2 { gsub(/%/, "", $5); print $5; exit }')"
   if [[ -z "${pct}" || ! "${pct}" =~ ^[0-9]+$ ]]; then
     printf '%s\n' 0
     return 0
@@ -90,23 +95,34 @@ welcome_stats_disk_percent() {
   printf '%s\n' "${pct}"
 }
 
+welcome_stats_disk_percent() {
+  welcome_stats_fs_percent "$(welcome_stats_disk_path)"
+}
+
+welcome_stats_host_volume_percent() {
+  welcome_stats_fs_percent "$(welcome_stats_host_volume)"
+}
+
 welcome_stats_write_json() {
-  local cpu_percent="$1" mem_percent="$2" disk_percent="$3" ts tmp out
+  local cpu_percent="$1" mem_percent="$2" disk_percent="$3" host_volume_percent="$4"
+  local ts tmp out
   out="$(welcome_stats_out_file)"
   ts="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
   mkdir -p "$(dirname "${out}")"
   tmp="${out}.tmp.$$"
-  printf '{"ts":"%s","cpu_percent":%s,"mem_percent":%s,"disk_percent":%s}\n' \
-    "${ts}" "${cpu_percent}" "${mem_percent}" "${disk_percent}" >"${tmp}"
+  printf '{"ts":"%s","cpu_percent":%s,"mem_percent":%s,"disk_percent":%s,"host_volume_percent":%s}\n' \
+    "${ts}" "${cpu_percent}" "${mem_percent}" "${disk_percent}" "${host_volume_percent}" >"${tmp}"
   mv -f "${tmp}" "${out}"
 }
 
 welcome_stats_main() {
-  local cpu_percent mem_percent disk_percent
+  local cpu_percent mem_percent disk_percent host_volume_percent
   cpu_percent="$(welcome_stats_cpu_percent)"
   mem_percent="$(welcome_stats_mem_percent)"
   disk_percent="$(welcome_stats_disk_percent)"
-  welcome_stats_write_json "${cpu_percent}" "${mem_percent}" "${disk_percent}"
+  host_volume_percent="$(welcome_stats_host_volume_percent)"
+  welcome_stats_write_json \
+    "${cpu_percent}" "${mem_percent}" "${disk_percent}" "${host_volume_percent}"
 }
 
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then

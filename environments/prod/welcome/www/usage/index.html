@@ -60,6 +60,9 @@
       .rise-delay-4 {
         animation-delay: 0.4s;
       }
+      .rise-delay-5 {
+        animation-delay: 0.5s;
+      }
       .bar-fill {
         transform-origin: left center;
         transition: width 0.6s ease-out;
@@ -111,6 +114,18 @@
             <div id="disk-bar" class="bar-fill h-full w-0 rounded-full bg-pine"></div>
           </div>
         </div>
+
+        <div class="rise rise-delay-5">
+          <div class="flex items-baseline justify-between gap-4">
+            <dt class="font-sans text-sm font-medium uppercase tracking-wide text-ink/60">
+              Host Volume
+            </dt>
+            <dd id="hv-value" class="font-display text-3xl font-semibold tabular-nums text-ink">—</dd>
+          </div>
+          <div class="mt-3 h-2 overflow-hidden rounded-full bg-ink/10" aria-hidden="true">
+            <div id="hv-bar" class="bar-fill h-full w-0 rounded-full bg-pine"></div>
+          </div>
+        </div>
       </dl>
     </main>
     <script>
@@ -139,6 +154,7 @@
           setMetric('cpu', data.cpu_percent);
           setMetric('mem', data.mem_percent);
           setMetric('disk', data.disk_percent);
+          setMetric('hv', data.host_volume_percent);
 
           var ts = Date.parse(data.ts);
           if (!isFinite(ts)) {
