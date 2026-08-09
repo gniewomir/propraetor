@@ -4,7 +4,8 @@
 # Invoked via ./test.sh acceptance […] (ADR-0036).
 # Suite baseline (ADR-0042 / #162 / #176): Deploy via ensure.sh before each case; non-test
 # requires exact 'diagnose <slug>' once at suite start (test/default skips); fixture-class
-# cases skipped (full suite) or refused (selector); Environment tree must match HEAD.
+# cases skipped (full suite) or refused (selector); Environment tree must match HEAD
+# on non-test; per-case Environment tree identity gate (minus .ssh/) on all envs.
 # Requires: Provider Credential; Operator Configuration private path (and public when Apply runs).
 set -euo pipefail
 
@@ -111,8 +112,11 @@ fi
 for case_path in "${CASES[@]}"; do
   label="$(basename "${case_path}")"
   # Deploy ladder to Deployed inside the buffered slot (ADR-0041 / #158 / #162 / #169).
+  # After baseline: snapshot Environment tree; after case: assert identical (minus .ssh/).
   run_buffered_case "${label}" "${case_path}" acceptance_baseline_deployed \
     "Baseline: Deploy → Deployed before ${label}" \
+    acceptance_env_tree_gate_after_baseline \
+    acceptance_env_tree_gate_after_case \
     || fail "Acceptance Test failed: ${label}"
 done
 

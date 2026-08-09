@@ -90,3 +90,71 @@ acceptance_baseline_deployed() {
   acceptance_require_env_tree_at_head || return 1
   "${root}/internals/ensure.sh" --env "${env_slug}"
 }
+
+# Copy environments/<slug>/ into DEST, excluding .ssh/ (Host-session TOFU).
+_acceptance_env_tree_copy_excluding_ssh() {
+  local src="${1:?_acceptance_env_tree_copy_excluding_ssh: src required}"
+  local dest="${2:?_acceptance_env_tree_copy_excluding_ssh: dest required}"
+  mkdir -p "${dest}"
+  if [[ -d "${src}" ]]; then
+    # Portable copy excluding .ssh/ (macOS + GNU tar both honor --exclude).
+    (cd "${src}" && tar cf - --exclude='./.ssh' .) | (cd "${dest}" && tar xf -) || return 1
+  fi
+}
+
+# Snapshot environments/<slug>/ for post-case identity assert. Excludes .ssh/
+# (Host-session TOFU). Prints snapshot directory path on stdout.
+acceptance_env_tree_snapshot() {
+  local root="${REPO_ROOT:?acceptance_env_tree_snapshot: REPO_ROOT required}"
+  local env_slug="${PLATFORM_ENV:?acceptance_env_tree_snapshot: PLATFORM_ENV required}"
+  local src="${root}/environments/${env_slug}"
+  local dest
+
+  dest="$(umask 077; mktemp -d "${TMPDIR:-/tmp}/platform-acceptance-env-tree.XXXXXX")" || return 1
+  if ! _acceptance_env_tree_copy_excluding_ssh "${src}" "${dest}"; then
+    rm -rf "${dest}"
+    echo "FAIL: cannot snapshot Environment '${env_slug}' tree" >&2
+    return 1
+  fi
+  printf '%s\n' "${dest}"
+}
+
+# Fail closed unless current environments/<slug>/ (minus .ssh/) matches SNAPSHOT_DIR.
+# Removes SNAPSHOT_DIR (and a temp current copy) before returning.
+acceptance_env_tree_assert_matches() {
+  local snap="${1:?acceptance_env_tree_assert_matches: snapshot dir required}"
+  local root="${REPO_ROOT:?acceptance_env_tree_assert_matches: REPO_ROOT required}"
+  local env_slug="${PLATFORM_ENV:?acceptance_env_tree_assert_matches: PLATFORM_ENV required}"
+  local src="${root}/environments/${env_slug}"
+  local cur rc=0
+
+  cur="$(umask 077; mktemp -d "${TMPDIR:-/tmp}/platform-acceptance-env-tree-cur.XXXXXX")" || {
+    rm -rf "${snap}"
+    return 1
+  }
+  if ! _acceptance_env_tree_copy_excluding_ssh "${src}" "${cur}"; then
+    echo "FAIL: cannot read Environment '${env_slug}' tree for identity assert" >&2
+    rm -rf "${snap}" "${cur}"
+    return 1
+  fi
+
+  if ! diff -ru "${snap}" "${cur}" >"${cur}.diff" 2>&1; then
+    echo "FAIL: Environment '${env_slug}' tree changed during Acceptance case (identity gate):" >&2
+    cat "${cur}.diff" >&2 || true
+    rc=1
+  fi
+  rm -rf "${snap}" "${cur}" "${cur}.diff"
+  return "${rc}"
+}
+
+# After-baseline hook for run_buffered_case: snapshot Environment tree → stdout path.
+acceptance_env_tree_gate_after_baseline() {
+  acceptance_env_tree_snapshot
+}
+
+# After-case hook: assert tree matches snapshot (arg1). case_rc (arg2) unused —
+# identity gate fails the slot independently of case outcome.
+acceptance_env_tree_gate_after_case() {
+  local snap="${1:?acceptance_env_tree_gate_after_case: snapshot required}"
+  acceptance_env_tree_assert_matches "${snap}"
+}

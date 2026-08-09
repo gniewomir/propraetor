@@ -18,27 +18,30 @@
 _ENVCFG_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=environment-configuration-declaration.sh
 source "${_ENVCFG_LIB_DIR}/environment-configuration-declaration.sh"
+# shellcheck source=environment-dotenv.sh
+source "${_ENVCFG_LIB_DIR}/environment-dotenv.sh"
 # shellcheck source=../../host-scripts/lib/workload-environment-host.sh
 source "${_ENVCFG_LIB_DIR}/../../host-scripts/lib/workload-environment-host.sh"
 
-# Resolve Manifest environment keys from ENV_DIR/.env (strict dotenv) with shell
-# overrides into OUTFILE. Omit/[] → remove OUTFILE, WL_ENV_ACTIVE=0.
+# Resolve Manifest environment keys from Environment dotenv bag
+# (.env ← .env.override) with shell overrides into OUTFILE.
+# Omit/[] → remove OUTFILE, WL_ENV_ACTIVE=0.
 # Prints WL_ENV_ACTIVE=0|1 on stdout for the caller to eval.
 environment_configuration_resolve() {
   local manifest="${1:?manifest required}"
   local env_dir="${2:?env dir required}"
   local outfile="${3:?outfile required}"
-  local dotenv="${env_dir}/.env"
-  local keys_file
+  local keys_file bag_file
   keys_file="$(mktemp "${TMPDIR:-/tmp}/envcfg-keys.XXXXXX")"
+  bag_file="$(mktemp "${TMPDIR:-/tmp}/envcfg-bag.XXXXXX")"
 
   if ! environment_configuration_keys "${manifest}" >"${keys_file}"; then
-    rm -f "${keys_file}"
+    rm -f "${keys_file}" "${bag_file}"
     return 1
   fi
 
   if [[ ! -s "${keys_file}" ]]; then
-    rm -f "${keys_file}"
+    rm -f "${keys_file}" "${bag_file}"
     if [[ -e "${outfile}" ]]; then
       rm -f "${outfile}"
     fi
@@ -46,50 +49,28 @@ environment_configuration_resolve() {
     return 0
   fi
 
-  if ! python3 - "${dotenv}" "${outfile}" "${keys_file}" <<'PY'
-import os, re, sys
+  if ! environment_dotenv_bag "${env_dir}" >"${bag_file}"; then
+    rm -f "${keys_file}" "${bag_file}"
+    return 1
+  fi
 
-dotenv_path, outfile, keys_path = sys.argv[1], sys.argv[2], sys.argv[3]
+  if ! python3 - "${bag_file}" "${outfile}" "${keys_file}" <<'PY'
+import os
+import sys
+
+bag_path, outfile, keys_path = sys.argv[1], sys.argv[2], sys.argv[3]
 
 with open(keys_path, encoding="utf-8") as f:
     keys = [line.rstrip("\n") for line in f if line.rstrip("\n") != ""]
 
-KEY_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 file_vals = {}
-if os.path.isfile(dotenv_path):
-    with open(dotenv_path, encoding="utf-8") as f:
-        for lineno, raw in enumerate(f, 1):
-            line = raw.rstrip("\n")
-            if line.strip() == "" or line.lstrip().startswith("#"):
-                continue
-            if line.startswith("export ") or line.startswith("export\t"):
-                raise SystemExit(
-                    f"invalid dotenv at {dotenv_path}:{lineno}: export is not allowed"
-                )
-            if "=" not in line:
-                raise SystemExit(
-                    f"invalid dotenv at {dotenv_path}:{lineno}: expected KEY=value"
-                )
-            key, _, val = line.partition("=")
-            if not KEY_RE.match(key):
-                raise SystemExit(
-                    f"invalid dotenv at {dotenv_path}:{lineno}: bad key name"
-                )
-            if "\n" in val or "\r" in val:
-                raise SystemExit(
-                    f"invalid dotenv at {dotenv_path}:{lineno}: multiline values are not allowed"
-                )
-            if val.startswith("'") and val.endswith("'") and len(val) >= 2:
-                raise SystemExit(
-                    f"invalid dotenv at {dotenv_path}:{lineno}: single-quoted values are not allowed"
-                )
-            if val.startswith('"') and val.endswith('"') and len(val) >= 2:
-                val = val[1:-1]
-            if "${" in val:
-                raise SystemExit(
-                    f"invalid dotenv at {dotenv_path}:{lineno}: interpolation is not allowed"
-                )
-            file_vals[key] = val
+with open(bag_path, encoding="utf-8") as f:
+    for raw in f:
+        line = raw.rstrip("\n")
+        if not line or "=" not in line:
+            continue
+        key, _, val = line.partition("=")
+        file_vals[key] = val
 
 resolved = {}
 missing = []
@@ -114,10 +95,10 @@ with open(outfile, "w", encoding="utf-8") as out:
 print("WL_ENV_ACTIVE=1")
 PY
   then
-    rm -f "${keys_file}"
+    rm -f "${keys_file}" "${bag_file}"
     return 1
   fi
-  rm -f "${keys_file}"
+  rm -f "${keys_file}" "${bag_file}"
   return 0
 }
 

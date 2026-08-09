@@ -74,6 +74,21 @@ grep -Fxq 'POSTGRES_USER=fromshell' "${OUT}" || fail "shell ROOT_DB_USER should 
 grep -Fxq 'POSTGRES_PASSWORD=shellpass' "${OUT}" || fail "shell ROOT_DB_PASSWORD should win"
 pass "shell overrides dotenv for Database admin credentials"
 
+# --- .env.override overlays .env; shell still wins ---
+printf 'ROOT_DB_USER=fromfile\nROOT_DB_PASSWORD=filepass\n' >"${ENV_DIR}/.env"
+printf 'ROOT_DB_USER=fromov\nROOT_DB_PASSWORD=ovpass\n' >"${ENV_DIR}/.env.override"
+unset ROOT_DB_USER ROOT_DB_PASSWORD || true
+database_admin_credentials_dotenv_for "${ENV_DIR}" "${OUT}" \
+  || fail "override bag should resolve"
+grep -Fxq 'POSTGRES_USER=fromov' "${OUT}" || fail "override ROOT_DB_USER should win over .env"
+grep -Fxq 'POSTGRES_PASSWORD=ovpass' "${OUT}" || fail "override ROOT_DB_PASSWORD should win over .env"
+ROOT_DB_USER=fromshell ROOT_DB_PASSWORD=shellpass \
+  database_admin_credentials_dotenv_for "${ENV_DIR}" "${OUT}" \
+  || fail "shell over override should resolve"
+grep -Fxq 'POSTGRES_USER=fromshell' "${OUT}" || fail "shell must beat .env.override"
+rm -f "${ENV_DIR}/.env.override"
+pass ".env.override overlays .env; shell still wins"
+
 # --- invalid dotenv grammar fails closed ---
 printf 'export ROOT_DB_USER=nope\nROOT_DB_PASSWORD=x\n' >"${ENV_DIR}/.env"
 unset ROOT_DB_USER ROOT_DB_PASSWORD || true

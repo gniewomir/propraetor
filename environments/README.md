@@ -6,7 +6,8 @@ Committed, Environment-scoped intent ([ADR-0033](../docs/adr/0033-environment-fi
 environments/<cloud-slug>/domains.json
 environments/<cloud-slug>/domains.override.json   # internal; gitignored (ADR-0021)
 environments/<cloud-slug>/acme.json               # Edge ACME directory only (ADR-0045)
-environments/<cloud-slug>/.env                    # Environment Configuration; load path (ADR-0035); never commit **/.env* (ADR-0048)
+environments/<cloud-slug>/.env                    # Environment Configuration + Database admin creds; load path (ADR-0035); never commit **/.env* (ADR-0048)
+environments/<cloud-slug>/.env.override           # optional overlay (wins on collision); same ignore rules
 environments/<cloud-slug>/.env.example            # committed key-name teaching; Setup never reads it
 environments/<cloud-slug>/.ssh/known_hosts        # Host-session TOFU; gitignored — Park forgets IP; Teardown resets (ADR-0046)
 environments/<cloud-slug>/<workload-name>/          # directory = Workload (ADR-0033)
@@ -31,13 +32,14 @@ Non-committed key/value pairs for Workload containers ([ADR-0035](../docs/adr/00
 
 | Artifact | Role |
 |----------|------|
-| `.env` | Local bag for this Environment. Optional — if absent, listed keys must come from the shell. Never commit any `**/.env*` except basename `.env.example` ([ADR-0048](../docs/adr/0048-env-star-commit-and-agent-ignore.md)). |
+| `.env` | Local bag for this Environment. Optional — if absent, listed keys must come from the shell or `.env.override`. Never commit any `**/.env*` except basename `.env.example` ([ADR-0048](../docs/adr/0048-env-star-commit-and-agent-ignore.md)). |
+| `.env.override` | Optional overlay on `.env` (wins on key collision). Same strict dotenv subset and ignore rules. Acceptance fixtures write here — not `.env`. |
 | `.env.example` | Committed teaching of expected key names. **Workload Setup never reads it.** |
 | Manifest `environment` | Optional JSON array of key names on a Workload Manifest. Omit or `[]` ⇒ that Workload consumes none. Values never live in the Manifest. |
 
-**Resolution (Workload Setup):** baseline from `.env` when present; current shell overrides any key; surplus bag keys not listed on that Workload are ignored; missing listed keys fail closed.
+**Resolution (Workload Setup / Database admin staging):** baseline from `.env` when present; `.env.override` overlays on collision; current shell overrides any key; surplus bag keys not listed on that Workload are ignored; missing listed keys fail closed.
 
-**`.env` dialect:** strict dotenv subset — `KEY=value`, `#` comments and blanks, optional double quotes. No `export`, interpolation, or multiline.
+**`.env` dialect:** strict dotenv subset — `KEY=value`, `#` comments and blanks, optional double quotes. No `export`, interpolation, or multiline. Same dialect for `.env.override`.
 
 **Key names:** operator-owned for the Workload bag. Prefer not to use `PLATFORM_*`, Credential names (today `DIGITALOCEAN_TOKEN`), or Database admin credentials (`ROOT_DB_USER`, `ROOT_DB_PASSWORD`) in Manifest `environment` lists. Workload Setup does not reserve or reject other names; listing `ROOT_DB_*` on a Manifest fails closed.
 

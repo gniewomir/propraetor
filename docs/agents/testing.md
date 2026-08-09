@@ -26,11 +26,11 @@ By default, suite runners buffer each **case slot** (stdout+stderr): they print 
 
 | Suite | Directory | What it checks | Suite baseline (ADR-0042) |
 |-------|-----------|----------------|---------------------------|
-| `acceptance` | `internals/test/acceptance/` | Deployed Host external behavior; must not Park/Teardown | **Deployed** — runner **Deploy** before each case |
+| `acceptance` | `internals/test/acceptance/` | Deployed Host external behavior; must not Park/Teardown | **Deployed** — runner **Deploy** before each case; snapshot Environment tree after baseline; assert identical after case (minus `.ssh/`) |
 | `lifecycle` | `internals/test/lifecycle/` | Park / Apply-after-Park / Teardown; opt-in; **test** only | Stack **absent** — runner **Teardown** before each case |
 | `unit` | `internals/test/unit/` | Library/helper behavior; no Applied Stack; no lasting side effects outside test temp workspace | None |
 
-Peer-pollution cleanup is banned. Full policy: ADR-0042 / issue #159.
+Peer-pollution cleanup is banned. Full policy: ADR-0042 / issue #159. Acceptance Environment Configuration fixtures use `.env.override` only (never live `.env`).
 
 ### Acceptance / Lifecycle cases
 

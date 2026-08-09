@@ -17,9 +17,8 @@ WL_STOP=envstop
 WL_TRASH=envtrash
 WL_KEEP=envkeep
 acceptance_wl_track "${WL_STOP}" "${WL_TRASH}" "${WL_KEEP}"
-ENV_FILE="${FIX_DIR}/.env"
-acceptance_env_dotenv_stash
-trap 'acceptance_env_dotenv_unstash; unset ENVPURGE_TOKEN || true; acceptance_wl_cleanup' EXIT
+ENV_FILE="${FIX_DIR}/.env.override"
+trap 'rm -f "${ENV_FILE}"; unset ENVPURGE_TOKEN || true; acceptance_wl_cleanup' EXIT
 
 SECRET='envpurge-secret-value'
 

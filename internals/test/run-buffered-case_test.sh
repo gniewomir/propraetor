@@ -125,3 +125,42 @@ echo "${out}" | grep -Fq -- 'baseline-noise-should-be-hidden' \
 echo "${out}" | grep -Fq -- 'pass-noise-should-be-hidden' \
   || fail "verbose slot should stream case output: ${out}"
 pass "TEST_VERBOSE=1 streams baseline marker and case"
+
+# Optional after_baseline / after_case hooks (Acceptance Environment tree gate).
+MID_RECORD="${TMP}/mid.record"
+GATE_RECORD="${TMP}/gate.record"
+stub_after_baseline() {
+  echo "snap-token" | tee -a "${MID_RECORD}"
+}
+stub_after_case_ok() {
+  local mid="$1"
+  local case_rc="$2"
+  printf 'mid=%s rc=%s\n' "${mid}" "${case_rc}" >>"${GATE_RECORD}"
+  [[ "${mid}" == "snap-token" ]] || return 1
+  return 0
+}
+stub_after_case_fail() {
+  echo "gate-boom"
+  return 1
+}
+
+: >"${MID_RECORD}"
+: >"${GATE_RECORD}"
+out="$(TEST_VERBOSE=0 run_buffered_case "slot-gate-pass" "${PASS_CASE}" stub_baseline_ok \
+  "Baseline: gate pass" stub_after_baseline stub_after_case_ok 2>&1)" \
+  || fail "gate pass should return 0"
+grep -Fxq 'snap-token' "${MID_RECORD}" || fail "after_baseline must run"
+grep -Fq 'mid=snap-token rc=0' "${GATE_RECORD}" || fail "after_case must see mid+rc"
+echo "${out}" | grep -Fq -- 'gate-boom' && fail "quiet pass leaked gate noise: ${out}"
+pass "after_baseline and after_case run on pass"
+
+set +e
+out="$(TEST_VERBOSE=0 run_buffered_case "slot-gate-fail" "${PASS_CASE}" stub_baseline_ok \
+  "Baseline: gate fail" stub_after_baseline stub_after_case_fail 2>&1)"
+rc=$?
+set -e
+[[ ${rc} -ne 0 ]] || fail "after_case failure must fail the slot"
+echo "${out}" | grep -Fq -- 'gate-boom' || fail "after_case failure must dump log: ${out}"
+pass "after_case failure fails slot and dumps log"
+
+echo "All run-buffered-case checks passed."

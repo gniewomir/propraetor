@@ -11,19 +11,28 @@ acceptance_host_session
 ENV_SLUG="${PLATFORM_ENV:-test}"
 ENV_DIR="${REPO_ROOT}/environments/${ENV_SLUG}"
 ENV_FILE="${ENV_DIR}/.env"
+ENV_OVERRIDE="${ENV_DIR}/.env.override"
 BACKUP=""
+BACKUP_OVERRIDE=""
 
 restore_env() {
   if [[ -n "${BACKUP}" && -f "${BACKUP}" ]]; then
     mv "${BACKUP}" "${ENV_FILE}"
   fi
+  if [[ -n "${BACKUP_OVERRIDE}" && -f "${BACKUP_OVERRIDE}" ]]; then
+    mv "${BACKUP_OVERRIDE}" "${ENV_OVERRIDE}"
+  fi
 }
 trap restore_env EXIT
 
-# Hide Environment dotenv so resolve cannot see ROOT_DB_* (do not print secrets).
+# Hide Environment dotenv bag so resolve cannot see ROOT_DB_* (do not print secrets).
 if [[ -f "${ENV_FILE}" ]]; then
   BACKUP="$(mktemp "${TMPDIR:-/tmp}/platform-root-db-env.XXXXXX")"
   mv "${ENV_FILE}" "${BACKUP}"
+fi
+if [[ -f "${ENV_OVERRIDE}" ]]; then
+  BACKUP_OVERRIDE="$(mktemp "${TMPDIR:-/tmp}/platform-root-db-override.XXXXXX")"
+  mv "${ENV_OVERRIDE}" "${BACKUP_OVERRIDE}"
 fi
 
 err="$(mktemp "${TMPDIR:-/tmp}/platform-root-db-missing.XXXXXX")"
@@ -41,4 +50,5 @@ pass "missing Database admin credentials fail ensure-components closed"
 # Restore before suite baseline Deploy on the next case.
 restore_env
 BACKUP=""
+BACKUP_OVERRIDE=""
 trap - EXIT

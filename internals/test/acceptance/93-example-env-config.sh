@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Acceptance Test: environments/example env-config teaching Workload (#124 / ADR-0035 / #133).
-# Materializes the committed example into the active Environment with a local .env,
-# Setups it, and asserts listed keys appear in the container process environment.
+# Materializes the committed example into the active Environment with a local
+# .env.override, Setups it, and asserts listed keys appear in the container
+# process environment.
 set -euo pipefail
 # shellcheck source=lib.sh
 source "$(cd "$(dirname "$0")" && pwd)/lib.sh"
@@ -18,11 +19,10 @@ EXAMPLE_DOTENV="${REPO_ROOT}/environments/example/.env.example"
 FIX_DIR="$(acceptance_env_dir)"
 mkdir -p "${FIX_DIR}"
 acceptance_wl_track "${WL}"
-ENV_FILE="${FIX_DIR}/.env"
+ENV_FILE="${FIX_DIR}/.env.override"
 GREETING='env-config-greeting-acceptance'
 MODE='env-config-mode-acceptance'
-acceptance_env_dotenv_stash
-trap 'acceptance_env_dotenv_unstash; acceptance_wl_cleanup' EXIT
+trap 'rm -f "${ENV_FILE}"; acceptance_wl_cleanup' EXIT
 
 [[ -d "${EXAMPLE_SRC}" ]] || fail "missing teaching example at environments/example/${WL}"
 [[ -f "${EXAMPLE_SRC}/manifest.json" ]] || fail "example missing manifest.json"

@@ -126,6 +126,19 @@ grep -Fx 'B=file-b' "${OUT}" >/dev/null || fail "B should remain from file"
 pass "shell overrides .env"
 
 unset A B || true
+printf 'A=from-file\nB=file-b\n' >"${ENV_DIR}/.env"
+printf 'A=from-override\n' >"${ENV_DIR}/.env.override"
+eval "$(environment_configuration_resolve "${MANIFEST}" "${ENV_DIR}" "${OUT}")"
+grep -Fx 'A=from-override' "${OUT}" >/dev/null || fail "override should win over .env"
+grep -Fx 'B=file-b' "${OUT}" >/dev/null || fail "B from .env should remain"
+export A=from-shell
+eval "$(environment_configuration_resolve "${MANIFEST}" "${ENV_DIR}" "${OUT}")"
+grep -Fx 'A=from-shell' "${OUT}" >/dev/null || fail "shell should beat .env.override"
+unset A || true
+rm -f "${ENV_DIR}/.env.override"
+pass ".env.override overlays .env; shell still wins"
+
+unset A B || true
 printf 'A=only\n' >"${ENV_DIR}/.env"
 if environment_configuration_resolve "${MANIFEST}" "${ENV_DIR}" "${OUT}" >/dev/null 2>&1; then
   fail "missing B should fail closed"

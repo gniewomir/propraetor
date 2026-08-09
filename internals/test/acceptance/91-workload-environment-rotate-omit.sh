@@ -14,9 +14,8 @@ FIX_DIR="$(acceptance_env_dir)"
 mkdir -p "${FIX_DIR}"
 WL=envrot
 acceptance_wl_track "${WL}"
-ENV_FILE="${FIX_DIR}/.env"
-acceptance_env_dotenv_stash
-trap 'acceptance_env_dotenv_unstash; unset ENVROT_TOKEN ENVROT_MODE ENVROT_SURPLUS || true; acceptance_wl_cleanup' EXIT
+ENV_FILE="${FIX_DIR}/.env.override"
+trap 'rm -f "${ENV_FILE}"; unset ENVROT_TOKEN ENVROT_MODE ENVROT_SURPLUS || true; acceptance_wl_cleanup' EXIT
 
 SECRET1='envrot-secret-one'
 SECRET2='envrot-secret-two'
@@ -52,7 +51,7 @@ Restart=on-failure
 WantedBy=default.target
 EOF
 
-# --- shell-only (no .env file) ---
+# --- shell-only (no .env.override file) ---
 rm -f "${ENV_FILE}"
 unset ENVROT_TOKEN ENVROT_MODE ENVROT_SURPLUS || true
 export ENVROT_TOKEN="${SECRET1}"
@@ -66,7 +65,7 @@ acceptance_wait_user_unit_active "${WL}.service" \
 acceptance_assert_container_env "${WL}" ENVROT_TOKEN "${SECRET1}"
 acceptance_assert_container_env "${WL}" ENVROT_MODE shell-only
 acceptance_assert_container_env_absent "${WL}" ENVROT_SURPLUS
-pass "shell-only bag resolves without .env; surplus ignored in container process env"
+pass "shell-only bag resolves without .env.override; surplus ignored in container process env"
 
 # --- rotation with unchanged SoT ---
 export ENVROT_TOKEN="${SECRET2}"

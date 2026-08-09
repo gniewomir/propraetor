@@ -246,36 +246,6 @@ acceptance_env_dir() {
   printf '%s/environments/%s\n' "${REPO_ROOT}" "${PLATFORM_ENV:-test}"
 }
 
-# Stash Environment .env before fixture mutation so Deploy baselines keep
-# Database admin credentials (ADR-0049 ROOT_DB_*). Pair with unstash on EXIT.
-ACCEPTANCE_ENV_DOTENV_BACKUP=""
-ACCEPTANCE_ENV_DOTENV_HAD_FILE=0
-
-acceptance_env_dotenv_stash() {
-  local env_file
-  env_file="$(acceptance_env_dir)/.env"
-  ACCEPTANCE_ENV_DOTENV_BACKUP=""
-  ACCEPTANCE_ENV_DOTENV_HAD_FILE=0
-  if [[ -f "${env_file}" ]]; then
-    ACCEPTANCE_ENV_DOTENV_HAD_FILE=1
-    ACCEPTANCE_ENV_DOTENV_BACKUP="$(mktemp "${TMPDIR:-/tmp}/platform-acceptance-dotenv.XXXXXX")"
-    cp "${env_file}" "${ACCEPTANCE_ENV_DOTENV_BACKUP}"
-  fi
-}
-
-acceptance_env_dotenv_unstash() {
-  local env_file
-  env_file="$(acceptance_env_dir)/.env"
-  if [[ "${ACCEPTANCE_ENV_DOTENV_HAD_FILE}" -eq 1 && -n "${ACCEPTANCE_ENV_DOTENV_BACKUP}" && -f "${ACCEPTANCE_ENV_DOTENV_BACKUP}" ]]; then
-    mv "${ACCEPTANCE_ENV_DOTENV_BACKUP}" "${env_file}"
-  else
-    rm -f "${env_file}"
-    [[ -n "${ACCEPTANCE_ENV_DOTENV_BACKUP}" ]] && rm -f "${ACCEPTANCE_ENV_DOTENV_BACKUP}"
-  fi
-  ACCEPTANCE_ENV_DOTENV_BACKUP=""
-  ACCEPTANCE_ENV_DOTENV_HAD_FILE=0
-}
-
 # Host Volume data/ root. Override ACCEPTANCE_HV_DATA_ROOT for Unit Tests (no live Host).
 acceptance_hv_data_root() {
   printf '%s\n' "${ACCEPTANCE_HV_DATA_ROOT:-/var/lib/host-volume/data}"

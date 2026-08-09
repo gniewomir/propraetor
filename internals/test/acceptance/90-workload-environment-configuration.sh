@@ -16,9 +16,8 @@ WL=envcfg
 WL2=envcfg-multi
 WL_NC=envcfg-nocontainer
 acceptance_wl_track "${WL}" "${WL2}" "${WL_NC}"
-ENV_FILE="${FIX_DIR}/.env"
-acceptance_env_dotenv_stash
-trap 'acceptance_env_dotenv_unstash; acceptance_wl_cleanup' EXIT
+ENV_FILE="${FIX_DIR}/.env.override"
+trap 'rm -f "${ENV_FILE}"; acceptance_wl_cleanup' EXIT
 
 SECRET_BASE='envcfg-secret-base-value'
 SECRET_OVERRIDE='envcfg-secret-override-value'
@@ -156,7 +155,7 @@ if "${REPO_ROOT}/internals/ensure-workload.sh" "${WL}" --env "${ENV_SLUG}" >/dev
 fi
 pass "missing listed key fails closed"
 
-# --- happy path: .env baseline + shell override → container process env ---
+# --- happy path: .env.override baseline + shell override → container process env ---
 cat >"${ENV_FILE}" <<EOF
 ENVCFG_TOKEN=${SECRET_BASE}
 ENVCFG_MODE=baseline
@@ -175,7 +174,7 @@ acceptance_assert_container_env_absent "${WL}" ENVCFG_SURPLUS
 got_token="$(acceptance_container_printenv "${WL}" ENVCFG_TOKEN)"
 [[ "${got_token}" != *"${SECRET_BASE}"* ]] \
   || fail "overridden baseline value must not remain in container process env"
-pass "container process env has listed keys only (.env + shell override)"
+pass "container process env has listed keys only (.env.override + shell override)"
 
 SOT="/var/lib/host-volume/internals/workloads/${WL}"
 sot_grep="$(host_ssh "grep -R -F '${SECRET_OVERRIDE}' ${SOT} 2>/dev/null || true")"
