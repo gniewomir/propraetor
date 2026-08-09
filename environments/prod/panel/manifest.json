@@ -1,4 +1,5 @@
 {
   "intent": "run",
-  "description": "Propraetor panel for gniewomir.pl."
+  "description": "Propraetor panel for gniewomir.pl.",
+  "database": true
 }
