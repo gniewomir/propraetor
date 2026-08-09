@@ -1,12 +1,13 @@
 #!/usr/bin/env bash
-# Mirror — upsert Environment Workload definition trees onto the Host Volume.
-# Discovers Workloads by manifest.json presence; dumb copy (no Manifest validation).
+# Mirror — upsert Environment Workload directories onto the Host Volume.
+# Discovers Workloads as immediate non-hidden Environment dirs (ADR-0033 / ADR-0047);
+# recursive opaque-bag copy (no Manifest validation or shape filter).
 # Leaves Host orphans alone (see purge-orphans). Does not Apply Intent or ship Fabric/Components.
 # Environment: omitted / --env default|test → workspace default; --env <slug> otherwise (ADR-0019).
 # Usage: ./internals/ensure-mirror.sh [--env <slug>]
 # Optional: PLATFORM_USER=platform
 # Requires: Operator Configuration private key path (PROPRAETOR_PRIVATE_KEY_PATH).
-# ADR-0041 / #156.
+# ADR-0047 / ADR-0041 / #156.
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -70,36 +71,7 @@ while IFS= read -r wl_name; do
   src="${ENV_DIR}/${wl_name}"
   dest="${STAGE}/workloads/${wl_name}"
   mkdir -p "${dest}"
-  cp "${src}/manifest.json" "${dest}/manifest.json"
-  if [[ -d "${src}/routes" ]]; then
-    mkdir -p "${dest}/routes"
-    for f in "${src}/routes"/*; do
-      [[ -f "${f}" ]] || continue
-      cp "${f}" "${dest}/routes/$(basename "${f}")"
-    done
-  fi
-  if [[ -d "${src}/quadlets" ]]; then
-    mkdir -p "${dest}/quadlets"
-    for f in "${src}/quadlets"/*; do
-      [[ -f "${f}" ]] || continue
-      cp "${f}" "${dest}/quadlets/$(basename "${f}")"
-    done
-  fi
-  if [[ -d "${src}/systemd" ]]; then
-    mkdir -p "${dest}/systemd"
-    for f in "${src}/systemd"/*; do
-      [[ -f "${f}" ]] || continue
-      cp "${f}" "${dest}/systemd/$(basename "${f}")"
-    done
-  fi
-  if [[ -d "${src}/www" ]]; then
-    mkdir -p "${dest}/www"
-    cp -a "${src}/www/." "${dest}/www/"
-  fi
-  if [[ -d "${src}/scripts" ]]; then
-    mkdir -p "${dest}/scripts"
-    cp -a "${src}/scripts/." "${dest}/scripts/"
-  fi
+  cp -a "${src}/." "${dest}/"
   mirrored=$((mirrored + 1))
 done < <(environment_discover_workloads "${ENV_DIR}")
 

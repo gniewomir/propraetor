@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 # Workload Setup — apply one Workload from the Environment tree on the Host (after Components).
-# Idempotent: identical Host Volume SoT (and Intent run unit files when required) → noop (ADR-0033).
-# Syncs Route Declaration files into Workload SoT only; Edge Component Setup gathers (ADR-0040).
-# Does not wait for ACME issuance. Does not heal crashed pods.
+# Idempotent: identical Host Volume SoT bag (and Intent run unit files when required) → noop (ADR-0033).
+# Recursive opaque-bag SoT sync (same projection as Mirror — ADR-0047); then Intent apply.
+# Edge Component Setup gathers Routes from SoT (ADR-0040). Does not wait for ACME issuance.
 # Environment: omitted / --env default|test → workspace default; --env <slug> otherwise (ADR-0019).
 # Usage: ./internals/ensure-workload.sh <workload-name> [--env <slug>]
 # Resolves to environments/<slug>/<name>/ (fail closed). Identity = directory basename (ADR-0024).
 # Optional: PLATFORM_USER=platform
 # Requires: Operator Configuration private key path (PROPRAETOR_PRIVATE_KEY_PATH).
-# ADR-0041 / #157.
+# ADR-0047 / ADR-0041 / #157.
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -20,6 +20,7 @@ QUADLETS_LIB="${REPO_ROOT}/internals/host-scripts/lib/workload-quadlets-host.sh"
 UNIT_CONSUMERS_LIB="${REPO_ROOT}/internals/host-scripts/lib/unit-consumers-host.sh"
 ENV_HOST_LIB="${REPO_ROOT}/internals/host-scripts/lib/workload-environment-host.sh"
 QUADLET_SESSION_LIB="${REPO_ROOT}/internals/host-scripts/lib/quadlet-user-session.sh"
+SYNC_LIB="${REPO_ROOT}/internals/host-scripts/lib/sync-tree-host.sh"
 # shellcheck source=lib/cli.sh
 source "${REPO_ROOT}/internals/lib/cli.sh"
 # shellcheck source=lib/environment/environment.sh
@@ -89,6 +90,10 @@ MANIFEST_ABS="${MANIFEST_DIR}/manifest.json"
   echo "missing ${QUADLET_SESSION_LIB}" >&2
   exit 1
 }
+[[ -f "${SYNC_LIB}" ]] || {
+  echo "missing ${SYNC_LIB}" >&2
+  exit 1
+}
 
 command -v terraform >/dev/null || { echo "terraform not found" >&2; exit 1; }
 command -v ssh >/dev/null || { echo "ssh not found" >&2; exit 1; }
@@ -97,9 +102,6 @@ command -v python3 >/dev/null || { echo "python3 not found" >&2; exit 1; }
 host_session_open verify "${STACK_DIR}" || exit 1
 IP="$(host_session_ip)"
 
-ROUTES_SRC="${MANIFEST_DIR}/routes"
-QUADLETS_SRC="${MANIFEST_DIR}/quadlets"
-SYSTEMD_SRC="${MANIFEST_DIR}/systemd"
 ENV_DIR="${REPO_ROOT}/environments/${PLATFORM_ENV}"
 
 STAGE="$(umask 077; mktemp -d "${TMPDIR:-/tmp}/platform-ensure-workload-stage.XXXXXX")"
@@ -115,29 +117,9 @@ cp "${QUADLETS_LIB}" "${STAGE}/workload-quadlets-host.sh"
 cp "${UNIT_CONSUMERS_LIB}" "${STAGE}/unit-consumers-host.sh"
 cp "${ENV_HOST_LIB}" "${STAGE}/workload-environment-host.sh"
 cp "${QUADLET_SESSION_LIB}" "${STAGE}/quadlet-user-session.sh"
+cp "${SYNC_LIB}" "${STAGE}/sync-tree-host.sh"
 mkdir -p "${STAGE}/${WL_NAME}"
-cp "${MANIFEST_ABS}" "${STAGE}/${WL_NAME}/manifest.json"
-if [[ -d "${ROUTES_SRC}" ]]; then
-  mkdir -p "${STAGE}/${WL_NAME}/routes"
-  for src in "${ROUTES_SRC}"/*; do
-    [[ -f "${src}" ]] || continue
-    cp "${src}" "${STAGE}/${WL_NAME}/routes/$(basename "${src}")"
-  done
-fi
-if [[ -d "${QUADLETS_SRC}" ]]; then
-  mkdir -p "${STAGE}/${WL_NAME}/quadlets"
-  for src in "${QUADLETS_SRC}"/*; do
-    [[ -f "${src}" ]] || continue
-    cp "${src}" "${STAGE}/${WL_NAME}/quadlets/$(basename "${src}")"
-  done
-fi
-if [[ -d "${SYSTEMD_SRC}" ]]; then
-  mkdir -p "${STAGE}/${WL_NAME}/systemd"
-  for src in "${SYSTEMD_SRC}"/*; do
-    [[ -f "${src}" ]] || continue
-    cp "${src}" "${STAGE}/${WL_NAME}/systemd/$(basename "${src}")"
-  done
-fi
+cp -a "${MANIFEST_DIR}/." "${STAGE}/${WL_NAME}/"
 
 host_delivery_run "${STAGE}" "${RESOLVED_REMOTE_ROOT}" \
   "PLATFORM_USER=${USER_NAME} WL_ENV_RESOLVED=${WL_ENV_RESOLVED_REMOTE} bash ${RESOLVED_REMOTE_ROOT}/ensure-workload-host.sh ${RESOLVED_REMOTE_ROOT}/${WL_NAME}"

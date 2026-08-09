@@ -31,7 +31,7 @@ for want in \
 done
 pass "ensure-workload(s) and purge-trash entrypoints exist"
 
-# Batch discovery uses the same Environment helper as Mirror (manifest.json presence).
+# Batch discovery uses the same Environment helper as Mirror (directory identity).
 TMP="$(umask 077; mktemp -d "${TMPDIR:-/tmp}/ensure-workloads.XXXXXX")"
 trap 'rm -rf "${TMP}"' EXIT
 ENV_DIR="${TMP}/env"
@@ -42,8 +42,8 @@ printf 'not a workload\n' >"${ENV_DIR}/domains.json"
 printf 'x\n' >"${ENV_DIR}/nope/README.md"
 
 got="$(environment_discover_workloads "${ENV_DIR}" | paste -sd, -)"
-[[ "${got}" == "also,keep-me" ]] || fail "batch discovery want also,keep-me got '${got}'"
-pass "ensure-workloads discovery set matches manifest.json Environment Workloads"
+[[ "${got}" == "also,keep-me,nope" ]] || fail "batch discovery want also,keep-me,nope got '${got}'"
+pass "ensure-workloads discovery set matches Environment Workload directories"
 
 # ensure-workloads composes singular ensure-workload (script contract)
 grep -Fq 'ensure-workload.sh' "${INTERNALS}/ensure-workloads.sh" \
@@ -76,8 +76,8 @@ while IFS= read -r wl_name; do
   names="${names}${names:+,}${out}"
   ran=$((ran + 1))
 done < <(environment_discover_workloads "${ENV_DIR}")
-[[ "${ran}" -eq 2 ]] || fail "batch loop should visit 2 Workloads, got ${ran}"
-[[ "${names}" == "ran:also,ran:keep-me" ]] || fail "batch order/names want ran:also,ran:keep-me got '${names}'"
+[[ "${ran}" -eq 3 ]] || fail "batch loop should visit 3 Workloads, got ${ran}"
+[[ "${names}" == "ran:also,ran:keep-me,ran:nope" ]] || fail "batch order/names want ran:also,ran:keep-me,ran:nope got '${names}'"
 pass "batch loop visits every discovered Workload without stdin steal"
 
 echo "All ensure-workload(s) / purge-trash entrypoint checks passed."

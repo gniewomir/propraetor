@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Workload Setup (batch) — apply Setup for every Environment-discovered Workload.
-# Discovers Workloads by manifest.json presence (same as Mirror); invokes singular
+# Discovers Workloads as immediate non-hidden Environment dirs (same as Mirror); invokes singular
 # ensure-workload for each so SoT sync + Intent + Environment Configuration stay complete.
 # Environment: omitted / --env default|test → workspace default; --env <slug> otherwise (ADR-0019).
 # Usage: ./internals/ensure-workloads.sh [--env <slug>]

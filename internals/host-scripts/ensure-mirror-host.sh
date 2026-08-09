@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Host-local Mirror. Invoked by internals/ensure-mirror.sh after Host delivery.
-# Upserts staged Workload definition trees onto Host Volume internals/workloads/
+# Upserts staged Workload bags onto Host Volume internals/workloads/
 # (dumb copy via sync_tree_inplace). Leaves Host basenames absent from the stage alone.
-# Does not validate Manifest content, apply Intent, or touch data/workloads (ADR-0041 / #156).
+# Does not validate Manifest content, apply Intent, or touch data/workloads (ADR-0047 / ADR-0041 / #156).
 # Usage: bash ensure-mirror-host.sh <platform-user>
 set -euo pipefail
 
@@ -24,7 +24,6 @@ mkdir -p "${WORKLOADS_ROOT}"
 
 for wl_dir in "${STAGE_WORKLOADS}"/*; do
   [[ -d "${wl_dir}" ]] || continue
-  [[ -f "${wl_dir}/manifest.json" ]] || continue
   wl_name="$(basename "${wl_dir}")"
   [[ "${wl_name}" != .* ]] || continue
   sync_tree_inplace "${wl_dir}" "${WORKLOADS_ROOT}/${wl_name}"

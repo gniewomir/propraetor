@@ -49,6 +49,14 @@ printf '#!/bin/bash\necho ok\n' >"${STAGE}/workloads/alpha/scripts/alpha-job.sh"
 printf 'not-even-json\n' >"${STAGE}/workloads/beta/manifest.json"
 printf 'unit\n' >"${STAGE}/workloads/beta/quadlets/beta.container"
 
+# Manifest-less staged Workload must still be upserted (ADR-0047)
+mkdir -p "${STAGE}/workloads/gamma/notes"
+printf 'draft\n' >"${STAGE}/workloads/gamma/notes/idea.md"
+printf 'secret-link-target\n' >"${STAGE}/workloads/gamma/target.txt"
+ln -s target.txt "${STAGE}/workloads/gamma/link-to-target"
+mkdir -p "${STAGE}/workloads/gamma/www/.well-known"
+printf 'acme\n' >"${STAGE}/workloads/gamma/www/.well-known/probe"
+
 # Pre-existing Host tree for alpha that Mirror must update (upsert)
 mkdir -p "${HV}/internals/workloads/alpha/routes"
 printf '{"intent":"stop"}\n' >"${HV}/internals/workloads/alpha/manifest.json"
@@ -94,5 +102,16 @@ pass "Mirror leaves orphan Host trees alone"
 grep -Fxq 'not-even-json' "${HV}/internals/workloads/beta/manifest.json" \
   || fail "invalid Manifest content must still be copied"
 pass "Mirror does not validate Manifest content"
+
+# Manifest-less bag, hidden paths, and preserved symlinks
+[[ ! -f "${HV}/internals/workloads/gamma/manifest.json" ]] \
+  || fail "gamma must remain Manifest-less"
+grep -Fxq 'draft' "${HV}/internals/workloads/gamma/notes/idea.md" \
+  || fail "opaque bag extras must be mirrored"
+grep -Fxq 'acme' "${HV}/internals/workloads/gamma/www/.well-known/probe" \
+  || fail "in-tree hidden paths must be mirrored"
+[[ -L "${HV}/internals/workloads/gamma/link-to-target" ]] \
+  || fail "symlinks must be preserved as links"
+pass "Mirror upserts Manifest-less bags; preserves hidden paths and symlinks"
 
 echo "All ensure-mirror-host offline tests passed."

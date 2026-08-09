@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Host-local Workload Setup. Invoked by internals/ensure-workload.sh (not an operator entrypoint).
 # Usage: PLATFORM_USER=platform bash ensure-workload-host.sh /path/to/workload-tree
-# Workload tree must contain manifest.json; optional routes/, quadlets/, systemd/ (ADR-0024).
+# Workload tree must contain manifest.json; bag may include arbitrary siblings (ADR-0047).
 # Identity is the basename of the Workload tree directory.
 # Does not build ACME want-list, claim hostnames, or start ACME (ADR-0023).
 set -euo pipefail
@@ -10,21 +10,22 @@ TREE="${1:?workload tree required}"
 USER_NAME="${PLATFORM_USER:-platform}"
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 MANIFEST="${TREE}/manifest.json"
-ROUTES_STAGE="${TREE}/routes"
 QUADLETS_STAGE="${TREE}/quadlets"
 SYSTEMD_STAGE="${TREE}/systemd"
 
-# SoT (Mirrored definition tree) vs durable Host bytes (ADR-0041).
+# SoT (Mirrored opaque bag) vs durable Host bytes (ADR-0047 / ADR-0041).
 WORKLOADS_ROOT=/var/lib/host-volume/internals/workloads
 WORKLOADS_DATA=/var/lib/host-volume/data/workloads
 
-# Staged siblings only (Host delivery packs this payload). No Host Volume dual-read (ADR-0018).
+# Staged payload beside this script. No Host Volume dual-read (ADR-0018).
 # shellcheck source=quadlet-user-session.sh
 source "${HERE}/quadlet-user-session.sh"
 # shellcheck source=workload-units-host.sh
 source "${HERE}/workload-units-host.sh"
 # shellcheck source=workload-environment-host.sh
 source "${HERE}/workload-environment-host.sh"
+# shellcheck source=sync-tree-host.sh
+source "${HERE}/sync-tree-host.sh"
 
 [[ -d "${TREE}" ]] || {
   echo "workload tree missing: ${TREE}" >&2
@@ -120,16 +121,8 @@ fi
 # Refuse foreign / wrong-folder units before mutating Host Volume SoT.
 workload_units_preflight "${WL_NAME}" "${QUADLETS_STAGE}" "${SYSTEMD_STAGE}" || exit 1
 
-install -m 0644 "${MANIFEST}" "${WORKLOADS_ROOT}/${WL_NAME}/manifest.json"
-rm -f "${WORKLOADS_ROOT}/${WL_NAME}/interior.conf"
-rm -rf "${WORKLOADS_ROOT}/${WL_NAME}/routes"
-if [[ -d "${ROUTES_STAGE}" ]]; then
-  mkdir -p "${WORKLOADS_ROOT}/${WL_NAME}/routes"
-  for src in "${ROUTES_STAGE}"/*; do
-    [[ -f "${src}" ]] || continue
-    install -m 0644 "${src}" "${WORKLOADS_ROOT}/${WL_NAME}/routes/$(basename "${src}")"
-  done
-fi
+# Same opaque-bag projection as Mirror (ADR-0047); unit apply then syncs consumer dirs.
+sync_tree_inplace "${TREE}" "${WORKLOADS_ROOT}/${WL_NAME}" || exit 1
 
 # Route Declarations stay in Workload SoT only (ADR-0040). Edge Component Setup gathers.
 workload_units_apply "${WL_NAME}" "${WL_INTENT}" "${QUADLETS_STAGE}" "${SYSTEMD_STAGE}" || exit 1

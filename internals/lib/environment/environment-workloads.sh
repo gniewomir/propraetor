@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# Environment Workload discovery (ADR-0041 / #156).
-# Discovers Workload definition trees under an Environment directory by presence of
-# manifest.json on immediate children. Does not validate Manifest content.
+# Environment Workload discovery (ADR-0047; amends ADR-0041 / #156).
+# Discovers Workload directories under an Environment as every immediate non-hidden
+# child directory (ADR-0033). Does not require or validate manifest.json.
 #
 # Public interface:
 #   environment_discover_workloads ENV_DIR
@@ -20,7 +20,6 @@ environment_discover_workloads() {
     [[ -d "${child}" ]] || continue
     name="$(basename "${child}")"
     [[ "${name}" != .* ]] || continue
-    [[ -f "${child}/manifest.json" ]] || continue
     printf '%s\n' "${name}"
   done | LC_ALL=C sort
 }

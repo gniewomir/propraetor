@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 # Orphan Reap — remove Host Workloads absent from the Environment.
-# Discovers Environment Workloads by manifest.json; Host basenames not in that set are
+# Discovers Environment Workloads as immediate non-hidden dirs; Host basenames not in that set are
 # destroyed (volume trees, units, EnvironmentFiles). Distinct from Purge (Intent-trash).
 # Environment: omitted / --env default|test → workspace default; --env <slug> otherwise (ADR-0019).
 # Usage: ./internals/purge-orphans.sh [--env <slug>]
 # Optional: PLATFORM_USER=platform
 # Requires: Operator Configuration private key path (PROPRAETOR_PRIVATE_KEY_PATH).
-# ADR-0041 / #156.
+# ADR-0047 / ADR-0041 / #156.
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
