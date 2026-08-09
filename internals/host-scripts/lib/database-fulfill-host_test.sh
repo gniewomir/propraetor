@@ -63,6 +63,30 @@ database_unpublish_binding "${WL}" || fail "unpublish should succeed"
   || fail "durable client cert must remain after unpublish"
 pass "unpublish clears projection; durable clients retained"
 
+# Absent-client selection: SoT present stays; SoT gone is selected (#191).
+CLIENTS_DIR="${DATA_ROOT}/clients"
+printf '%s\n' '{"intent":"run","database":true}' >"${WORKLOADS_ROOT}/${WL}/manifest.json"
+mkdir -p "${CLIENTS_DIR}/beta" "${CLIENTS_DIR}/gone" \
+  "${WORKLOADS_ROOT}/beta"
+printf '%s\n' '{"intent":"stop"}' >"${WORKLOADS_ROOT}/beta/manifest.json"
+printf 'x\n' >"${CLIENTS_DIR}/beta/client.crt"
+printf 'x\n' >"${CLIENTS_DIR}/gone/client.crt"
+got="$(database_absent_client_basenames "${CLIENTS_DIR}" "${WORKLOADS_ROOT}" | paste -sd, -)"
+[[ "${got}" == "gone" ]] || fail "want only gone selected, got '${got}'"
+pass "absent client selection ignores SoT-present basenames"
+
+# Unpublish without SoT clears binding + conventional drop-in leftover.
+mkdir -p "${HOME_DIR}/.config/platform/workloads/gone/database" \
+  "${UNIT_DIR}/gone.container.d"
+printf 'leftover\n' >"${HOME_DIR}/.config/platform/workloads/gone/database/environment"
+printf 'dropin\n' >"${UNIT_DIR}/gone.container.d/50-platform-database.conf"
+database_unpublish_binding gone || fail "unpublish without SoT should succeed"
+[[ ! -e "${HOME_DIR}/.config/platform/workloads/gone/database" ]] \
+  || fail "binding must clear without SoT"
+[[ ! -e "${UNIT_DIR}/gone.container.d/50-platform-database.conf" ]] \
+  || fail "conventional drop-in must clear without SoT"
+pass "unpublish without SoT clears binding and conventional drop-in"
+
 # Manifest claim helper
 printf '%s\n' '{"intent":"run","database":true}' >"${TMP}/m.json"
 [[ "$(_database_manifest_claims "${TMP}/m.json")" == "1" ]] || fail "true should claim"

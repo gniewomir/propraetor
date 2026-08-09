@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
-# Deep Database Component Setup (ADR-0049 / #188 / #189).
+# Deep Database Component Setup (ADR-0049 / #188 / #189 / #190 / #191).
 # Sourced by Database pre-workloads.sh / post-workloads.sh.
 # Standing Component: TLS interior, admin EnvironmentFile, Postgres on Service Network
 # dial name `database`, idle allowed with zero Workload claimants.
 # pre-workloads also gathers Intent-run Manifest database:true Declarations and
 # publishes passwordless mTLS bindings (#189); non-claimants are unpublished (#190).
+# post-workloads drops role/db/client material for Purge/Orphan-absent basenames (#191).
 #
 # Ambient (optional overrides for offline tests):
 #   USER_NAME, DATA_ROOT, WORKLOADS_ROOT
@@ -127,9 +128,10 @@ database_setup_pre_workloads() {
   database_fulfill_declarations || return 1
 }
 
-# post-workloads: standing ensure for now (claim cleanup lands in later tickets).
+# post-workloads: standing ensure + drop Purge/Orphan-absent fulfillments (#191).
 database_setup_post_workloads() {
   local component_tree="${1:?database_setup_post_workloads: component tree required}"
   local staged_admin_env="${2:-}"
-  database_setup "${component_tree}" "${staged_admin_env}"
+  database_setup "${component_tree}" "${staged_admin_env}" || return 1
+  database_drop_absent_fulfillments || return 1
 }

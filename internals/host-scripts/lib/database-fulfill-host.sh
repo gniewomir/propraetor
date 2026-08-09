@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
-# Database Declaration gather + fulfill (ADR-0049 / #189 / #190).
+# Database Declaration gather + fulfill (ADR-0049 / #189 / #190 / #191).
 # Intent-run + Manifest database:true → role/db/client cert + published binding.
 # Intent stop/trash (non-claimants) → unpublish binding; retain role/db/clients until Purge.
+# Purge / Orphan Reap (SoT gone) → drop role/db/clients + clear projection in post-workloads.
 # Sourced by Database Setup. Expects ambient after database_setup begin:
 #   DATA_ROOT, CLIENTS_DIR, ADMIN_ENV, HOME_DIR, UNIT_DIR, USER_NAME, WORKLOADS_ROOT
 # Requires: quadlet_user, database_tls_ensure_client, database_write_pg_ident_file,
@@ -161,12 +162,18 @@ EOF
 
 # Clear published binding + Setup-owned drop-ins for one Workload (Intent stop/trash).
 # Retains Host Volume client material, role, and database until Purge (#191).
+# When SoT is already gone (after Purge/Orphan), clears the binding dir and any leftover
+# drop-in named <basename>.container.d/50-platform-database.conf.
 database_unpublish_binding() {
   local wl_name="${1:?database_unpublish_binding: workload name required}"
-  local binding_dir sot_quadlets base dropin_path dropin_dir
+  local binding_dir sot_quadlets base dropin_path dropin_dir wl_cfg_dir
 
   binding_dir="$(workload_database_binding_dir "${wl_name}")"
   rm -rf "${binding_dir}"
+  wl_cfg_dir="$(dirname "${binding_dir}")"
+  if [[ -d "${wl_cfg_dir}" ]] && [[ -z "$(ls -A "${wl_cfg_dir}" 2>/dev/null || true)" ]]; then
+    rmdir "${wl_cfg_dir}" 2>/dev/null || true
+  fi
 
   sot_quadlets="${WORKLOADS_ROOT}/${wl_name}/quadlets"
   if [[ -d "${sot_quadlets}" ]]; then
@@ -180,7 +187,95 @@ database_unpublish_binding() {
         rmdir "${dropin_dir}" 2>/dev/null || true
       fi
     done
+  else
+    # SoT gone: best-effort clear the conventional basename.container drop-in.
+    dropin_path="$(workload_database_dropin_path "${wl_name}.container")"
+    rm -f "${dropin_path}"
+    dropin_dir="$(dirname "${dropin_path}")"
+    if [[ -d "${dropin_dir}" ]] && [[ -z "$(ls -A "${dropin_dir}" 2>/dev/null || true)" ]]; then
+      rmdir "${dropin_dir}" 2>/dev/null || true
+    fi
   fi
+}
+
+# Drop Postgres role + database named by basename (terminate backends first).
+database_drop_role_and_db() {
+  local basename="${1:?database_drop_role_and_db: basename required}"
+  local admin_user
+  admin_user="$(database_admin_user_from_env "${ADMIN_ENV}")" || return 1
+
+  quadlet_user env "HOME=${HOME_DIR}" bash -c \
+    "cd \"\$HOME\" && podman exec database-postgres \
+      psql -v ON_ERROR_STOP=1 -U $(printf '%q' "${admin_user}") -d postgres -c \
+      $(printf '%q' "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = '${basename}' AND pid <> pg_backend_pid();")" \
+    >/dev/null || true
+
+  quadlet_user env "HOME=${HOME_DIR}" bash -c \
+    "cd \"\$HOME\" && podman exec database-postgres \
+      psql -v ON_ERROR_STOP=1 -U $(printf '%q' "${admin_user}") -d postgres -c \
+      $(printf '%q' "DROP DATABASE IF EXISTS \"${basename}\"")" \
+    || return 1
+
+  quadlet_user env "HOME=${HOME_DIR}" bash -c \
+    "cd \"\$HOME\" && podman exec database-postgres \
+      psql -v ON_ERROR_STOP=1 -U $(printf '%q' "${admin_user}") -d postgres -c \
+      $(printf '%q' "DROP ROLE IF EXISTS \"${basename}\"")" \
+    || return 1
+}
+
+# Full drop for one basename: DROP role/db, then unpublish and remove durable clients.
+# Postgres drop runs before rm clients so a failed DROP remains selectable on retry (#191).
+database_drop_fulfillment() {
+  local wl_name="${1:?database_drop_fulfillment: workload name required}"
+  local client_dir="${DATA_ROOT}/clients/${wl_name}"
+
+  database_drop_role_and_db "${wl_name}" || return 1
+  database_unpublish_binding "${wl_name}" || return 1
+  rm -rf "${client_dir}"
+  echo "Database: dropped fulfillment for Workload '${wl_name}'" >&2
+}
+
+# Print client basenames under CLIENTS_DIR whose Workload SoT Manifest is gone.
+# Pure selection helper (offline-testable); one basename per line, sorted.
+database_absent_client_basenames() {
+  local clients_dir="${1:-${CLIENTS_DIR-}}"
+  local workloads_root="${2:-${WORKLOADS_ROOT-}}"
+  local d name
+
+  if [[ -z "${clients_dir}" ]]; then
+    echo "database_absent_client_basenames: clients dir required" >&2
+    return 1
+  fi
+  if [[ -z "${workloads_root}" ]]; then
+    echo "database_absent_client_basenames: workloads root required" >&2
+    return 1
+  fi
+  [[ -d "${clients_dir}" ]] || return 0
+
+  for d in "${clients_dir}"/*; do
+    [[ -d "${d}" ]] || continue
+    name="$(basename "${d}")"
+    if [[ ! -f "${workloads_root}/${name}/manifest.json" ]]; then
+      printf '%s\n' "${name}"
+    fi
+  done | LC_ALL=C sort -u
+}
+
+# post-workloads: drop role/db/clients + clear projection for Purge/Orphan-absent basenames.
+database_drop_absent_fulfillments() {
+  local workloads_root="${1:-${WORKLOADS_ROOT-}}"
+  local clients_dir="${CLIENTS_DIR:-${DATA_ROOT}/clients}"
+  local wl_name
+
+  if [[ -z "${workloads_root}" ]]; then
+    echo "database_drop_absent_fulfillments: workloads root required" >&2
+    return 1
+  fi
+
+  while IFS= read -r wl_name; do
+    [[ -n "${wl_name}" ]] || continue
+    database_drop_fulfillment "${wl_name}" || return 1
+  done < <(database_absent_client_basenames "${clients_dir}" "${workloads_root}")
 }
 
 # Reload Postgres config after pg_ident changes (bind-mounted conf).

@@ -448,3 +448,10 @@ ensure_database_fulfillment() {
   [[ -n "${REPO_ROOT:-}" ]] || fail "ensure_database_fulfillment: REPO_ROOT required"
   "${REPO_ROOT}/internals/ensure-components.sh" pre-workloads --env "${PLATFORM_ENV:-test}"
 }
+
+# Re-run Component Setup post-workloads so Database drops Purge/Orphan fulfillment (ADR-0049 / #191).
+# Purge / Orphan Reap remove SoT only; role/db/client drop is Database Component Setup.
+ensure_database_post_workloads() {
+  [[ -n "${REPO_ROOT:-}" ]] || fail "ensure_database_post_workloads: REPO_ROOT required"
+  "${REPO_ROOT}/internals/ensure-components.sh" post-workloads --env "${PLATFORM_ENV:-test}"
+}

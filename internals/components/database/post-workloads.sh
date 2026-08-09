@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Component Setup post-workloads for the Database (ADR-0049 / #188).
-# Standing ensure for #188; Purge/orphan claim cleanup lands in later tickets.
+# Component Setup post-workloads for the Database (ADR-0049 / #188 / #191).
+# Standing ensure + drop role/db/client material for Purge/Orphan-absent basenames.
 # Runs on the Host only. Invoked by ensure-components with slot post-workloads.
 set -euo pipefail
 
