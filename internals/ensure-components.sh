@@ -91,7 +91,7 @@ host_wait_until_ihp_done "${IHP_DONE}" "${USER_NAME}"
 STAGE="$(umask 077; mktemp -d "${TMPDIR:-/tmp}/platform-ensure-components-stage.XXXXXX")"
 trap 'rm -rf "${STAGE}"' EXIT
 
-# Domain-derived ACME want-list (ADR-0023) + Environment ACME config (ADR-0045):
+# Domain-derived ACME want-list (ADR-0023) + ACME directory / Operator Configuration email (ADR-0045):
 # stage into the delivery payload; Host half places Edge handoff paths; Edge Setup installs.
 domains_acme_fqdns_for "${PLATFORM_ENV}" >"${STAGE}/platform-acme-want-list"
 acme_config_dotenv_for "${PLATFORM_ENV}" >"${STAGE}/platform-acme.env"

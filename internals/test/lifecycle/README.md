@@ -38,7 +38,7 @@ Domain Durable asserts run when Domains are in State (declare them in `environme
 
 ## Run
 
-Credentials must already be in the environment or root `.env` (`DIGITALOCEAN_TOKEN`, `PROPRAETOR_PUBLIC_KEY_PATH`, `PROPRAETOR_PRIVATE_KEY_PATH` — same as `./apply.sh`; see ADR-0037 / ADR-0038).
+Credentials must already be in the environment or root `.env` (`DIGITALOCEAN_TOKEN`, `PROPRAETOR_PUBLIC_KEY_PATH`, `PROPRAETOR_PRIVATE_KEY_PATH`, and `PROPRAETOR_ACME_EMAIL` when `environments/<slug>/acme.json` is present — same as `./apply.sh`; see ADR-0037 / ADR-0038 / ADR-0045).
 
 ```bash
 ./test.sh lifecycle                 # all Lifecycle Tests on the test Environment (default)

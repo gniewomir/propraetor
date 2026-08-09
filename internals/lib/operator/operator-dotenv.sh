@@ -5,7 +5,8 @@
 # Public:
 #   operator_dotenv_load REPO_ROOT
 #     If REPO_ROOT/.env is missing, no-op. Else parse strict dotenv, allowlist only
-#     DIGITALOCEAN_TOKEN / PROPRAETOR_PUBLIC_KEY_PATH / PROPRAETOR_PRIVATE_KEY_PATH.
+#     DIGITALOCEAN_TOKEN / PROPRAETOR_PUBLIC_KEY_PATH / PROPRAETOR_PRIVATE_KEY_PATH /
+#     PROPRAETOR_ACME_EMAIL.
 #     Non-empty process-environment values win; empty file values are unset.
 #     Unknown keys and invalid grammar fail closed.
 
@@ -25,6 +26,7 @@ ALLOW = {
     "DIGITALOCEAN_TOKEN",
     "PROPRAETOR_PUBLIC_KEY_PATH",
     "PROPRAETOR_PRIVATE_KEY_PATH",
+    "PROPRAETOR_ACME_EMAIL",
 }
 KEY_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 file_vals = {}

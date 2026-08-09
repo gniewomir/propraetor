@@ -2,7 +2,8 @@
 # Edge ACME on-demand runner (systemd user oneshot).
 # Empty want-list → success with no CA contact.
 # EDGE_ACME_DIRECTORY / EDGE_ACME_EMAIL come from the Host ACME EnvironmentFile
-# (environments/<slug>/acme.json via ensure-components — ADR-0045).
+# (acme.json directory + Operator Configuration PROPRAETOR_ACME_EMAIL via
+# ensure-components — ADR-0045 / ADR-0038).
 # EDGE_ACME_ISSUE=0 skips CA contact (Acceptance / fixture) but still reloads Edge when names exist.
 # Missing EDGE_ACME_DIRECTORY defaults to staging; production is Environment acme.json opt-in.
 set -euo pipefail
