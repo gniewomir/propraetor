@@ -15,7 +15,8 @@ mkdir -p "${FIX_DIR}"
 WL=envrot
 acceptance_wl_track "${WL}"
 ENV_FILE="${FIX_DIR}/.env"
-trap 'rm -f "${ENV_FILE}"; unset ENVROT_TOKEN ENVROT_MODE ENVROT_SURPLUS || true; acceptance_wl_cleanup' EXIT
+acceptance_env_dotenv_stash
+trap 'acceptance_env_dotenv_unstash; unset ENVROT_TOKEN ENVROT_MODE ENVROT_SURPLUS || true; acceptance_wl_cleanup' EXIT
 
 SECRET1='envrot-secret-one'
 SECRET2='envrot-secret-two'

@@ -4,7 +4,7 @@
 # Standing Component: TLS interior, admin EnvironmentFile, Postgres on Service Network
 # dial name `database`, idle allowed with zero Workload claimants.
 # pre-workloads also gathers Intent-run Manifest database:true Declarations and
-# publishes passwordless mTLS bindings (#189).
+# publishes passwordless mTLS bindings (#189); non-claimants are unpublished (#190).
 #
 # Ambient (optional overrides for offline tests):
 #   USER_NAME, DATA_ROOT, WORKLOADS_ROOT

@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# Database Declaration gather + fulfill (ADR-0049 / #189).
+# Database Declaration gather + fulfill (ADR-0049 / #189 / #190).
 # Intent-run + Manifest database:true → role/db/client cert + published binding.
+# Intent stop/trash (non-claimants) → unpublish binding; retain role/db/clients until Purge.
 # Sourced by Database Setup. Expects ambient after database_setup begin:
 #   DATA_ROOT, CLIENTS_DIR, ADMIN_ENV, HOME_DIR, UNIT_DIR, USER_NAME, WORKLOADS_ROOT
 # Requires: quadlet_user, database_tls_ensure_client, database_write_pg_ident_file,
@@ -89,6 +90,13 @@ database_ensure_role_and_db() {
         $(printf '%q' "CREATE DATABASE \"${basename}\" OWNER \"${basename}\"")" \
       || return 1
   fi
+
+  # No cross-Workload grants (ADR-0049 / #190): Postgres defaults CONNECT to PUBLIC.
+  quadlet_user env "HOME=${HOME_DIR}" bash -c \
+    "cd \"\$HOME\" && podman exec database-postgres \
+      psql -v ON_ERROR_STOP=1 -U $(printf '%q' "${admin_user}") -d postgres -c \
+      $(printf '%q' "REVOKE CONNECT ON DATABASE \"${basename}\" FROM PUBLIC")" \
+    || return 1
 }
 
 # Publish binding + Setup-owned Quadlet drop-in for one Workload.
@@ -151,6 +159,30 @@ EOF
   fi
 }
 
+# Clear published binding + Setup-owned drop-ins for one Workload (Intent stop/trash).
+# Retains Host Volume client material, role, and database until Purge (#191).
+database_unpublish_binding() {
+  local wl_name="${1:?database_unpublish_binding: workload name required}"
+  local binding_dir sot_quadlets base dropin_path dropin_dir
+
+  binding_dir="$(workload_database_binding_dir "${wl_name}")"
+  rm -rf "${binding_dir}"
+
+  sot_quadlets="${WORKLOADS_ROOT}/${wl_name}/quadlets"
+  if [[ -d "${sot_quadlets}" ]]; then
+    for base in "${sot_quadlets}"/*.container; do
+      [[ -f "${base}" ]] || continue
+      base="$(basename "${base}")"
+      dropin_path="$(workload_database_dropin_path "${base}")"
+      rm -f "${dropin_path}"
+      dropin_dir="$(dirname "${dropin_path}")"
+      if [[ -d "${dropin_dir}" ]] && [[ -z "$(ls -A "${dropin_dir}" 2>/dev/null || true)" ]]; then
+        rmdir "${dropin_dir}" 2>/dev/null || true
+      fi
+    done
+  fi
+}
+
 # Reload Postgres config after pg_ident changes (bind-mounted conf).
 database_reload_conf() {
   local admin_user
@@ -165,12 +197,21 @@ database_reload_conf() {
   }
 }
 
+# True if basename is listed in the sorted claimants file.
+_database_is_claimant() {
+  local wl_name="$1"
+  local claimants_file="$2"
+  grep -Fxq "${wl_name}" "${claimants_file}" 2>/dev/null
+}
+
 # Gather Intent-run database:true claimants from Workload SoT; fulfill create/publish.
-# Does not unpublish/drop (later tickets).
+# Non-claimants (Intent stop/trash or database false/omit): unpublish binding only;
+# role/database/client material retained until Purge (#190 / #191).
 database_fulfill_declarations() {
   local workloads_root="${1:-${WORKLOADS_ROOT-}}"
   local wl_dir wl_name intent claims
   local claimants_file sorted_file
+  local had_binding
   local IFS
 
   if [[ -z "${workloads_root}" ]]; then
@@ -238,6 +279,29 @@ database_fulfill_declarations() {
     }
     echo "Database: fulfilled binding for Workload '${wl_name}'" >&2
   done <"${sorted_file}"
+
+  # Unpublish Workloads present in SoT that are not Intent-run claimants.
+  if [[ -d "${workloads_root}" ]]; then
+    for wl_dir in "${workloads_root}"/*; do
+      [[ -d "${wl_dir}" && -f "${wl_dir}/manifest.json" ]] || continue
+      wl_name="$(basename "${wl_dir}")"
+      if _database_is_claimant "${wl_name}" "${sorted_file}"; then
+        continue
+      fi
+      had_binding=0
+      if [[ -d "$(workload_database_binding_dir "${wl_name}")" ]]; then
+        had_binding=1
+      fi
+      # Always run unpublish so orphaned drop-ins clear even if the binding dir is gone.
+      database_unpublish_binding "${wl_name}" || {
+        rm -f "${sorted_file}"
+        return 1
+      }
+      if [[ "${had_binding}" -eq 1 ]]; then
+        echo "Database: unpublished binding for Workload '${wl_name}'" >&2
+      fi
+    done
+  fi
 
   rm -f "${sorted_file}"
   return 0

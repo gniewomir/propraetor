@@ -17,7 +17,8 @@ WL2=envcfg-multi
 WL_NC=envcfg-nocontainer
 acceptance_wl_track "${WL}" "${WL2}" "${WL_NC}"
 ENV_FILE="${FIX_DIR}/.env"
-trap 'rm -f "${ENV_FILE}"; acceptance_wl_cleanup' EXIT
+acceptance_env_dotenv_stash
+trap 'acceptance_env_dotenv_unstash; acceptance_wl_cleanup' EXIT
 
 SECRET_BASE='envcfg-secret-base-value'
 SECRET_OVERRIDE='envcfg-secret-override-value'

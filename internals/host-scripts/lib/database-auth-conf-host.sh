@@ -41,32 +41,26 @@ EOF
   fi
 }
 
-# Ensure pg_ident map rows for basenames in file (create-if-missing lines).
-# Does not remove existing map rows (Intent unpublish / orphan cleanup is later).
+# Rewrite pg_ident map rows from basenames in file (Intent-run claimants only).
+# Non-claimants are omitted so Intent stop/trash unpublish clears live map rows (#190).
 database_write_pg_ident_file() {
   local path="${1:?database_write_pg_ident_file: path required}"
   local conf_dir="${DATA_ROOT}/conf"
   local ident="${conf_dir}/pg_ident.conf"
-  local basename line
+  local basename
   mkdir -p "${conf_dir}"
 
-  if [[ ! -f "${ident}" ]]; then
+  {
     printf '%s\n' \
       "# MAPNAME       SYSTEM-USERNAME         PG-USERNAME" \
-      "# Database Component pg_ident — Workload cert CNs mapped by Setup gather." \
-      >"${ident}"
-  fi
-
-  if [[ -f "${path}" ]]; then
-    while IFS= read -r basename; do
-      [[ -n "${basename}" ]] || continue
-      line="$(printf '%s\t%s\t%s' "${DATABASE_PG_IDENT_MAP}" "${basename}" "${basename}")"
-      if grep -Fxq "${line}" "${ident}" 2>/dev/null; then
-        continue
-      fi
-      printf '%s\n' "${line}" >>"${ident}"
-    done <"${path}"
-  fi
+      "# Database Component pg_ident — Workload cert CNs mapped by Setup gather."
+    if [[ -f "${path}" ]]; then
+      while IFS= read -r basename; do
+        [[ -n "${basename}" ]] || continue
+        printf '%s\t%s\t%s\n' "${DATABASE_PG_IDENT_MAP}" "${basename}" "${basename}"
+      done <"${path}"
+    fi
+  } >"${ident}"
 
   chmod 0644 "${ident}"
   if [[ -n "${USER_NAME:-}" ]]; then

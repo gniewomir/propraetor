@@ -55,6 +55,14 @@ grep -F "Volume=${binding}/client.key:/etc/platform-database/client.key:ro" "${d
   || fail "drop-in must mount client.key"
 pass "Setup-owned Quadlet drop-in wires env + mounts"
 
+# Unpublish clears projection + drop-in; durable client material stays (#190).
+database_unpublish_binding "${WL}" || fail "unpublish should succeed"
+[[ ! -e "${binding}" ]] || fail "published binding dir must be removed"
+[[ ! -e "${dropin}" ]] || fail "Setup-owned drop-in must be removed"
+[[ -f "${DATA_ROOT}/clients/${WL}/client.crt" ]] \
+  || fail "durable client cert must remain after unpublish"
+pass "unpublish clears projection; durable clients retained"
+
 # Manifest claim helper
 printf '%s\n' '{"intent":"run","database":true}' >"${TMP}/m.json"
 [[ "$(_database_manifest_claims "${TMP}/m.json")" == "1" ]] || fail "true should claim"

@@ -21,7 +21,8 @@ acceptance_wl_track "${WL}"
 ENV_FILE="${FIX_DIR}/.env"
 GREETING='env-config-greeting-acceptance'
 MODE='env-config-mode-acceptance'
-trap 'rm -f "${ENV_FILE}"; acceptance_wl_cleanup' EXIT
+acceptance_env_dotenv_stash
+trap 'acceptance_env_dotenv_unstash; acceptance_wl_cleanup' EXIT
 
 [[ -d "${EXAMPLE_SRC}" ]] || fail "missing teaching example at environments/example/${WL}"
 [[ -f "${EXAMPLE_SRC}/manifest.json" ]] || fail "example missing manifest.json"
