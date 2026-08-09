@@ -37,9 +37,15 @@ mkdir -p "${HV}/data/workloads/orphan-left"
 printf 'durable\n' >"${HV}/data/workloads/orphan-left/state.bin"
 
 # Stage Environment Workloads (new + update existing Host tree)
-mkdir -p "${STAGE}/workloads/alpha/routes" "${STAGE}/workloads/beta/quadlets"
+mkdir -p "${STAGE}/workloads/alpha/routes" \
+  "${STAGE}/workloads/alpha/www/usage" \
+  "${STAGE}/workloads/alpha/scripts" \
+  "${STAGE}/workloads/beta/quadlets"
 printf '{"intent":"run"}\n' >"${STAGE}/workloads/alpha/manifest.json"
 printf 'route-a\n' >"${STAGE}/workloads/alpha/routes/a.conf"
+printf 'home\n' >"${STAGE}/workloads/alpha/www/index.html"
+printf 'nested\n' >"${STAGE}/workloads/alpha/www/usage/index.html"
+printf '#!/bin/bash\necho ok\n' >"${STAGE}/workloads/alpha/scripts/alpha-job.sh"
 printf 'not-even-json\n' >"${STAGE}/workloads/beta/manifest.json"
 printf 'unit\n' >"${STAGE}/workloads/beta/quadlets/beta.container"
 
@@ -65,6 +71,12 @@ grep -Fxq '{"intent":"run"}' "${HV}/internals/workloads/alpha/manifest.json" \
   || fail "alpha Manifest not upserted"
 grep -Fxq 'route-a' "${HV}/internals/workloads/alpha/routes/a.conf" \
   || fail "alpha route not upserted"
+grep -Fxq 'home' "${HV}/internals/workloads/alpha/www/index.html" \
+  || fail "alpha www root not upserted"
+grep -Fxq 'nested' "${HV}/internals/workloads/alpha/www/usage/index.html" \
+  || fail "alpha nested www not upserted"
+grep -Fq 'echo ok' "${HV}/internals/workloads/alpha/scripts/alpha-job.sh" \
+  || fail "alpha scripts not upserted"
 [[ ! -e "${HV}/internals/workloads/alpha/routes/stale.conf" ]] \
   || fail "stale authored file must be pruned within Mirrored tree"
 pass "Mirror updates existing Host Workload trees"

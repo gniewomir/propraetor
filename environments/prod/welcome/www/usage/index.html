@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Usage — Propraetor</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Figtree:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            fontFamily: {
+              display: ['Fraunces', 'Georgia', 'serif'],
+              sans: ['Figtree', 'system-ui', 'sans-serif'],
+            },
+            colors: {
+              ink: '#14201b',
+              mist: '#e8efe9',
+              pine: '#2f6b4f',
+            },
+          },
+        },
+      };
+    </script>
+    <style>
+      body {
+        background:
+          radial-gradient(1200px 600px at 12% -10%, rgba(47, 107, 79, 0.18), transparent 55%),
+          radial-gradient(900px 500px at 100% 0%, rgba(20, 32, 27, 0.08), transparent 50%),
+          linear-gradient(165deg, #f4f7f4 0%, #dde6df 48%, #cfdcd3 100%);
+      }
+      @keyframes rise {
+        from {
+          opacity: 0;
+          transform: translateY(12px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+      .rise {
+        animation: rise 0.7s ease-out both;
+      }
+      .rise-delay-1 {
+        animation-delay: 0.1s;
+      }
+      .rise-delay-2 {
+        animation-delay: 0.2s;
+      }
+      .rise-delay-3 {
+        animation-delay: 0.3s;
+      }
+      .rise-delay-4 {
+        animation-delay: 0.4s;
+      }
+      .bar-fill {
+        transform-origin: left center;
+        transition: width 0.6s ease-out;
+      }
+    </style>
+  </head>
+  <body class="min-h-screen text-ink antialiased">
+    <main class="mx-auto flex min-h-screen max-w-2xl flex-col justify-center px-6 py-16 sm:px-8">
+      <a
+        href="/"
+        class="rise font-sans text-sm font-medium text-pine/80 transition hover:text-pine"
+      >
+        ← Propraetor
+      </a>
+      <h1 class="rise rise-delay-1 mt-6 font-display text-4xl font-bold tracking-tight sm:text-5xl">
+        Host usage
+      </h1>
+      <p id="status" class="rise rise-delay-1 mt-3 font-sans text-base text-ink/70">
+        Loading host metrics…
+      </p>
+
+      <dl class="mt-12 space-y-10">
+        <div class="rise rise-delay-2">
+          <div class="flex items-baseline justify-between gap-4">
+            <dt class="font-sans text-sm font-medium uppercase tracking-wide text-ink/60">CPU</dt>
+            <dd id="cpu-value" class="font-display text-3xl font-semibold tabular-nums text-ink">—</dd>
+          </div>
+          <div class="mt-3 h-2 overflow-hidden rounded-full bg-ink/10" aria-hidden="true">
+            <div id="cpu-bar" class="bar-fill h-full w-0 rounded-full bg-pine"></div>
+          </div>
+        </div>
+
+        <div class="rise rise-delay-3">
+          <div class="flex items-baseline justify-between gap-4">
+            <dt class="font-sans text-sm font-medium uppercase tracking-wide text-ink/60">Memory</dt>
+            <dd id="mem-value" class="font-display text-3xl font-semibold tabular-nums text-ink">—</dd>
+          </div>
+          <div class="mt-3 h-2 overflow-hidden rounded-full bg-ink/10" aria-hidden="true">
+            <div id="mem-bar" class="bar-fill h-full w-0 rounded-full bg-pine"></div>
+          </div>
+        </div>
+
+        <div class="rise rise-delay-4">
+          <div class="flex items-baseline justify-between gap-4">
+            <dt class="font-sans text-sm font-medium uppercase tracking-wide text-ink/60">Disk</dt>
+            <dd id="disk-value" class="font-display text-3xl font-semibold tabular-nums text-ink">—</dd>
+          </div>
+          <div class="mt-3 h-2 overflow-hidden rounded-full bg-ink/10" aria-hidden="true">
+            <div id="disk-bar" class="bar-fill h-full w-0 rounded-full bg-pine"></div>
+          </div>
+        </div>
+      </dl>
+    </main>
+    <script>
+      (function () {
+        var STALE_MS = 3 * 60 * 1000;
+        var statusEl = document.getElementById('status');
+
+        function clampPercent(n) {
+          n = Number(n);
+          if (!isFinite(n) || n < 0) return 0;
+          if (n > 100) return 100;
+          return Math.round(n);
+        }
+
+        function setMetric(prefix, percent) {
+          var value = clampPercent(percent);
+          document.getElementById(prefix + '-value').textContent = value + '%';
+          document.getElementById(prefix + '-bar').style.width = value + '%';
+        }
+
+        function setStatus(text) {
+          statusEl.textContent = text;
+        }
+
+        function applyStats(data) {
+          setMetric('cpu', data.cpu_percent);
+          setMetric('mem', data.mem_percent);
+          setMetric('disk', data.disk_percent);
+
+          var ts = Date.parse(data.ts);
+          if (!isFinite(ts)) {
+            setStatus('Host metrics (timestamp unavailable).');
+            return;
+          }
+          var age = Date.now() - ts;
+          if (age > STALE_MS) {
+            setStatus('Host metrics stale (last sample ' + data.ts + ').');
+            return;
+          }
+          setStatus('Sampled ' + data.ts + '.');
+        }
+
+        function load() {
+          fetch('/stats/stats.json', { cache: 'no-store' })
+            .then(function (res) {
+              if (!res.ok) throw new Error('HTTP ' + res.status);
+              return res.json();
+            })
+            .then(applyStats)
+            .catch(function () {
+              setStatus('Host metrics unavailable.');
+            });
+        }
+
+        load();
+        setInterval(load, 60 * 1000);
+      })();
+    </script>
+  </body>
+</html>

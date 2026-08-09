@@ -94,10 +94,11 @@ while IFS= read -r wl_name; do
   fi
   if [[ -d "${src}/www" ]]; then
     mkdir -p "${dest}/www"
-    for f in "${src}/www"/*; do
-      [[ -f "${f}" ]] || continue
-      cp "${f}" "${dest}/www/$(basename "${f}")"
-    done
+    cp -a "${src}/www/." "${dest}/www/"
+  fi
+  if [[ -d "${src}/scripts" ]]; then
+    mkdir -p "${dest}/scripts"
+    cp -a "${src}/scripts/." "${dest}/scripts/"
   fi
   mirrored=$((mirrored + 1))
 done < <(environment_discover_workloads "${ENV_DIR}")
