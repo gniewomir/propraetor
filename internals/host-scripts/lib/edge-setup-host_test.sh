@@ -131,10 +131,12 @@ quadlet_user_session_reload() {
   quadlet_user systemctl --user daemon-reload
 }
 
-# Minimal Component tree (nginx.conf + acme-run + optional units).
+# Minimal Component tree (nginx.conf + domain front template + acme-run + optional units).
 TREE="${TMP}/edge-tree"
 mkdir -p "${TREE}/quadlets" "${TREE}/systemd"
 printf 'worker_processes 1;\n' >"${TREE}/nginx.conf"
+cp "${REPO_ROOT}/internals/components/edge/domain-template.conf" \
+  "${TREE}/domain-template.conf"
 printf '#!/usr/bin/env bash\nexit 0\n' >"${TREE}/acme-run.sh"
 chmod a+x "${TREE}/acme-run.sh"
 printf '[Container]\nImage=docker.io/library/nginx:alpine\n' >"${TREE}/quadlets/edge-nginx.container"

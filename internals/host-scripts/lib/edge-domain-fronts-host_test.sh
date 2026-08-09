@@ -73,6 +73,7 @@ pass "does not prune PEMs when a name leaves the want-list"
 # --- Domain fronts: reconcile drop-ins for want-list (no empty-glob stubs) ---
 DOMAINS_DIR="${TMP}/domains"
 ROUTES_DIR="${TMP}/routes"
+DOMAIN_FRONT_TEMPLATE="${REPO_ROOT}/internals/components/edge/domain-template.conf"
 mkdir -p "${DOMAINS_DIR}" "${ROUTES_DIR}"
 printf '%s\n' 'alpha.example.test' 'gamma.example.test' >"${WANT_LIST}"
 
@@ -109,6 +110,8 @@ echo "${front}" | grep -E -q 'return 301 https://\$host\$request_uri;' \
   || fail "Domain front :80 must redirect non-ACME to HTTPS"
 echo "${front}" | grep -Fq 'location ^~ /.well-known/acme-challenge/' \
   || fail "Domain front :80 must keep ACME HTTP-01"
+echo "${front}" | grep -Fq '__FQDN__' \
+  && fail "Domain front must not leave __FQDN__ unsubstituted"
 pass "reconciles Domain fronts with TLS paths, /healthcheck, redirect, ACME, and Route includes"
 
 # --- Domain-front bytes stay stable across re-reconcile (ACME must not churn drop-ins either) ---
@@ -117,5 +120,20 @@ edge_reconcile_domain_fronts
 after="$(cat "${DOMAINS_DIR}/alpha.example.test.conf")"
 [[ "${before}" == "${after}" ]] || fail "re-reconcile must not churn Domain-front bytes"
 pass "Domain-front drop-ins are byte-stable across re-reconcile"
+
+# --- Missing Domain front template fails closed ---
+unset DOMAIN_FRONT_TEMPLATE
+if edge_reconcile_domain_fronts 2>"${TMP}/missing-template.err"; then
+  fail "reconcile must fail when DOMAIN_FRONT_TEMPLATE is unset"
+fi
+grep -Fq 'Domain front template missing' "${TMP}/missing-template.err" \
+  || fail "missing-template error must name the template"
+DOMAIN_FRONT_TEMPLATE="${TMP}/no-such-domain-template.conf"
+if edge_reconcile_domain_fronts 2>"${TMP}/missing-template2.err"; then
+  fail "reconcile must fail when DOMAIN_FRONT_TEMPLATE path is absent"
+fi
+grep -Fq 'Domain front template missing' "${TMP}/missing-template2.err" \
+  || fail "absent-template error must name the template"
+pass "fails closed when Domain front template is missing"
 
 echo "All Domain front helper checks passed."

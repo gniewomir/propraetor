@@ -189,7 +189,7 @@ Committed Environment file declaring Edge ACME’s Let’s Encrypt directory (`p
 _Avoid_: Environment Configuration, domains.json, Credential, Operator Configuration (when you mean the directory declaration)
 
 **Domain front**:
-Edge-owned per-FQDN drop-in for one want-list name: the HTTPS `server` that terminates TLS for that Domain name and includes matching Workload Routes. Publishes Edge baseline `/healthcheck` and the per-name `:80`→HTTPS redirect without a Workload Route. Lives under Edge data `domains/` (not Workload `routes/`); reconciled by Edge Setup with the want-list; never Workload-owned and never ACME-mutated.
+Edge-owned per-FQDN drop-in for one want-list name: the HTTPS `server` that terminates TLS for that Domain name and includes matching Workload Routes. Publishes Edge baseline `/healthcheck` and the per-name `:80`→HTTPS redirect without a Workload Route. Shape SoT is Edge Component `domain-template.conf`; Edge Setup renders each want-list FQDN into data `domains/<fqdn>.conf` (not Workload `routes/`). Never Workload-owned and never ACME-mutated.
 _Avoid_: Domain Route, Edge Route, vhost (when you mean this Edge-owned front); Workload Route
 
 **Workload** (alias **workflow**):

@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Edge Domain fronts + placeholder PEM helpers (sourced by Edge Component Setup).
-# Expects: CERTS_DIR, WANT_LIST; for Domain fronts also DOMAINS_DIR, ROUTES_DIR.
+# Expects: CERTS_DIR, WANT_LIST; for Domain fronts also DOMAINS_DIR, ROUTES_DIR,
+# DOMAIN_FRONT_TEMPLATE (Edge Component SoT; fail closed if missing).
 # Optional: USER_NAME for ownership after writes.
 #
 # ADR-0028 / ADR-0029 / #78.
@@ -59,47 +60,15 @@ EOF
   fi
 }
 
-# Write one Domain-front drop-in for a want-list FQDN (TLS server + :80 redirect).
+# Render DOMAIN_FRONT_TEMPLATE for one FQDN (__FQDN__ → fqdn).
 # Idempotent: skips rewrite when on-disk bytes already match.
 _edge_write_domain_front() {
   local fqdn="$1"
   local dest="${DOMAINS_DIR}/${fqdn}.conf"
-  local desired tmp
+  local template desired tmp
 
-  desired="$(cat <<EOF
-# Domain front for ${fqdn} — Edge-owned (ADR-0028). Reconciled by ensure-components.
-server {
-    listen 80;
-    listen [::]:80;
-    server_name ${fqdn};
-
-    location ^~ /.well-known/acme-challenge/ {
-        root /var/www/acme;
-        default_type text/plain;
-    }
-
-    location / {
-        return 301 https://\$host\$request_uri;
-    }
-}
-
-server {
-    listen 443 ssl;
-    listen [::]:443 ssl;
-    server_name ${fqdn};
-
-    ssl_certificate     /etc/nginx/certs/${fqdn}/fullchain.pem;
-    ssl_certificate_key /etc/nginx/certs/${fqdn}/privkey.pem;
-
-    location = /healthcheck {
-        default_type text/plain;
-        return 200 'ok';
-    }
-
-    include /etc/nginx/edge-routes/*--${fqdn}.conf;
-}
-EOF
-)"
+  template="$(cat "${DOMAIN_FRONT_TEMPLATE}")"
+  desired="${template//__FQDN__/${fqdn}}"
 
   if [[ -f "${dest}" ]] && [[ "$(cat "${dest}")" == "${desired}" ]]; then
     return 0
@@ -111,12 +80,18 @@ EOF
 }
 
 # Reconcile Domain-front drop-ins for the want-list under DOMAINS_DIR (ADR-0028).
+# SoT is DOMAIN_FRONT_TEMPLATE (Edge Component); missing template fails closed.
 # Empty nginx wildcard includes are valid (parent dirs exist); no 00-empty stubs.
 # Does not prune Domain fronts for names that left the want-list.
 # Removes legacy include stubs from earlier Setup generations.
 edge_reconcile_domain_fronts() {
   local fqdn
   local -a names=()
+
+  if [[ -z "${DOMAIN_FRONT_TEMPLATE:-}" || ! -f "${DOMAIN_FRONT_TEMPLATE}" ]]; then
+    echo "edge_reconcile_domain_fronts: Domain front template missing: ${DOMAIN_FRONT_TEMPLATE:-<unset>}" >&2
+    return 1
+  fi
 
   mkdir -p "${DOMAINS_DIR}" "${ROUTES_DIR}"
 

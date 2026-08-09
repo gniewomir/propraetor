@@ -50,6 +50,7 @@ printf '%s\\n' "edge-post" >>"${TMP}/setup.order"
 EOF
 chmod +x "${TMP}/edge/post-workloads.sh"
 printf 'edge-nginx\n' >"${TMP}/edge/nginx.conf"
+printf '# Domain front for __FQDN__\n' >"${TMP}/edge/domain-template.conf"
 # Staged Fabric must be ignored by ensure-components.
 cat >"${TMP}/fabric/setup.sh" <<EOF
 #!/usr/bin/env bash
@@ -111,6 +112,8 @@ fi
 [[ ! -e "${HV}/internals/components/edge/setup.sh" ]] \
   || fail "monolithic setup.sh must not be shipped"
 [[ -f "${HV}/internals/components/edge/nginx.conf" ]] || fail "edge nginx.conf not installed"
+[[ -f "${HV}/internals/components/edge/domain-template.conf" ]] \
+  || fail "edge domain-template.conf not installed"
 [[ ! -e "${HV}/internals/fabric/setup.sh" ]] || fail "ensure-components must not install Fabric"
 [[ -d "${HV}/internals/host-scripts/lib" ]] || fail "host-scripts lib not installed on Host Volume"
 [[ -d "${HV}/internals/workloads" ]] || fail "workloads SoT root missing on Host Volume"
