@@ -9,3 +9,5 @@ Operators need non-committed, Environment-scoped key/value configuration in Work
 **Rejected:** plain textual substitution / placeholders for this path; bag values in `Environment=` or other unit grammar; Host Volume as the value store; Host vaults / cloud secret managers; folding Credential into the bag; Component EnvironmentFiles in v1; Setup reserved-name enforcement; live reload or a separate rotate command without Setup.
 
 **Deferred to `/to-spec` / implementation planning (not this ADR):** drop-in basenames, Setup script module layout, parser internals, teaching/`environments/example/` cutover, Acceptance/Lifecycle Test design, operator-facing rotation UX beyond re-Setup rewrite, CI shell-only ergonomics, and when Components might later consume the bag.
+
+**Amended by ADR-0049:** `ROOT_DB_USER` / `ROOT_DB_PASSWORD` may share `environments/<slug>/.env` but are **Database admin credentials**, not this Workload bag — ensure-components stages them for Database; Manifest `environment` must not list them (fail closed). Components still do not consume the Workload Environment Configuration bag.

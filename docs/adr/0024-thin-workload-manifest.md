@@ -11,3 +11,5 @@ After operator-owned Routes (ADR-0022) and Domain-driven ACME (ADR-0023), the Ma
 **Optional `environment` names over Manifest-held values or placeholders:** consume declaration stays glanceable and value-free; materialization is ADR-0035.
 
 **Authored unit basenames (no `<workload>--` prefix) over Route-style renaming:** units stay graduation-friendly; uniqueness is enforced by refusing foreign basenames in the unit directory.
+
+**Amended by ADR-0049:** optional boolean `database` (`true` ⇒ Declaration for the Database Component) is a further deliberate allowlist thicken — still thin (no secret/runtime bytes).
