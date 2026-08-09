@@ -8,7 +8,7 @@ environments/<cloud-slug>/domains.override.json   # internal; gitignored (ADR-00
 environments/<cloud-slug>/acme.json               # Edge ACME directory only (ADR-0045)
 environments/<cloud-slug>/.env                    # Environment Configuration; gitignored (ADR-0035)
 environments/<cloud-slug>/.env.example            # committed key-name teaching; Setup never reads it
-environments/<cloud-slug>/.ssh/known_hosts        # Host-session TOFU; gitignored (lib/ssh.sh)
+environments/<cloud-slug>/.ssh/known_hosts        # Host-session TOFU; gitignored — Park forgets IP; Teardown resets (ADR-0046)
 environments/<cloud-slug>/<workload-name>/          # directory = Workload (ADR-0033)
 ```
 

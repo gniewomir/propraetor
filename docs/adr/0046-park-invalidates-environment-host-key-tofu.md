@@ -1,0 +1,5 @@
+# Park invalidates Environment Host-key TOFU
+
+Environment-scoped `known_hosts` (`environments/<slug>/.ssh/known_hosts`) binds the Reserved IP (plus Stack SSH port) to Host identity keys via TOFU (`StrictHostKeyChecking=accept-new`). That binding is invalid as soon as **Host** identity is gone — not only when the Reserved IP is gone. **Park** destroys the Host and keeps the IP, so Park best-effort forgets that IP’s entries (`propraetor_ssh_forget_host`) after a successful Park and on the already-Parked early exit. **Teardown** drops the whole store (`propraetor_ssh_known_hosts_reset`) because the IP is gone. Deploy / operator SSH do **not** auto-forget on mismatch (that would weaken TOFU); Host replace without Park remains a sharp edge — see [stale Environment known_hosts](../runbooks/stale-environment-known-hosts.md).
+
+**Considered:** Forget only on next SSH / Deploy; auto-heal Deploy on host-key mismatch; forget on every Apply. Rejected — leaves operators stuck after Park→Apply, or trades away TOFU, or couples Apply to local trust state without Host identity having changed.

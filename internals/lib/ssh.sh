@@ -51,6 +51,7 @@ _propraetor_ssh_prepare_known_hosts() {
 # Environment-scoped store (not ~/.ssh/known_hosts). OpenSSH stores non-22 ports
 # as [host]:port — clearing only the bare IP leaves a stale entry that fails
 # StrictHostKeyChecking=accept-new (accept-new does not replace mismatches).
+# Park calls this after Host identity is gone (ADR-0046); Teardown resets the store.
 propraetor_ssh_forget_host() {
   local ip="${1:?propraetor_ssh_forget_host requires IP}"
   local kh

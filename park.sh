@@ -19,10 +19,21 @@ source "${REPO_ROOT}/internals/lib/adopt/adopt.sh"
 source "${REPO_ROOT}/internals/lib/operator/operator-dotenv.sh"
 # shellcheck source=internals/lib/operator/operator-configuration.sh
 source "${REPO_ROOT}/internals/lib/operator/operator-configuration.sh"
+# shellcheck source=internals/lib/ssh.sh
+source "${REPO_ROOT}/internals/lib/ssh.sh"
 
 ABSENCE_VAR=(-var=recreatables_present=false)
 
 fail() { echo "FAIL: $*" >&2; exit 1; }
+
+# Host identity is gone after Park; Reserved IP survives. Drop stale Environment
+# known_hosts entries for that IP (ADR-0046). Best-effort — never fail Park.
+park_forget_host_keys() {
+  local ip=""
+  ip="$(terraform output -raw reserved_ip 2>/dev/null || true)"
+  [[ -n "${ip}" ]] || return 0
+  propraetor_ssh_forget_host "${ip}" || true
+}
 
 operator_dotenv_load "${REPO_ROOT}" || exit 1
 
@@ -55,6 +66,7 @@ case "${plan_rc}" in
   0)
     echo
     echo "Already Parked (destroy plan empty). Durables still bill if present."
+    park_forget_host_keys
     exit 0
     ;;
   1)
@@ -73,6 +85,8 @@ read -r confirm
 [[ "${confirm}" == "park" ]] || fail "aborted (expected exact 'park')"
 
 terraform apply -input=false -auto-approve "${ABSENCE_VAR[@]}"
+
+park_forget_host_keys
 
 echo
 echo "Park complete. Durables remain in State/provider and still bill."
