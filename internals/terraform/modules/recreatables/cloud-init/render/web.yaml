@@ -41,6 +41,26 @@ write_files:
   - path: /var/lib/systemd/linger/platform
     content: ""
     permissions: "0644"
+  # Platform journal Substrate (ADR-0050): persistent Host journal with modest
+  # caps for s-1vcpu-1gb-class public Hosts. SystemMaxUse=200M is the intentional
+  # initial budget; peers keep vacuum from filling root or runtime tmpfs.
+  - path: /etc/systemd/journald.conf.d/99-platform-journal.conf
+    owner: root:root
+    permissions: "0644"
+    content: |
+      [Journal]
+      Storage=persistent
+      SystemMaxUse=200M
+      SystemKeepFree=200M
+      RuntimeMaxUse=50M
+  # Platform journal capture pin (ADR-0050): Platform User Podman log_driver so
+  # containers do not silently fall back to k8s-file. No per-Quadlet LogDriver=.
+  - path: /home/platform/.config/containers/containers.conf
+    owner: platform:platform
+    permissions: "0644"
+    content: |
+      [containers]
+      log_driver = "journald"
   # Host Volume mount without scripts_user (ADR-0031).
   - path: /usr/local/lib/host-volume/ensure-host-volume-mount.sh
     permissions: "0755"
@@ -80,6 +100,8 @@ mounts:
 runcmd:
   - sysctl --system
   - loginctl enable-linger platform
+  # ADR-0050: pick up journald drop-in before later Substrate probing (IHP Done).
+  - systemctl restart systemd-journald
   # Optional accelerate when scripts_user runs; udev + tmpfiles cover vendor-skip.
   - systemd-tmpfiles --create /etc/tmpfiles.d/host-volume.conf
   - systemctl daemon-reload

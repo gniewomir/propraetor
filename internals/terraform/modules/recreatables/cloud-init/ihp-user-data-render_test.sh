@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Unit test: IHP user_data via production cloud-init/render module (ADR-0030 / ADR-0031).
+# Unit test: IHP user_data via production cloud-init/render module
+# (ADR-0030 / ADR-0031 / ADR-0050).
 # Asserts outcomes on the document Terraform delivers — not template/main.tf source shape.
 set -euo pipefail
 
@@ -106,10 +107,30 @@ end
 runcmd = (d['runcmd'] || []).map(&:to_s).join(\"\\n\")
 abort('runcmd must not wait/mount Host Volume scsi device') if runcmd.include?('scsi-0DO_Volume')
 
+# ADR-0050 Platform journal Substrate artifacts (issue #195).
+journal = by_path['/etc/systemd/journald.conf.d/99-platform-journal.conf']
+abort('missing journald Platform journal drop-in') unless journal
+journal_text = journal['content'].to_s
+abort('journald drop-in missing Storage=persistent') unless journal_text.include?('Storage=persistent')
+abort('journald drop-in missing SystemMaxUse=200M') unless journal_text.include?('SystemMaxUse=200M')
+abort('journald drop-in missing SystemKeepFree=') unless journal_text.match?(/SystemKeepFree=\\S+/)
+abort('journald drop-in missing RuntimeMaxUse=') unless journal_text.match?(/RuntimeMaxUse=\\S+/)
+
+containers = by_path['/home/platform/.config/containers/containers.conf']
+abort('missing Platform User containers.conf') unless containers
+abort('containers.conf wrong owner') unless containers['owner'].to_s == 'platform:platform'
+containers_text = containers['content'].to_s
+abort('containers.conf missing [containers]') unless containers_text.include?('[containers]')
+abort('containers.conf missing journald log_driver pin') unless containers_text.match?(/log_driver\\s*=\\s*\"journald\"/)
+
+abort('runcmd must restart systemd-journald so drop-in is live') unless runcmd.include?('systemctl restart systemd-journald')
+
 doc_lines = File.readlines('${WORKDIR}/user_data.yaml')
 active = doc_lines.reject { |l| l.match?(/^\\s*#/) }.join
+# Capture contract is the Platform User pin — not per-Quadlet LogDriver= spray.
+abort('user_data must not spray LogDriver= (containers.conf pin is the contract)') if active.include?('LogDriver=')
 if active.match?(/sshd-socket-generator|ensure-ssh-listen|ssh\\.socket\\.d/)
   abort('must not mask generator or ship ssh.socket.d overrides')
 end
-" || fail "rendered user_data contract (ADR-0030 / ADR-0031 / ADR-0037)"
+" || fail "rendered user_data contract (ADR-0030 / ADR-0031 / ADR-0037 / ADR-0050)"
 pass "rendered user_data matches IHP delivery contract"
