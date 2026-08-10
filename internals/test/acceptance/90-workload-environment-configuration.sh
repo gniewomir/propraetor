@@ -47,7 +47,7 @@ write_container() {
 Description=Propraetor Environment Configuration probe ${base}
 
 [Container]
-Image=docker.io/library/nginx:alpine
+Image=docker.io/library/nginx:1.31.3-alpine
 ContainerName=${cname}
 Network=service-network.network
 

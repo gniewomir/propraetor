@@ -84,7 +84,7 @@ cat >"${FIX_DIR}/clash/quadlets/edge-nginx.container" <<'EOF'
 Description=clash should fail
 
 [Container]
-Image=docker.io/library/nginx:alpine
+Image=docker.io/library/nginx:1.31.3-alpine
 ContainerName=clash
 Network=service-network.network
 
@@ -107,7 +107,7 @@ cat >"${FIX_DIR}/owner-a/quadlets/shared-name.container" <<'EOF'
 Description=owner-a claims shared-name
 
 [Container]
-Image=docker.io/library/nginx:alpine
+Image=docker.io/library/nginx:1.31.3-alpine
 ContainerName=shared-name-a
 Network=service-network.network
 

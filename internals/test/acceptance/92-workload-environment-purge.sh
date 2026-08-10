@@ -50,7 +50,7 @@ EOF
 Description=Propraetor Environment Configuration purge probe ${name}
 
 [Container]
-Image=docker.io/library/nginx:alpine
+Image=docker.io/library/nginx:1.31.3-alpine
 ContainerName=${name}
 Network=service-network.network
 

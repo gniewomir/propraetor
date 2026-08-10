@@ -40,7 +40,7 @@ cat >"${FIX_DIR}/${WL}/quadlets/${WL}.container" <<EOF
 Description=Propraetor Environment Configuration rotate probe
 
 [Container]
-Image=docker.io/library/nginx:alpine
+Image=docker.io/library/nginx:1.31.3-alpine
 ContainerName=${WL}
 Network=service-network.network
 

@@ -125,7 +125,7 @@ wait_active "${WL}-db.service" \
 pass "Always-on pod, api, and db containers are active"
 
 # Intra-pod: app container reaches private DB on localhost (shared net ns).
-# nginx:alpine has wget (not necessarily nc); open Postgres port accepts TCP then resets —
+# nginx:1.31.3-alpine has wget (not necessarily nc); open Postgres port accepts TCP then resets —
 # "can't connect" / "Connection refused" means the sidecar is not on localhost.
 db_local_ok="$(host_ssh bash -s <<REMOTE
 set -euo pipefail

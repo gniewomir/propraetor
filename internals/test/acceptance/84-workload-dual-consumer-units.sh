@@ -23,7 +23,7 @@ cat >"${FIX_DIR}/dual-ok/quadlets/dual-ok.container" <<'EOF'
 Description=dual-ok container
 
 [Container]
-Image=docker.io/library/nginx:alpine
+Image=docker.io/library/nginx:1.31.3-alpine
 ContainerName=dual-ok
 Network=service-network.network
 
@@ -88,7 +88,7 @@ cat >"${FIX_DIR}/wrong-s/systemd/misplaced.container" <<'EOF'
 Description=belongs in quadlets/
 
 [Container]
-Image=docker.io/library/nginx:alpine
+Image=docker.io/library/nginx:1.31.3-alpine
 ContainerName=misplaced
 
 [Service]

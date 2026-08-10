@@ -139,7 +139,7 @@ cp "${REPO_ROOT}/internals/components/edge/domain-template.conf" \
   "${TREE}/domain-template.conf"
 printf '#!/usr/bin/env bash\nexit 0\n' >"${TREE}/acme-run.sh"
 chmod a+x "${TREE}/acme-run.sh"
-printf '[Container]\nImage=docker.io/library/nginx:alpine\n' >"${TREE}/quadlets/edge-nginx.container"
+printf '[Container]\nImage=docker.io/library/nginx:1.31.3-alpine\n' >"${TREE}/quadlets/edge-nginx.container"
 
 # Ambient Edge data root (Host Volume substitute).
 DATA_ROOT="${TMP}/edge-data"

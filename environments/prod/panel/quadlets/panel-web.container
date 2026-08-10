@@ -2,7 +2,7 @@
 Description=Propraetor panel
 
 [Container]
-Image=docker.io/library/nginx:alpine
+Image=docker.io/library/nginx:1.31.3-alpine
 ContainerName=panel-web
 Pod=panel.pod
 Volume=/var/lib/host-volume/internals/workloads/panel/www:/usr/share/nginx/html:ro

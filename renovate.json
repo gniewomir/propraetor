@@ -1,0 +1,13 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended"],
+  "enabledManagers": ["quadlet", "terraform"],
+  "packageRules": [
+    {
+      "description": "Exact-tag image pins in Quadlets (nginx, postgres, …)",
+      "matchManagers": ["quadlet"],
+      "matchDatasources": ["docker"],
+      "pinDigests": false
+    }
+  ]
+}
