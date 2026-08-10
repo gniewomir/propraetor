@@ -9,4 +9,4 @@ SRC="$(cd "$(dirname "$0")" && pwd)"
 # shellcheck source=../../host-scripts/lib/edge-setup-host.sh
 source /var/lib/host-volume/internals/host-scripts/lib/edge-setup-host.sh
 
-edge_setup_post_workloads "${SRC}" /tmp/platform-acme-want-list /tmp/platform-acme.env
+edge_setup_post_workloads "${SRC}"

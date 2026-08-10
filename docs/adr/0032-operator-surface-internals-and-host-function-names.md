@@ -23,7 +23,8 @@ Day-to-day operator surface stays at the repo root; project wiring moves under b
 | Host Volume systemd/IHP unit family | `host-volume.service` (and matching tmpfiles/udev) |
 | SSH drop-in | `99-ssh-port.conf` |
 | Edge nginx include dirs | `/etc/nginx/edge-domains`, `/etc/nginx/edge-routes` |
-| Ephemeral staging | `/tmp/platform-*` |
+| Ephemeral delivery unpack | `/tmp/platform-*` (Host delivery stage roots only) |
+| Component Setup handoff | `/var/lib/host-volume/data/components/handoff/` (ACME want-list / ACME env / Database admin — owned by `component-handoff-host`) |
 | IHP contract gate | **Initial Host Provisioning Done** / **IHP Done** (replaces Carrier ready) |
 
 **Provider-visible names:** Cloud Project, Propraetor Tag / Role Tag, and other account-unique resource name prefixes are Propraetor-derived per ADR-0027. Host paths/user remain **function-named**, not brand-Propraetor.

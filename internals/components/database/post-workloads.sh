@@ -9,4 +9,4 @@ SRC="$(cd "$(dirname "$0")" && pwd)"
 # shellcheck source=../../host-scripts/lib/database-setup-host.sh
 source /var/lib/host-volume/internals/host-scripts/lib/database-setup-host.sh
 
-database_setup_post_workloads "${SRC}" /tmp/platform-database-admin.env
+database_setup_post_workloads "${SRC}"

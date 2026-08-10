@@ -12,8 +12,8 @@
 # Args: component_tree  [staged_want_list_src] [staged_acme_env_src]
 #   [--clear-fulfilled-routes] [--skip-gather]
 #   [--skip-front-door-bounce] [--skip-acme-bounce]
-# Staging pathnames are arguments only at this seam (and edge_install_want_list /
-# edge_install_acme_env).
+# Staging pathnames are optional at this seam (omit → Component Setup handoff root);
+# edge_install_want_list / edge_install_acme_env keep an install-path arg.
 # Mode flags (#180): clear fulfilled Routes; skip gather/load; skip front-door
 # reload/restart; skip ACME oneshot that reloads the door. Default (no flags) =
 # pre-ADR-0043 gather + bounce-when-needed + ACME oneshot.
@@ -34,6 +34,8 @@ source "${_edge_setup_lib_dir}/edge-front-door-host.sh"
 source "${_edge_setup_lib_dir}/edge-routes-host.sh"
 # shellcheck source=component-units-host.sh
 source "${_edge_setup_lib_dir}/component-units-host.sh"
+# shellcheck source=component-handoff-host.sh
+source "${_edge_setup_lib_dir}/component-handoff-host.sh"
 
 # Deep Edge Setup success: Domains present + Edge units active + front door answers.
 # Args: component_tree  [staged_want_list_src] [staged_acme_env_src]
@@ -41,6 +43,7 @@ source "${_edge_setup_lib_dir}/component-units-host.sh"
 #       [--skip-front-door-bounce] [--skip-acme-bounce] [--validate-config]
 # Default (no mode flags) matches pre-ADR-0043: gather + bounce-when-needed + ACME oneshot.
 # Mode flags are Host-helper seams for pre/post-workloads composition (#180 / #181).
+# Omitted stage paths resolve from the Component Setup handoff root.
 edge_setup() {
   local component_tree="${1:?edge_setup: component tree required}"
   shift
@@ -75,6 +78,9 @@ edge_setup() {
     shift
   done
 
+  [[ -n "${staged_want_list}" ]] || staged_want_list="$(component_handoff_acme_want_list)"
+  [[ -n "${staged_acme_env}" ]] || staged_acme_env="$(component_handoff_acme_env)"
+
   USER_NAME="${USER_NAME:-platform}"
   DATA_ROOT="${DATA_ROOT:-/var/lib/host-volume/data/components/edge}"
   ROUTES_DIR="${DATA_ROOT}/routes"
@@ -88,8 +94,8 @@ edge_setup() {
   quadlet_user_session_begin
 
   mkdir -p "${ROUTES_DIR}" "${DOMAINS_DIR}" "${CERTS_DIR}" "${ACME_WWW}" "${ACME_DIR}"
-  # Staged by ensure-components; Edge owns Host want-list + ACME env paths
-  # (ADR-0023 / ADR-0045 / #131).
+  # Staged by ensure-components into the handoff root; Edge owns Host want-list +
+  # ACME env interior paths (ADR-0023 / ADR-0045 / #131).
   edge_install_want_list "${staged_want_list}"
   edge_install_acme_env "${staged_acme_env}"
 

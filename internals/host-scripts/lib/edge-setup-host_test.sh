@@ -303,10 +303,15 @@ for step in edge_install_want_list edge_install_acme_env edge_plant_placeholder_
     fail "slot scripts must not expose ${step} as a caller checklist"
   fi
 done
-grep -Fq '/tmp/platform-acme.env' "${PRE}" \
-  || fail "pre-workloads must hand off staged ACME EnvironmentFile"
-grep -Fq '/tmp/platform-acme.env' "${POST}" \
-  || fail "post-workloads must hand off staged ACME EnvironmentFile"
+# Slots pass Component tree only; handoff paths resolve inside edge_setup.
+if grep -E '/tmp/platform-acme|/tmp/platform-database' "${PRE}" "${POST}" >/dev/null; then
+  fail "Edge slot scripts must not hardcode ephemeral handoff paths"
+fi
+# Exactly one non-flag arg to edge_setup_* (the Component tree).
+grep -Eq 'edge_setup_pre_workloads[[:space:]]+"\$\{SRC\}"[[:space:]]*$' "${PRE}" \
+  || fail "pre-workloads must call edge_setup_pre_workloads with Component tree only"
+grep -Eq 'edge_setup_post_workloads[[:space:]]+"\$\{SRC\}"[[:space:]]*$' "${POST}" \
+  || fail "post-workloads must call edge_setup_post_workloads with Component tree only"
 pass "Edge slot scripts are thin: ambient + edge_setup_pre/post_workloads only"
 
 # --- pre-workloads cold: clear Routes, start, ACME; no gather from SoT ---

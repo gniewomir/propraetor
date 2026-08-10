@@ -23,16 +23,15 @@ trap 'rm -rf "${TMP}"' EXIT
 HV="${TMP}/host-volume"
 mkdir -p "${HV}" "${TMP}/lib"
 cp "${REPO_ROOT}/internals/host-scripts/lib/sync-tree-host.sh" "${TMP}/lib/sync-tree-host.sh"
+cp "${REPO_ROOT}/internals/host-scripts/lib/component-handoff-host.sh" \
+  "${TMP}/lib/component-handoff-host.sh"
 printf '# ensure unit stub lib\n' >"${TMP}/lib/stub.sh"
 printf '%s\n' 'alpha.example.test' >"${TMP}/platform-acme-want-list"
 printf '%s\n' 'EDGE_ACME_DIRECTORY=staging' >"${TMP}/platform-acme.env"
 
-# Runnable copy with Host Volume + handoff paths redirected into TMP.
+# Runnable copy with Host Volume redirected into TMP (handoff lives under HV_ROOT).
 sed \
   -e "s|/var/lib/host-volume|${HV}|g" \
-  -e "s|/tmp/platform-acme-want-list|${TMP}/want-handoff|g" \
-  -e "s|/tmp/platform-acme.env|${TMP}/acme-env-handoff|g" \
-  -e "s|/tmp/platform-database-admin.env|${TMP}/db-admin-handoff|g" \
   "${HOST_SCRIPT}" >"${TMP}/ensure-run.sh"
 chmod +x "${TMP}/ensure-run.sh"
 
@@ -119,6 +118,12 @@ fi
 [[ -d "${HV}/internals/workloads" ]] || fail "workloads SoT root missing on Host Volume"
 [[ -d "${HV}/data/components" ]] || fail "data/components missing on Host Volume"
 [[ -d "${HV}/data/workloads" ]] || fail "data/workloads missing on Host Volume"
+[[ -f "${HV}/data/components/handoff/acme-want-list" ]] \
+  || fail "ACME want-list handoff missing under Host Volume"
+[[ -f "${HV}/data/components/handoff/acme.env" ]] \
+  || fail "ACME env handoff missing under Host Volume"
+grep -Fxq 'alpha.example.test' "${HV}/data/components/handoff/acme-want-list" \
+  || fail "ACME want-list handoff content wrong"
 [[ ! -e "${HV}/components" ]] || fail "retired components/ must not exist after ensure"
 [[ ! -e "${HV}/components_data" ]] || fail "retired components_data/ must not exist after ensure"
 pass "ensure-components pre-workloads installs Components and runs only that slot"
@@ -167,6 +172,8 @@ printf '%s\n' "${order}" | grep -Fxq 'edge-pre' || fail "edge-pre missing in dua
 printf '%s\n' "${order}" | grep -Fxq 'database-pre' || fail "database-pre missing in dual run: ${order}"
 [[ -f "${HV}/internals/components/database/pre-workloads.sh" ]] \
   || fail "database pre-workloads.sh not installed"
+[[ -f "${HV}/data/components/handoff/database-admin.env" ]] \
+  || fail "Database admin handoff missing when Database selected"
 pass "ensure-components runs Edge and Database Setup in one slot"
 
 # --- post-workloads runs the post script only ---

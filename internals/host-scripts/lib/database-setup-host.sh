@@ -12,12 +12,15 @@
 # After begin: HOME_DIR / UNIT_DIR / SYSTEMD_USER_DIR via quadlet_user_session_begin.
 #
 # Args: component_tree [staged_admin_env_src]
+# Omitted stage path resolves from the Component Setup handoff root.
 
 _database_setup_lib_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=quadlet-user-session.sh
 source "${_database_setup_lib_dir}/quadlet-user-session.sh"
 # shellcheck source=component-units-host.sh
 source "${_database_setup_lib_dir}/component-units-host.sh"
+# shellcheck source=component-handoff-host.sh
+source "${_database_setup_lib_dir}/component-handoff-host.sh"
 # shellcheck source=database-tls-host.sh
 source "${_database_setup_lib_dir}/database-tls-host.sh"
 # shellcheck source=database-admin-env-host.sh
@@ -56,6 +59,7 @@ database_wait_ready() {
 
 # Deep Database Setup success: units active + Postgres ready on Service Network.
 # Args: component_tree [staged_admin_env_src]
+# Omitted stage path resolves from the Component Setup handoff root.
 database_setup() {
   local component_tree="${1:?database_setup: component tree required}"
   shift
@@ -69,6 +73,8 @@ database_setup() {
     echo "database_setup: unknown argument: $1" >&2
     return 1
   fi
+
+  [[ -n "${staged_admin_env}" ]] || staged_admin_env="$(component_handoff_database_admin_env)"
 
   USER_NAME="${USER_NAME:-platform}"
   DATA_ROOT="${DATA_ROOT:-/var/lib/host-volume/data/components/database}"

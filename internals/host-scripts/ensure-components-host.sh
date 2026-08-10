@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # Host-local half of ensure-components. Invoked after Host delivery unpacks the stage.
-# Installs staged Component trees onto the Host Volume, places the staged ACME want-list
-# and ACME EnvironmentFile at the Edge-owned handoff paths, places Database admin
-# EnvironmentFile when Database is selected, ships host-scripts, then applies one
-# Component Setup slot (pre-workloads | post-workloads) — ADR-0043 / ADR-0040 / ADR-0010 /
-# ADR-0041 / ADR-0045 / ADR-0049 / #181 / #188.
+# Installs staged Component trees onto the Host Volume, places ACME want-list /
+# ACME EnvironmentFile (and Database admin EnvironmentFile when Database is selected)
+# into the Component Setup handoff root on the Host Volume, ships host-scripts, then
+# applies one Component Setup slot (pre-workloads | post-workloads) — ADR-0043 /
+# ADR-0040 / ADR-0010 / ADR-0041 / ADR-0045 / ADR-0049 / #181 / #188.
 # Does not install Fabric. No combined "full" mode.
 # Usage:
 #   ensure-components-host.sh <platform-user> <pre-workloads|post-workloads> [--component <name>]...
@@ -50,20 +50,19 @@ done
 }
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-HV_ROOT=/var/lib/host-volume
+HV_ROOT="${HV_ROOT:-/var/lib/host-volume}"
 INTERNALS_ROOT="${HV_ROOT}/internals"
 DATA_ROOT="${HV_ROOT}/data"
 COMPONENTS_ROOT="${INTERNALS_ROOT}/components"
 HOST_SCRIPTS_ROOT="${INTERNALS_ROOT}/host-scripts"
 WANT_STAGE="${HERE}/platform-acme-want-list"
-WANT_HANDOFF=/tmp/platform-acme-want-list
 ACME_ENV_STAGE="${HERE}/platform-acme.env"
-ACME_ENV_HANDOFF=/tmp/platform-acme.env
 DB_ADMIN_STAGE="${HERE}/platform-database-admin.env"
-DB_ADMIN_HANDOFF=/tmp/platform-database-admin.env
 SETUP_SCRIPT="${SLOT}.sh"
 # shellcheck source=lib/sync-tree-host.sh
 source "${HERE}/lib/sync-tree-host.sh"
+# shellcheck source=lib/component-handoff-host.sh
+source "${HERE}/lib/component-handoff-host.sh"
 
 need_database=0
 for name in "${COMPONENTS[@]}"; do
@@ -73,28 +72,10 @@ for name in "${COMPONENTS[@]}"; do
   fi
 done
 
-[[ -f "${WANT_STAGE}" ]] || {
-  echo "ensure-components: staged ACME FQDN list missing at ${WANT_STAGE}" >&2
-  exit 1
-}
-[[ -f "${ACME_ENV_STAGE}" ]] || {
-  echo "ensure-components: staged ACME EnvironmentFile missing at ${ACME_ENV_STAGE}" >&2
-  exit 1
-}
+component_handoff_install_acme "${WANT_STAGE}" "${ACME_ENV_STAGE}"
 if [[ "${need_database}" == "1" ]]; then
-  [[ -f "${DB_ADMIN_STAGE}" ]] || {
-    echo "ensure-components: staged Database admin EnvironmentFile missing at ${DB_ADMIN_STAGE}" >&2
-    exit 1
-  }
+  component_handoff_install_database_admin "${DB_ADMIN_STAGE}"
 fi
-cp "${WANT_STAGE}" "${WANT_HANDOFF}"
-cp "${ACME_ENV_STAGE}" "${ACME_ENV_HANDOFF}"
-HANDOFF_CLEANUP=("${WANT_HANDOFF}" "${ACME_ENV_HANDOFF}")
-if [[ "${need_database}" == "1" ]]; then
-  cp "${DB_ADMIN_STAGE}" "${DB_ADMIN_HANDOFF}"
-  HANDOFF_CLEANUP+=("${DB_ADMIN_HANDOFF}")
-fi
-trap 'rm -f "${HANDOFF_CLEANUP[@]}"' EXIT
 
 # Hard cut (ADR-0018 / ADR-0041): retire components/ + components_data/.
 rm -rf "${HV_ROOT:?}/components" "${HV_ROOT:?}/components_data"
@@ -142,15 +123,8 @@ done
 # Mount root stays root-owned; everything under it is Platform User–owned.
 chown -R "${USER_NAME}:${USER_NAME}" "${INTERNALS_ROOT}" "${DATA_ROOT}"
 
-# Fail closed if Domain FQDN / ACME env handoffs are missing before Edge Component Setup.
-[[ -f "${WANT_HANDOFF}" ]] || {
-  echo "ensure-components: staged ACME FQDN list missing at ${WANT_HANDOFF}" >&2
-  exit 1
-}
-[[ -f "${ACME_ENV_HANDOFF}" ]] || {
-  echo "ensure-components: staged ACME EnvironmentFile missing at ${ACME_ENV_HANDOFF}" >&2
-  exit 1
-}
+# Fail closed if ACME handoffs are missing before Component Setup.
+component_handoff_require_acme
 
 for name in "${COMPONENTS[@]}"; do
   [[ -f "${COMPONENTS_ROOT}/${name}/${SETUP_SCRIPT}" ]] || {
