@@ -61,12 +61,16 @@ Host-local gate that the IHP contract holds on a public Host — that the Host i
 _Avoid_: Fabric ready, Substrate ready (prefer IHP Done for the gate), Carrier ready, cloud-init ready, Component Setup ready, Component Setup Done, provisioned (bare), ready (bare)
 
 **Substrate**:
-The Host condition after IHP Done: everything required to run Fabric Setup is present (today: container engine, Platform User, SSH listen port, port floor, and the Host Volume mount), while Fabric itself may still be incomplete. A Host condition — not a Setup kind and not a peer of Fabric, Component, or Workload.
+The Host condition after IHP Done: everything required to run Fabric Setup is present (today: container engine, Platform User, SSH listen port, port floor, Host Volume mount, and **Platform journal** readiness), while Fabric itself may still be incomplete. A Host condition — not a Setup kind and not a peer of Fabric, Component, or Workload.
 _Avoid_: Carrier, IHP Done (when you mean the condition rather than the gate), Fabric, provisioned (bare), ready (bare)
 
 **Host diagnostics**:
-An operator pull of Host-local diagnostic artifacts for an Environment (named bundles of files and small command snapshots) for local inspection. Not IHP Done, not an Acceptance Test, and not ongoing Host management.
-_Avoid_: logs (bare), cloud-init logs (when you mean this operator capability); debug dump, support bundle (when you mean this Propraetor operation)
+An operator pull of Host-local diagnostic artifacts for an Environment (named bundles of files and small command snapshots) for local inspection. Not IHP Done, not an Acceptance Test, not ongoing Host management, and not the **Platform journal** (runtime unit/container streams).
+_Avoid_: logs (bare), cloud-init logs (when you mean this operator capability); Platform journal (when you mean this pull); debug dump, support bundle (when you mean this Propraetor operation)
+
+**Platform journal**:
+The Platform User’s systemd journal as the sole destination for Propraetor-owned unit and container diagnostic streams on the Host (Quadlet-generated and authored `systemd/` units). Part of **Substrate**. Not Host diagnostics, not IHP cloud-init files, and not application log files on the Host Volume. Access/request streams are not required by default.
+_Avoid_: logs (bare), container logs (bare), journald (when you mean this Propraetor contract); Host diagnostics; access logs (when you mean the default-off request stream)
 
 **Reserved IP**:
 A stable public IPv4 address owned by the Stack and assigned to a Host. It survives Host rebuilds and Park; Teardown removes it with the rest of the Stack. The Host's own public IP does not survive rebuilds.
@@ -245,5 +249,5 @@ A Workload-authored **Declaration** for Edge: operator-authored Edge config (nat
 _Avoid_: Vhost, upstream, location block, snippet, server block (when you mean this Workload attachment); Domain front; projected Route, generated shell, interior (removed Propraetor Route features); Declaration (when you mean only this kind)
 
 **Platform User**:
-The Host login account that runs the platform’s rootless user Quadlets (linger enabled so user systemd stays up without an interactive session). Created by Initial Host Provisioning on public Hosts — account and linger only, not Quadlet units. Unix account name: `platform`.
+The Host login account that runs the platform’s rootless user Quadlets (linger enabled so user systemd stays up without an interactive session) and owns the **Platform journal**. Created by Initial Host Provisioning on public Hosts — account and linger only, not Quadlet units. Unix account name: `platform`.
 _Avoid_: Prefect User, prefect (user), propraetor (user), edge user, podman user, service account (when you mean this Host account)
