@@ -22,7 +22,7 @@ case "${1-}" in
   {"address":"module.durables.digitalocean_project.propraetor","mode":"managed","values":{"id":"project-test-id"}},
   {"address":"module.durables.digitalocean_volume.web","mode":"managed","values":{"id":"volume-test-id"}},
   {"address":"module.durables.digitalocean_reserved_ip.web","mode":"managed","values":{"ip_address":"203.0.113.10"}},
-  {"address":"module.durables.digitalocean_domain.this[\"gniewomir.pl\"]","mode":"managed","values":{"id":"gniewomir.pl"}},
+  {"address":"module.durables.digitalocean_domain.this[\"enraged.dev\"]","mode":"managed","values":{"id":"enraged.dev"}},
   {"address":"module.durables.digitalocean_project_resources.durables","mode":"managed","values":{"id":"project-test-id"}}
 ]},{"address":"module.recreatables[0]","resources":[
   {"address":"module.recreatables[0].digitalocean_droplet.web","mode":"managed","values":{"id":4242}},
@@ -43,8 +43,8 @@ cat >"${TMP_DIR}/bin/curl" <<'EOF'
 set -euo pipefail
 url="${*: -1}"
 case "${url}" in
-  *"/v2/domains?"*) printf '%s\n' '{"domains":[{"name":"gniewomir.pl"}]}' ;;
-  *"/v2/domains/gniewomir.pl/records"*)
+  *"/v2/domains?"*) printf '%s\n' '{"domains":[{"name":"enraged.dev"}]}' ;;
+  *"/v2/domains/enraged.dev/records"*)
     printf '{"domain_records":[{"id":1001,"type":"A","name":"@","data":"%s"}]}\n' \
       "${RECORD_DATA:-203.0.113.10}"
     ;;
@@ -70,7 +70,7 @@ fail_out="$("${REPO_ROOT}/apply.sh" --yes --env test 2>&1)" && {
   echo "${fail_out}" >&2
   fail "Apply must fail closed when a declared Domain A record has a wrong endpoint"
 }
-grep -Fq "FAIL: Adopt: Domain gniewomir.pl record '@' exists with a wrong endpoint or conflicting type" <<<"${fail_out}" \
+grep -Fq "FAIL: Adopt: Domain enraged.dev record '@' exists with a wrong endpoint or conflicting type" <<<"${fail_out}" \
   || fail "wrong-endpoint Adopt failure unclear (output: ${fail_out})"
 if grep -Eq '(^| )(plan |apply |import )' "${TERRAFORM_CALLS}"; then
   fail "Apply must not plan, apply, or import after a Domain record endpoint conflict"
@@ -81,7 +81,7 @@ pass "Apply fails closed on a wrong Domain A record endpoint"
 export RECORD_DATA=203.0.113.10
 "${REPO_ROOT}/apply.sh" --yes --env test >/dev/null
 
-import_call='import -input=false module.durables.digitalocean_record.a["gniewomir.pl:@"] gniewomir.pl,1001'
+import_call='import -input=false module.durables.digitalocean_record.a["enraged.dev:@"] enraged.dev,1001'
 grep -Fxq "${import_call}" "${TERRAFORM_CALLS}" \
   || fail "Apply must Adopt an exact declared Domain A record missing from State"
 
