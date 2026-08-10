@@ -55,9 +55,14 @@ write_files:
       RuntimeMaxUse=50M
   # Platform journal capture pin (ADR-0050): Platform User Podman log_driver so
   # containers do not silently fall back to k8s-file. No per-Quadlet LogDriver=.
+  # defer: true - write_files runs before users_groups; without defer, owner
+  # platform:platform raises Unknown user and aborts the rest of write_files
+  # (Host Volume units never land). write_files_deferred runs in final after
+  # the Platform User exists.
   - path: /home/platform/.config/containers/containers.conf
     owner: platform:platform
     permissions: "0644"
+    defer: true
     content: |
       [containers]
       log_driver = "journald"

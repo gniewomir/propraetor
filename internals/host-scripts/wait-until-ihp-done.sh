@@ -118,6 +118,12 @@ fi
 # ADR-0050: cheap live probe — Platform User can open the user journal and Podman
 # reports LogDriver=journald (not a full log round-trip). Both halves required so
 # "config present but journal unusable" and "pin ignored" both fail closed.
+#
+# Root SSH sessions start in /root. runuser keeps the caller's cwd; Podman as
+# Platform User then fails with "cannot chdir to /root". stderr is discarded
+# below, so that failure looked like LogDriver=''.
+platform_home="$(getent passwd "${USER_NAME}" | cut -d: -f6)"
+cd "${platform_home:-/}" || cd /
 uid_num="$(id -u "${USER_NAME}")"
 runtime="/run/user/${uid_num}"
 platform_user_env=(

@@ -28,10 +28,15 @@ quadlet_user_session_begin() {
 
 quadlet_user() {
   local runtime="/run/user/${UID_NUM:?quadlet_user: UID_NUM unset; call quadlet_user_session_begin first}"
-  runuser -u "${USER_NAME}" -- env \
-    "XDG_RUNTIME_DIR=${runtime}" \
-    "DBUS_SESSION_BUS_ADDRESS=unix:path=${runtime}/bus" \
-    "$@"
+  local home="${HOME_DIR:?quadlet_user: HOME_DIR unset; call quadlet_user_session_begin first}"
+  # Root SSH cwd is /root; Podman as Platform User cannot retain that directory.
+  (
+    cd "${home}" || cd /
+    exec runuser -u "${USER_NAME}" -- env \
+      "XDG_RUNTIME_DIR=${runtime}" \
+      "DBUS_SESSION_BUS_ADDRESS=unix:path=${runtime}/bus" \
+      "$@"
+  )
 }
 
 quadlet_user_session_reload() {

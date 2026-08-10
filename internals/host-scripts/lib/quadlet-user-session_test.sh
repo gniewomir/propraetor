@@ -37,20 +37,22 @@ EOF
 chmod +x "${TMP}/bin/getent"
 
 # Capture env assignments that quadlet_user passes through env.
-cat >"${TMP}/bin/runuser" <<'EOF'
+# Also record cwd: root SSH /root is unsafe for Platform User Podman.
+cat >"${TMP}/bin/runuser" <<EOF
 #!/usr/bin/env bash
 set -euo pipefail
-while [[ $# -gt 0 ]]; do
-  case "$1" in
+printf '%s\n' "\${PWD}" >"${TMP}/runuser-cwd"
+while [[ \$# -gt 0 ]]; do
+  case "\$1" in
     -u) shift 2 ;;
     --) shift; break ;;
     *) break ;;
   esac
 done
-if [[ "${1-}" == env ]]; then
+if [[ "\${1-}" == env ]]; then
   shift
-  while [[ $# -gt 0 && "$1" == *=* ]]; do
-    printf '%s\n' "$1"
+  while [[ \$# -gt 0 && "\$1" == *=* ]]; do
+    printf '%s\n' "\$1"
     shift
   done
   exit 0
@@ -86,6 +88,18 @@ if echo "${got}" | grep -Fq 'DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/0/bus'
   fail "quadlet_user must not pass root DBUS_SESSION_BUS_ADDRESS"
 fi
 pass "quadlet_user does not inherit root DBUS_SESSION_BUS_ADDRESS"
+
+# Simulate root SSH landing in /root; quadlet_user must cd to Platform HOME first.
+mkdir -p "${TMP}/fake-root"
+(
+  cd "${TMP}/fake-root"
+  quadlet_user true >/dev/null
+)
+got_cwd="$(cat "${TMP}/runuser-cwd")"
+if [[ "${got_cwd}" != "${HOME_DIR}" && ! "${got_cwd}" -ef "${HOME_DIR}" ]]; then
+  fail "quadlet_user must runuser from Platform HOME (${HOME_DIR}), got cwd '${got_cwd}'"
+fi
+pass "quadlet_user cds to Platform HOME before runuser"
 
 # edge_setup_pre_workloads must ensure session before is-active (source contract).
 PRE_FN="${REPO_ROOT}/internals/host-scripts/lib/edge-setup-host.sh"

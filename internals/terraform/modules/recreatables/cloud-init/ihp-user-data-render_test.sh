@@ -119,6 +119,8 @@ abort('journald drop-in missing RuntimeMaxUse=') unless journal_text.match?(/Run
 containers = by_path['/home/platform/.config/containers/containers.conf']
 abort('missing Platform User containers.conf') unless containers
 abort('containers.conf wrong owner') unless containers['owner'].to_s == 'platform:platform'
+# write_files runs before users_groups; defer so owner platform exists (ADR-0050).
+abort('containers.conf missing defer: true') unless [true, 'true'].include?(containers['defer'])
 containers_text = containers['content'].to_s
 abort('containers.conf missing [containers]') unless containers_text.include?('[containers]')
 abort('containers.conf missing journald log_driver pin') unless containers_text.match?(/log_driver\\s*=\\s*\"journald\"/)

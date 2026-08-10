@@ -67,6 +67,13 @@ exit 0
 EOF
 chmod +x "${STUBS}/id"
 
+cat >"${STUBS}/getent" <<EOF
+#!/usr/bin/env bash
+# Platform User home under fixtures so live-probe cd leaves STUB_FORBIDDEN_CWD.
+printf 'platform:x:1000:1000::%s:/bin/bash\n' "${FIXTURES}"
+EOF
+chmod +x "${STUBS}/getent"
+
 cat >"${STUBS}/findmnt" <<'EOF'
 #!/usr/bin/env bash
 # Succeed after FINDMT_SUCCEED_AFTER attempts (default: never).
@@ -92,7 +99,14 @@ chmod +x "${STUBS}/findmnt"
 cat >"${STUBS}/runuser" <<'EOF'
 #!/usr/bin/env bash
 # runuser -u USER -- env KEY=VAL ... CMD...
+# Host util-linux keeps caller cwd; Podman as platform cannot use /root (and our
+# STUB_FORBIDDEN_CWD stand-in).
 set -euo pipefail
+if [[ -n "${STUB_FORBIDDEN_CWD:-}" && "${PWD}" == "${STUB_FORBIDDEN_CWD}" ]]; then
+  echo "cannot chdir to ${PWD}: Permission denied" >&2
+  echo "Error: setting up the process" >&2
+  exit 1
+fi
 while [[ $# -gt 0 ]]; do
   case "$1" in
     -u)
@@ -282,3 +296,16 @@ unset PODMAN_LOG_DRIVER
 
 run_gate || fail "gate should pass when on-disk contract and live probe succeed"
 pass "passes with Platform journal on-disk contract and live probe"
+
+# Root SSH cwd /root: Podman fails unless the gate cds away before runuser.
+FORBIDDEN_CWD="$(mktemp -d "${TMPDIR:-/tmp}/ihp-forbidden-cwd.XXXXXX")"
+export STUB_FORBIDDEN_CWD="${FORBIDDEN_CWD}"
+if ! (
+  cd "${FORBIDDEN_CWD}"
+  run_gate
+); then
+  fail "gate should cd off forbidden cwd before Platform User Podman probe"
+fi
+pass "live probe survives root-SSH-style forbidden cwd"
+unset STUB_FORBIDDEN_CWD
+rmdir "${FORBIDDEN_CWD}" 2>/dev/null || true
