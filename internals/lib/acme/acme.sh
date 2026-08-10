@@ -1,11 +1,15 @@
 #!/usr/bin/env bash
-# Environment ACME configuration helpers (ADR-0045).
+# Environment ACME configuration helpers (ADR-0045 / ADR-0051).
 # Sourced by ensure-components. Requires REPO_ROOT (call-time).
 #
-# Committed file: environments/<slug>/acme.json
+# Committed file: <environments-root>/<slug>/acme.json
 #   { "directory": "production"|"staging" }
 # Contact: Operator Configuration PROPRAETOR_ACME_EMAIL (ADR-0038) when file present.
 # Missing file → staging directory, no email line (Host derives contact).
+
+_ACME_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=../environment/environment.sh
+source "${_ACME_LIB_DIR}/../environment/environment.sh"
 
 # Print absolute path to acme.json for an Environment cloud slug.
 # Prints nothing and exits 0 when the file is absent.
@@ -19,7 +23,9 @@ acme_config_path() {
     echo "FAIL: acme_config_path requires REPO_ROOT" >&2
     return 1
   fi
-  local path="${REPO_ROOT}/environments/${slug}/acme.json"
+  local env_dir path
+  env_dir="$(environments_dir_for "${slug}")" || return 1
+  path="${env_dir}/acme.json"
   if [[ -f "${path}" ]]; then
     printf '%s\n' "${path}"
   fi

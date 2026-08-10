@@ -1,12 +1,16 @@
 #!/usr/bin/env bash
-# Domain assignment helpers (ADR-0021 / ADR-0023).
+# Domain assignment helpers (ADR-0021 / ADR-0023 / ADR-0051).
 # Sourced by ensure-components, Adopt, and Domain unit tests.
 #
-# Requires REPO_ROOT to be set to the repository root (call-time).
+# Requires REPO_ROOT. Honors PROPRAETOR_ENVIRONMENTS_ROOT via environments_root.
+
+_DOMAINS_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=../environment/environment.sh
+source "${_DOMAINS_LIB_DIR}/../environment/environment.sh"
 
 # Print absolute path to the Domain assignment file for an Environment cloud slug.
 # Prefers domains.override.json when present; otherwise domains.json (ADR-0021).
-# Prints nothing and exits 0 when neither exists.
+# Prints nothing and exits 0 when neither exists (Environment dir must exist).
 domains_assignment_path() {
   local slug="${1-}"
   if [[ -z "${slug}" ]]; then
@@ -17,8 +21,10 @@ domains_assignment_path() {
     echo "FAIL: domains_assignment_path requires REPO_ROOT" >&2
     return 1
   fi
-  local override="${REPO_ROOT}/environments/${slug}/domains.override.json"
-  local committed="${REPO_ROOT}/environments/${slug}/domains.json"
+  local env_dir override committed
+  env_dir="$(environments_dir_for "${slug}")" || return 1
+  override="${env_dir}/domains.override.json"
+  committed="${env_dir}/domains.json"
   if [[ -f "${override}" ]]; then
     printf '%s\n' "${override}"
     return 0

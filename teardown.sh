@@ -40,6 +40,7 @@ command -v terraform >/dev/null || fail "terraform not found"
 [[ -f "${OVERRIDE_EXAMPLE}" ]] || fail "missing ${OVERRIDE_EXAMPLE}"
 
 provider_credential_require || exit 1
+environments_export_tf_var || exit 1
 
 cd "${STACK_DIR}"
 

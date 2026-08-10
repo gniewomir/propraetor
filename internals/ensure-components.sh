@@ -103,7 +103,7 @@ acme_config_dotenv_for "${PLATFORM_ENV}" >"${STAGE}/platform-acme.env"
 # Database admin credentials (ADR-0049 / #188): Environment .env + shell → Postgres EnvironmentFile.
 # Not Environment Configuration — never selected by Manifest environment.
 database_admin_credentials_dotenv_for \
-  "${REPO_ROOT}/environments/${PLATFORM_ENV}" \
+  "$(environments_dir_for "${PLATFORM_ENV}")" \
   "${STAGE}/platform-database-admin.env"
 
 cp -a "${REPO_ROOT}/internals/host-scripts/lib" "${STAGE}/lib"

@@ -61,14 +61,15 @@ if [[ "${WL_NAME}" == "database" ]]; then
   exit 1
 fi
 
-MANIFEST_DIR="${REPO_ROOT}/environments/${PLATFORM_ENV}/${WL_NAME}"
+ENV_DIR="$(environments_dir_for "${PLATFORM_ENV}")" || exit 1
+MANIFEST_DIR="${ENV_DIR}/${WL_NAME}"
 MANIFEST_ABS="${MANIFEST_DIR}/manifest.json"
 [[ -d "${MANIFEST_DIR}" ]] || {
-  echo "Workload tree not found: environments/${PLATFORM_ENV}/${WL_NAME}/" >&2
+  echo "Workload tree not found: ${MANIFEST_DIR}/" >&2
   exit 1
 }
 [[ -f "${MANIFEST_ABS}" ]] || {
-  echo "manifest.json missing in environments/${PLATFORM_ENV}/${WL_NAME}/" >&2
+  echo "manifest.json missing in ${MANIFEST_DIR}/" >&2
   exit 1
 }
 [[ -f "${HOST_SCRIPT}" ]] || {
@@ -106,8 +107,6 @@ command -v python3 >/dev/null || { echo "python3 not found" >&2; exit 1; }
 
 host_session_open verify "${STACK_DIR}" || exit 1
 IP="$(host_session_ip)"
-
-ENV_DIR="${REPO_ROOT}/environments/${PLATFORM_ENV}"
 
 STAGE="$(umask 077; mktemp -d "${TMPDIR:-/tmp}/platform-ensure-workload-stage.XXXXXX")"
 trap 'rm -rf "${STAGE}"' EXIT

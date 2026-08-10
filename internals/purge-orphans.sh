@@ -55,11 +55,7 @@ command -v ssh >/dev/null || { echo "ssh not found" >&2; exit 1; }
 host_session_open verify "${STACK_DIR}" || exit 1
 IP="$(host_session_ip)"
 
-ENV_DIR="${REPO_ROOT}/environments/${PLATFORM_ENV}"
-[[ -d "${ENV_DIR}" ]] || {
-  echo "Environment tree missing: environments/${PLATFORM_ENV}/" >&2
-  exit 1
-}
+ENV_DIR="$(environments_dir_for "${PLATFORM_ENV}")" || exit 1
 
 STAGE="$(umask 077; mktemp -d "${TMPDIR:-/tmp}/platform-purge-orphans-stage.XXXXXX")"
 trap 'rm -rf "${STAGE}"' EXIT

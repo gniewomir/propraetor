@@ -9,6 +9,9 @@ trap 'rm -rf "${TMP_DIR}"' EXIT
 fail() { echo "FAIL: $*" >&2; exit 1; }
 pass() { echo "PASS: $*"; }
 
+# shellcheck source=unit_environments_root_fixture.sh
+source "$(cd "$(dirname "$0")" && pwd)/unit_environments_root_fixture.sh"
+
 mkdir -p "${TMP_DIR}/bin"
 cat >"${TMP_DIR}/bin/terraform" <<'EOF'
 #!/usr/bin/env bash
@@ -22,11 +25,11 @@ case "${1-}" in
   {"address":"module.durables.digitalocean_project.propraetor","mode":"managed","values":{"id":"project-test-id"}},
   {"address":"module.durables.digitalocean_volume.web","mode":"managed","values":{"id":"volume-test-id","urn":"do:volume:volume-test-id"}},
   {"address":"module.durables.digitalocean_reserved_ip.web","mode":"managed","values":{"ip_address":"203.0.113.10","urn":"do:reservedip:203.0.113.10"}},
-  {"address":"module.durables.digitalocean_domain.this[\"gniewomir.pl\"]","mode":"managed","values":{"id":"gniewomir.pl","urn":"do:domain:gniewomir.pl"}},
-  {"address":"module.durables.digitalocean_record.a[\"gniewomir.pl:@\"]","mode":"managed","values":{"id":"1001"}},
-  {"address":"module.durables.digitalocean_record.a[\"gniewomir.pl:www\"]","mode":"managed","values":{"id":"1002"}},
-  {"address":"module.durables.digitalocean_record.a[\"gniewomir.pl:api\"]","mode":"managed","values":{"id":"1003"}},
-  {"address":"module.durables.digitalocean_record.a[\"gniewomir.pl:test-acme\"]","mode":"managed","values":{"id":"1004"}},
+  {"address":"module.durables.digitalocean_domain.this[\"unit.example\"]","mode":"managed","values":{"id":"unit.example","urn":"do:domain:unit.example"}},
+  {"address":"module.durables.digitalocean_record.a[\"unit.example:@\"]","mode":"managed","values":{"id":"1001"}},
+  {"address":"module.durables.digitalocean_record.a[\"unit.example:www\"]","mode":"managed","values":{"id":"1002"}},
+  {"address":"module.durables.digitalocean_record.a[\"unit.example:api\"]","mode":"managed","values":{"id":"1003"}},
+  {"address":"module.durables.digitalocean_record.a[\"unit.example:test-acme\"]","mode":"managed","values":{"id":"1004"}},
   {"address":"module.durables.digitalocean_project_resources.durables","mode":"managed","values":{"id":"project-test-id"}}
 ]},{"address":"module.recreatables[0]","resources":[
   {"address":"module.recreatables[0].digitalocean_droplet.web","mode":"managed","values":{"id":4242}},
@@ -49,13 +52,13 @@ case "${url}" in
       printf '%s\n' '{"resources":[
         {"urn":"do:volume:volume-test-id"},
         {"urn":"do:reservedip:203.0.113.10"},
-        {"urn":"do:domain:gniewomir.pl"}
+        {"urn":"do:domain:unit.example"}
       ]}'
     else
       printf '%s\n' '{"resources":[
         {"urn":"do:volume:volume-test-id"},
         {"urn":"do:reservedip:203.0.113.10"},
-        {"urn":"do:domain:gniewomir.pl"},
+        {"urn":"do:domain:unit.example"},
         {"urn":"do:droplet:4242"}
       ]}'
     fi
@@ -87,6 +90,8 @@ printf 'PRIVATE\n' >"${KEYS_DIR}/id"
 chmod 600 "${KEYS_DIR}/id" "${KEYS_DIR}/id.pub"
 export PROPRAETOR_PUBLIC_KEY_PATH="${KEYS_DIR}/id.pub"
 export PROPRAETOR_PRIVATE_KEY_PATH="${KEYS_DIR}/id"
+
+unit_environments_root_fixture
 
 output="$("${REPO_ROOT}/apply.sh" --yes --env test)"
 

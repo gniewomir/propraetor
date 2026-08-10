@@ -13,6 +13,7 @@ ENV_SLUG="${PLATFORM_ENV:-test}"
 FIX_DIR="$(acceptance_env_dir)"
 mkdir -p "${FIX_DIR}"
 WL=database
+acceptance_wl_track "${WL}"
 err="$(mktemp "${TMPDIR:-/tmp}/platform-database-basename.XXXXXX")"
 trap 'rm -f "${err}"; acceptance_wl_cleanup' EXIT
 

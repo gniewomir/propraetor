@@ -9,6 +9,9 @@ trap 'rm -rf "${TMP_DIR}"' EXIT
 fail() { echo "FAIL: $*" >&2; exit 1; }
 pass() { echo "PASS: $*"; }
 
+# shellcheck source=unit_environments_root_fixture.sh
+source "$(cd "$(dirname "$0")" && pwd)/unit_environments_root_fixture.sh"
+
 mkdir -p "${TMP_DIR}/bin"
 cat >"${TMP_DIR}/bin/terraform" <<'EOF'
 #!/usr/bin/env bash
@@ -42,7 +45,7 @@ case "${url}" in
     printf '%s\n' '{"volumes":[{"id":"volume-test-id","name":"propraetor-test-web-data","region":{"slug":"fra1"}}]}'
     ;;
   *"/v2/domains?"*)
-    printf '%s\n' '{"domains":[{"name":"gniewomir.pl","ttl":1800,"zone_file":""}]}'
+    printf '%s\n' '{"domains":[{"name":"unit.example","ttl":1800,"zone_file":""}]}'
     ;;
   *)
     echo "unexpected provider request: ${url}" >&2
@@ -63,6 +66,8 @@ chmod 600 "${KEYS_DIR}/id" "${KEYS_DIR}/id.pub"
 export PROPRAETOR_PUBLIC_KEY_PATH="${KEYS_DIR}/id.pub"
 export PROPRAETOR_PRIVATE_KEY_PATH="${KEYS_DIR}/id"
 
+unit_environments_root_fixture
+
 "${REPO_ROOT}/park.sh" --env test >/dev/null
 
 import_call='import -input=false module.durables.digitalocean_project.propraetor project-test-id'
@@ -73,7 +78,7 @@ volume_import_call='import -input=false module.durables.digitalocean_volume.web 
 grep -Fxq "${volume_import_call}" "${TERRAFORM_CALLS}" \
   || fail "Park must Adopt the exact Environment Host Volume missing from State"
 
-domain_import_call='import -input=false module.durables.digitalocean_domain.this["gniewomir.pl"] gniewomir.pl'
+domain_import_call='import -input=false module.durables.digitalocean_domain.this["unit.example"] unit.example'
 grep -Fxq "${domain_import_call}" "${TERRAFORM_CALLS}" \
   || fail "Park must Adopt a Domain declared by exact FQDN and missing from State"
 

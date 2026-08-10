@@ -43,6 +43,7 @@ cli_operator_parse CLI -- "$@" || exit 1
 command -v terraform >/dev/null || fail "terraform not found"
 
 provider_credential_require || exit 1
+environments_export_tf_var || exit 1
 
 cd "${STACK_DIR}"
 

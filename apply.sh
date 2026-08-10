@@ -42,6 +42,7 @@ command -v terraform >/dev/null || fail "terraform not found"
 provider_credential_require || exit 1
 operator_configuration_require both || exit 1
 operator_configuration_export_host_root_ssh_public_key || exit 1
+environments_export_tf_var || exit 1
 
 cd "${STACK_DIR}"
 

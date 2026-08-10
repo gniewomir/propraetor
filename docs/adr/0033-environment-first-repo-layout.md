@@ -21,6 +21,8 @@ Committed Environment intent lives under root `environments/<slug>/`, not under 
 
 **Amended by ADR-0047:** discovery is directory-based; Mirror/Setup project an opaque recursive bag.
 
+**Amended by ADR-0051:** repo `environments/` remains the default Environments root; optional Operator Configuration may relocate that root (full replace when set).
+
 **Considered:** keep root `workloads/` + `config/environments/`; `workloads/environments/…`; `environments/<slug>/workloads/<name>/`; path-based Setup; Setup inside Apply; environments linter for incomplete dirs; noop gated on live unit/pod health; deferring “not in tree ⇒ remove” forever (overturned — ADR-0041 Orphan Reap). Rejected for locality, footguns, or premature surface.
 
 Amends ADR-0021 (Domain assignment path) and ADR-0032 (root declarations). Clean break (ADR-0018).

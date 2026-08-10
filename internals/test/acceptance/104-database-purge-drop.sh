@@ -18,8 +18,7 @@ trap 'acceptance_wl_cleanup' EXIT
 
 host_ssh \
   "rm -rf /var/lib/host-volume/internals/workloads/${WL} \
-          /home/platform/.config/platform/workloads/${WL} \
-          /var/lib/host-volume/data/components/database/clients/${WL}; \
+          /home/platform/.config/platform/workloads/${WL}; \
    rm -f /home/platform/.config/containers/systemd/${WL}*.container; \
    rm -rf /home/platform/.config/containers/systemd/${WL}*.container.d" \
   || true

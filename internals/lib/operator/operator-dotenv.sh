@@ -6,8 +6,9 @@
 #   operator_dotenv_load REPO_ROOT
 #     If REPO_ROOT/.env is missing, no-op. Else parse strict dotenv, allowlist only
 #     DIGITALOCEAN_TOKEN / PROPRAETOR_PUBLIC_KEY_PATH / PROPRAETOR_PRIVATE_KEY_PATH /
-#     PROPRAETOR_ACME_EMAIL.
+#     PROPRAETOR_ACME_EMAIL / PROPRAETOR_ENVIRONMENTS_ROOT.
 #     Non-empty process-environment values win; empty file values are unset.
+#     When PROPRAETOR_UNIT_TEST=1, skip PROPRAETOR_ENVIRONMENTS_ROOT from file (ADR-0051).
 #     Unknown keys and invalid grammar fail closed.
 
 operator_dotenv_load() {
@@ -27,7 +28,9 @@ ALLOW = {
     "PROPRAETOR_PUBLIC_KEY_PATH",
     "PROPRAETOR_PRIVATE_KEY_PATH",
     "PROPRAETOR_ACME_EMAIL",
+    "PROPRAETOR_ENVIRONMENTS_ROOT",
 }
+unit_test = os.environ.get("PROPRAETOR_UNIT_TEST", "") == "1"
 KEY_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 file_vals = {}
 
@@ -79,6 +82,8 @@ def sh_single(s):
 lines = []
 for key, val in file_vals.items():
     if val == "":
+        continue
+    if unit_test and key == "PROPRAETOR_ENVIRONMENTS_ROOT":
         continue
     env_val = os.environ.get(key, "")
     if env_val != "":

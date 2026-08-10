@@ -35,11 +35,7 @@ environment_activate "${STACK_DIR}" "${CLI_env}" || exit 1
   exit 1
 }
 
-ENV_DIR="${REPO_ROOT}/environments/${PLATFORM_ENV}"
-[[ -d "${ENV_DIR}" ]] || {
-  echo "Environment tree missing: environments/${PLATFORM_ENV}/" >&2
-  exit 1
-}
+ENV_DIR="$(environments_dir_for "${PLATFORM_ENV}")" || exit 1
 
 count=0
 while IFS= read -r wl_name; do

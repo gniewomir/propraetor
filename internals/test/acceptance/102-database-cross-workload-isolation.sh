@@ -22,9 +22,7 @@ host_ssh \
   "rm -rf /var/lib/host-volume/internals/workloads/${WLA} \
           /var/lib/host-volume/internals/workloads/${WLB} \
           /home/platform/.config/platform/workloads/${WLA} \
-          /home/platform/.config/platform/workloads/${WLB} \
-          /var/lib/host-volume/data/components/database/clients/${WLA} \
-          /var/lib/host-volume/data/components/database/clients/${WLB}; \
+          /home/platform/.config/platform/workloads/${WLB}; \
    rm -f /home/platform/.config/containers/systemd/${WLA}*.container \
          /home/platform/.config/containers/systemd/${WLB}*.container; \
    rm -rf /home/platform/.config/containers/systemd/${WLA}*.container.d \

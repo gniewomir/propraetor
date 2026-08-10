@@ -8,6 +8,8 @@ PLATFORM_SSH_PORT=9417
 
 # Set when this file is sourced (BASH_SOURCE here is this lib, not the caller).
 _PROPRAETOR_LIB_SSH_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=environment/environment.sh
+source "${_PROPRAETOR_LIB_SSH_DIR}/environment/environment.sh"
 
 # Ambient Host-session state (one session per process).
 _HOST_SESSION_IP=""
@@ -21,17 +23,22 @@ _propraetor_ssh_repo_root() {
   printf '%s\n' "$(cd "${_PROPRAETOR_LIB_SSH_DIR}/../.." && pwd)"
 }
 
-# Environment-scoped known_hosts path (ADR-0033 dotdir under environments/<slug>/).
+# Environment-scoped known_hosts path (ADR-0033 / ADR-0051).
 # Requires PLATFORM_ENV (environment_activate). Prints path on stdout.
 propraetor_ssh_known_hosts_path() {
-  local root slug
-  root="$(_propraetor_ssh_repo_root)"
+  local slug env_dir
   slug="${PLATFORM_ENV:-}"
   if [[ -z "${slug}" ]]; then
     echo "propraetor_ssh_known_hosts_path: PLATFORM_ENV is not set (environment_activate first)" >&2
     return 1
   fi
-  printf '%s\n' "${root}/environments/${slug}/.ssh/known_hosts"
+  # Ensure REPO_ROOT for environments_root default when callers only set PLATFORM_ENV.
+  if [[ -z "${REPO_ROOT:-}" ]]; then
+    REPO_ROOT="$(_propraetor_ssh_repo_root)"
+    export REPO_ROOT
+  fi
+  env_dir="$(environments_dir_for "${slug}")" || return 1
+  printf '%s\n' "${env_dir}/.ssh/known_hosts"
 }
 
 # Ensure the Environment .ssh dir exists; print known_hosts path.

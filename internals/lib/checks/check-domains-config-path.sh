@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Fail if Stack Domain config path no longer resolves to repo-root environments/ (ADR-0021 / ADR-0033).
+# Fail if Stack Domain config path no longer resolves to Environments root (ADR-0021 / ADR-0033 / ADR-0051).
 # Regression: after moving the Stack under internals/, a wrong relative path loaded Domains as {} —
 # Cloud Project membership dropped Domain URNs on Apply.
 set -euo pipefail
@@ -13,10 +13,15 @@ pass() { echo "PASS: $*"; }
 
 [[ -f "${DOMAIN_TF}" ]] || fail "missing ${DOMAIN_TF}"
 
-# Contract: Domain assignment files live at <repo>/environments/<slug>/…
-# relative to the Stack root (internals/terraform/), that is ../../environments.
-if ! grep -Eq 'domains_dir\s*=\s*"\$\{path\.(root|module)\}/\.\./\.\./environments/' "${DOMAIN_TF}"; then
-  fail "domain.tf domains_dir must use ../../environments from the Stack root (repo-root environments/)"
+# Contract: domains_dir uses var.environments_root when set, else ../../environments (ADR-0051).
+if ! grep -Eq 'environments_root_effective' "${DOMAIN_TF}"; then
+  fail "domain.tf must define environments_root_effective (ADR-0051)"
+fi
+if ! grep -Eq 'var\.environments_root' "${DOMAIN_TF}"; then
+  fail "domain.tf must honor var.environments_root"
+fi
+if ! grep -Eq '\$\{path\.root\}/\.\./\.\./environments' "${DOMAIN_TF}"; then
+  fail "domain.tf default Environments root must be ../../environments from the Stack root"
 fi
 
 resolved="$(cd "${STACK_DIR}/../../environments" && pwd)"

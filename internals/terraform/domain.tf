@@ -1,9 +1,14 @@
-# Domain assignment projection for the Durable module (ADR-0021).
+# Domain assignment projection for the Durable module (ADR-0021 / ADR-0051).
 # Prefer domains.override.json when present; otherwise domains.json.
-# Environment declarations at repository root; Stack root is internals/terraform/ (ADR-0032 / ADR-0033).
+# Environments root: TF_VAR_environments_root when set; else Stack-relative default.
 
 locals {
-  domains_dir            = "${path.root}/../../environments/${local.environment_slug}"
+  environments_root_effective = (
+    var.environments_root != ""
+    ? var.environments_root
+    : "${path.root}/../../environments"
+  )
+  domains_dir            = "${local.environments_root_effective}/${local.environment_slug}"
   domains_override_path  = "${local.domains_dir}/domains.override.json"
   domains_committed_path = "${local.domains_dir}/domains.json"
   domains_path = (

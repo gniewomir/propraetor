@@ -4,6 +4,12 @@ variable "host_root_ssh_public_key" {
   description = "SSH public key for root Host login via IHP. Apply sets TF_VAR_host_root_ssh_public_key from Operator Configuration; unused when Recreatables are absent."
 }
 
+variable "environments_root" {
+  type        = string
+  default     = ""
+  description = "Absolute Environments root (directory of <slug>/ trees). Apply/Park/Teardown set TF_VAR_environments_root from Operator Configuration (ADR-0051). Empty → Stack-relative ../../environments."
+}
+
 variable "host_image" {
   type        = string
   default     = "ubuntu-26-04-x64"

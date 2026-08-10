@@ -26,6 +26,7 @@ source "${CASE_DIR}/lib/baseline.sh"
 fail() { echo "FAIL: $*" >&2; exit 1; }
 
 operator_dotenv_load "${REPO_ROOT}" || exit 1
+environments_forbid_relocated_root || exit 1
 
 CLI_env=""
 CLI_selector=""

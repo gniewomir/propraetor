@@ -85,3 +85,67 @@ environment_activate() {
   PLATFORM_ENV="$(environment_slug_for "${slug}")" || return 1
   export PLATFORM_ENV
 }
+
+# Absolute Environments root (ADR-0051). Unset Operator Configuration →
+# ${REPO_ROOT}/environments. When PROPRAETOR_ENVIRONMENTS_ROOT is set: absolute or
+# ~/… only; must be an existing directory (full replace of repo environments/).
+environments_root() {
+  local raw expanded
+  if [[ -z "${REPO_ROOT-}" ]]; then
+    echo "FAIL: environments_root requires REPO_ROOT" >&2
+    return 1
+  fi
+  raw="${PROPRAETOR_ENVIRONMENTS_ROOT-}"
+  if [[ -z "${raw}" ]]; then
+    printf '%s\n' "${REPO_ROOT}/environments"
+    return 0
+  fi
+  # Match a literal ~/ prefix (do not tilde-expand the pattern — ADR-0038).
+  # shellcheck disable=SC2088  # intentional: compare against literal '~/…'
+  if [[ "${raw}" == '~/'* ]]; then
+    expanded="${HOME:?HOME is not set}/${raw#"~/"}"
+  elif [[ "${raw}" == /* ]]; then
+    expanded="${raw}"
+  else
+    echo "FAIL: PROPRAETOR_ENVIRONMENTS_ROOT must be absolute or ~/… (got: ${raw})" >&2
+    return 1
+  fi
+  if [[ ! -d "${expanded}" ]]; then
+    echo "FAIL: PROPRAETOR_ENVIRONMENTS_ROOT is not a directory: ${expanded}" >&2
+    return 1
+  fi
+  printf '%s\n' "${expanded}"
+}
+
+# Absolute path to <environments-root>/<slug>/; fail closed if missing (ADR-0051).
+environments_dir_for() {
+  local slug="${1-}"
+  local root dir
+  if [[ -z "${slug}" ]]; then
+    echo "FAIL: environments_dir_for requires an Environment cloud slug" >&2
+    return 1
+  fi
+  root="$(environments_root)" || return 1
+  dir="${root}/${slug}"
+  if [[ ! -d "${dir}" ]]; then
+    echo "FAIL: Environment tree missing: ${dir}/" >&2
+    return 1
+  fi
+  printf '%s\n' "${dir}"
+}
+
+# Acceptance / Lifecycle: relocated Environments root is forbidden (ADR-0051).
+environments_forbid_relocated_root() {
+  if [[ -n "${PROPRAETOR_ENVIRONMENTS_ROOT:-}" ]]; then
+    echo "FAIL: PROPRAETOR_ENVIRONMENTS_ROOT is set; Acceptance/Lifecycle require repo environments/ (ADR-0051)" >&2
+    return 1
+  fi
+  return 0
+}
+
+# Export resolved Environments root for Terraform Domain loading (ADR-0051).
+environments_export_tf_var() {
+  local root
+  root="$(environments_root)" || return 1
+  export TF_VAR_environments_root="${root}"
+}

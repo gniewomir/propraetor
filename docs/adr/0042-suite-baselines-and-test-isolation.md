@@ -6,8 +6,10 @@ Shared Host / Host Volume for Acceptance and Lifecycle has no DB-style transacti
 
 **Lifecycle:** Suite baseline between cases is Stack **absent** (post-**Teardown**). Runner Teardown before each case. **test Environment only** (fail closed otherwise). Suite start: type `teardown` once. Opt-in; slow by design.
 
-**Unit:** No Host baseline. Lasting side effects outside the test’s own temporary workspace mean it is not a Unit Test — purify, move to Acceptance, or ask a human.
+**Unit:** No Host baseline. Lasting side effects outside the test’s own temporary workspace mean it is not a Unit Test — purify, move to Acceptance, or ask a human. Ambient Operator Configuration Environments root is cleared for the Unit suite unless a case exports a temp root (ADR-0051).
 
 **Rejected:** Full case-owned Host rollback (B) or assert-only (G) as the primary Acceptance isolation story; Host Volume snapshot/restore; namespaced fixtures as isolation; fresh Host per Acceptance case; declared-mutation hybrid restore; Lifecycle on non-**test**; Deployed canary-G in v1; a runtime classifier of which Intent flips “imply undeclared Host data loss”; diagnose escape hatch for a dirty Environment tree.
 
 Amends ADR-0005 (fixture-once → Deploy before each Acceptance case); ADR-0019 (Lifecycle hard-bound to **test**, not the general default-safe `--env` rule); ADR-0036 (Lifecycle `--env` other than test no longer valid). Glossary: Acceptance / Lifecycle / Unit Test. Issue #159.
+
+**Amended by ADR-0051:** Acceptance and Lifecycle fail closed when `PROPRAETOR_ENVIRONMENTS_ROOT` is set (repo tree only).

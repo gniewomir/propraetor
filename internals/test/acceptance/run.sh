@@ -33,6 +33,7 @@ source "${REPO_ROOT}/internals/lib/operator/operator-configuration.sh"
 "${REPO_ROOT}/internals/lib/checks/check-domains-config-path.sh"
 
 operator_dotenv_load "${REPO_ROOT}" || exit 1
+environments_forbid_relocated_root || exit 1
 
 CLI_env=""
 CLI_selector=""

@@ -34,10 +34,10 @@ assert_fqdns() {
 
 # Committed test Environment Domain assignment (independent expected literals).
 assert_fqdns test \
-  api.gniewomir.pl \
-  gniewomir.pl \
-  test-acme.gniewomir.pl \
-  www.gniewomir.pl
+  api.enraged.dev \
+  enraged.dev \
+  test-acme.enraged.dev \
+  www.enraged.dev
 
 # Missing domains.json → empty set.
 TMP_ENV="$(mktemp -d)"

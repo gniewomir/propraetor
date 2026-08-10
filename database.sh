@@ -69,7 +69,7 @@ cleanup() {
 trap cleanup EXIT
 
 database_admin_credentials_dotenv_for \
-  "${REPO_ROOT}/environments/${PLATFORM_ENV}" \
+  "$(environments_dir_for "${PLATFORM_ENV}")" \
   "${CRED_FILE}" || exit 1
 
 _pg_line="$(grep -E '^POSTGRES_USER=' "${CRED_FILE}" | head -n1)" || true

@@ -42,6 +42,9 @@ else
   fi
 fi
 
+export PROPRAETOR_UNIT_TEST=1
+unset PROPRAETOR_ENVIRONMENTS_ROOT
+
 for case_path in "${CASES[@]}"; do
   rel="${case_path#"${REPO_ROOT}/"}"
   run_buffered_case "${rel}" "${case_path}" || fail "Unit Test failed: ${rel}"
