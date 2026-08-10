@@ -3,15 +3,18 @@
 # Runs on the Host only (as root). Success means Initial Host Provisioning
 # outcomes required for Components hold: IHP finished, ADR-0030 SSH port
 # cutover reboot completed, port floor 80, Platform User present, Host Volume
-# mounted at /var/lib/host-volume.
+# mounted at /var/lib/host-volume, and Platform journal readiness (ADR-0050).
 # Usage: PLATFORM_USER=platform ./wait-until-ihp-done.sh
 # Optional: PLATFORM_USER (default platform)
 # Test overrides: IHP_POWER_STATE_SEM, IHP_POWER_STATE_SEM_EPOCH, IHP_BOOT_EPOCH,
 #   IHP_CUTOVER_REBOOT_WAIT_SECONDS, IHP_CUTOVER_REBOOT_POLL_SECONDS,
-#   HOST_VOLUME_MOUNT_WAIT_SECONDS, HOST_VOLUME_MOUNT_POLL_SECONDS
+#   HOST_VOLUME_MOUNT_WAIT_SECONDS, HOST_VOLUME_MOUNT_POLL_SECONDS,
+#   IHP_JOURNALD_DROPIN, IHP_CONTAINERS_CONF
 set -euo pipefail
 
 USER_NAME="${PLATFORM_USER:-platform}"
+JOURNALD_DROPIN="${IHP_JOURNALD_DROPIN:-/etc/systemd/journald.conf.d/99-platform-journal.conf}"
+CONTAINERS_CONF="${IHP_CONTAINERS_CONF:-/home/${USER_NAME}/.config/containers/containers.conf}"
 
 echo "Waiting for Initial Host Provisioning..." >&2
 # cloud-init ≥23.4: 0 = clean success; non-zero includes 2 = finished with
@@ -81,3 +84,57 @@ while ! findmnt --mountpoint /var/lib/host-volume >/dev/null 2>&1; do
   fi
   sleep "${POLL_SECONDS}"
 done
+
+# ADR-0050: Platform journal Substrate — on-disk contract (fail closed).
+if [[ ! -f "${JOURNALD_DROPIN}" ]]; then
+  echo "Platform journal: journald drop-in missing at ${JOURNALD_DROPIN} (ADR-0050)" >&2
+  exit 1
+fi
+if ! grep -Eq '^[[:space:]]*Storage=persistent([[:space:]]|$)' "${JOURNALD_DROPIN}"; then
+  echo "Platform journal: journald drop-in missing Storage=persistent (ADR-0050)" >&2
+  exit 1
+fi
+if ! grep -Eq '^[[:space:]]*SystemMaxUse=200M([[:space:]]|$)' "${JOURNALD_DROPIN}"; then
+  echo "Platform journal: journald drop-in missing SystemMaxUse=200M (ADR-0050)" >&2
+  exit 1
+fi
+if ! grep -Eq '^[[:space:]]*SystemKeepFree=' "${JOURNALD_DROPIN}"; then
+  echo "Platform journal: journald drop-in missing SystemKeepFree= (ADR-0050)" >&2
+  exit 1
+fi
+if ! grep -Eq '^[[:space:]]*RuntimeMaxUse=' "${JOURNALD_DROPIN}"; then
+  echo "Platform journal: journald drop-in missing RuntimeMaxUse= (ADR-0050)" >&2
+  exit 1
+fi
+if [[ ! -f "${CONTAINERS_CONF}" ]]; then
+  echo "Platform journal: Platform User containers.conf missing at ${CONTAINERS_CONF} (ADR-0050)" >&2
+  exit 1
+fi
+if ! grep -Eq '^[[:space:]]*log_driver[[:space:]]*=[[:space:]]*"journald"([[:space:]]|$)' "${CONTAINERS_CONF}"; then
+  echo "Platform journal: containers.conf missing log_driver = \"journald\" pin (ADR-0050)" >&2
+  exit 1
+fi
+
+# ADR-0050: cheap live probe — Platform User can open the user journal and Podman
+# reports LogDriver=journald (not a full log round-trip). Both halves required so
+# "config present but journal unusable" and "pin ignored" both fail closed.
+uid_num="$(id -u "${USER_NAME}")"
+runtime="/run/user/${uid_num}"
+platform_user_env=(
+  env
+  "XDG_RUNTIME_DIR=${runtime}"
+  "DBUS_SESSION_BUS_ADDRESS=unix:path=${runtime}/bus"
+)
+if ! runuser -u "${USER_NAME}" -- "${platform_user_env[@]}" \
+  journalctl --user -n 0 --no-pager >/dev/null 2>&1; then
+  echo "Platform journal: live probe failed — user journal not openable (ADR-0050)" >&2
+  exit 1
+fi
+log_driver="$(
+  runuser -u "${USER_NAME}" -- "${platform_user_env[@]}" \
+    podman info --format '{{.Host.LogDriver}}' 2>/dev/null || true
+)"
+if [[ "${log_driver}" != "journald" ]]; then
+  echo "Platform journal: live probe failed — Podman LogDriver is '${log_driver}', expected journald (ADR-0050)" >&2
+  exit 1
+fi
