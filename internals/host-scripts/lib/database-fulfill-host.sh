@@ -6,7 +6,12 @@
 # Sourced by Database Setup. Expects ambient after database_setup begin:
 #   DATA_ROOT, CLIENTS_DIR, ADMIN_ENV, HOME_DIR, UNIT_DIR, USER_NAME, WORKLOADS_ROOT
 # Requires: quadlet_user, database_tls_ensure_client, database_write_pg_ident_file,
-#           database_admin_user_from_env.
+#           database_admin_user_from_env, workload_manifest_intent,
+#           workload_manifest_database_claimed.
+
+_database_fulfill_lib_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=workload-manifest-host.sh
+source "${_database_fulfill_lib_dir}/workload-manifest-host.sh"
 
 # Platform User path for one Workload's published Database binding directory.
 workload_database_binding_dir() {
@@ -17,41 +22,6 @@ workload_database_binding_dir() {
 workload_database_dropin_path() {
   local container_base="${1:?container basename required}"
   printf '%s/%s.d/50-platform-database.conf\n' "${UNIT_DIR}" "${container_base}"
-}
-
-# Read Manifest Intent. Prints run|stop|trash; fails closed otherwise.
-_database_read_workload_intent() {
-  local manifest="$1"
-  python3 - "${manifest}" <<'PY'
-import json, sys
-m = json.load(open(sys.argv[1], encoding="utf-8"))
-if not isinstance(m, dict):
-    raise SystemExit("manifest must be a JSON object")
-intent = m.get("intent")
-if intent not in ("run", "stop", "trash"):
-    raise SystemExit("manifest.intent must be run|stop|trash")
-print(intent)
-PY
-}
-
-# Print 1 if Manifest claims database:true, else 0. Fail closed on bad type.
-# Same contract as internals/lib/database/database-declaration.sh (Host copy —
-# operator lib is not staged onto the Host Volume).
-_database_manifest_claims() {
-  local manifest="$1"
-  python3 - "${manifest}" <<'PY'
-import json, sys
-m = json.load(open(sys.argv[1], encoding="utf-8"))
-if not isinstance(m, dict):
-    raise SystemExit("manifest must be a JSON object")
-if "database" not in m:
-    print("0")
-    raise SystemExit(0)
-val = m["database"]
-if not isinstance(val, bool):
-    raise SystemExit("manifest.database must be a boolean when present")
-print("1" if val else "0")
-PY
 }
 
 # Create-if-missing role + database named by basename (owner = role).
@@ -332,12 +302,12 @@ database_fulfill_declarations() {
         echo "Database gather: Workload basename 'database' is reserved" >&2
         return 1
       fi
-      intent="$(_database_read_workload_intent "${wl_dir}/manifest.json")" || {
+      intent="$(workload_manifest_intent "${wl_dir}/manifest.json")" || {
         rm -f "${claimants_file}" "${sorted_file}"
         return 1
       }
       [[ "${intent}" == "run" ]] || continue
-      claims="$(_database_manifest_claims "${wl_dir}/manifest.json")" || {
+      claims="$(workload_manifest_database_claimed "${wl_dir}/manifest.json")" || {
         rm -f "${claimants_file}" "${sorted_file}"
         return 1
       }

@@ -26,6 +26,8 @@ source "${HERE}/workload-units-host.sh"
 source "${HERE}/workload-environment-host.sh"
 # shellcheck source=sync-tree-host.sh
 source "${HERE}/sync-tree-host.sh"
+# shellcheck source=workload-manifest-host.sh
+source "${HERE}/workload-manifest-host.sh"
 
 [[ -d "${TREE}" ]] || {
   echo "workload tree missing: ${TREE}" >&2
@@ -53,25 +55,23 @@ command -v python3 >/dev/null || {
   exit 1
 }
 
-eval "$(python3 - "${MANIFEST}" <<'PY'
-import json, shlex, sys
-m = json.load(open(sys.argv[1]))
+# Allowlist + description type only; Intent and database Declaration use the Host Manifest module.
+python3 - "${MANIFEST}" <<'PY'
+import json, sys
+m = json.load(open(sys.argv[1], encoding="utf-8"))
 if not isinstance(m, dict):
     raise SystemExit("manifest must be a JSON object")
 allowed = {"intent", "description", "environment", "database"}
 extra = sorted(set(m) - allowed)
 if extra:
     raise SystemExit("manifest unknown keys (ADR-0024 allowlist): " + ", ".join(extra))
-intent = m.get("intent")
-if intent not in ("run", "stop", "trash"):
-    raise SystemExit("manifest.intent must be run|stop|trash")
 if "description" in m and not isinstance(m["description"], str):
     raise SystemExit("manifest.description must be a string when present")
-if "database" in m and not isinstance(m["database"], bool):
-    raise SystemExit("manifest.database must be a boolean when present")
-print(f"WL_INTENT={shlex.quote(intent)}")
 PY
-)"
+
+WL_INTENT="$(workload_manifest_intent "${MANIFEST}")" || exit 1
+# Fail closed on non-boolean database when present (same contract as gather).
+workload_manifest_database_claimed "${MANIFEST}" >/dev/null || exit 1
 
 # Environment Configuration: operator stage_for_setup is the single authority.
 # Active iff a resolved file was staged (SSH adapter); Host does not re-parse

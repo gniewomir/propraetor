@@ -89,9 +89,9 @@ pass "unpublish without SoT clears binding and conventional drop-in"
 
 # Manifest claim helper
 printf '%s\n' '{"intent":"run","database":true}' >"${TMP}/m.json"
-[[ "$(_database_manifest_claims "${TMP}/m.json")" == "1" ]] || fail "true should claim"
+[[ "$(workload_manifest_database_claimed "${TMP}/m.json")" == "1" ]] || fail "true should claim"
 printf '%s\n' '{"intent":"run"}' >"${TMP}/m.json"
-[[ "$(_database_manifest_claims "${TMP}/m.json")" == "0" ]] || fail "omit should not claim"
+[[ "$(workload_manifest_database_claimed "${TMP}/m.json")" == "0" ]] || fail "omit should not claim"
 pass "manifest claim helper"
 
 echo "All database-fulfill-host offline tests passed."

@@ -13,6 +13,8 @@
 _edge_routes_lib_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=edge-want-list-host.sh
 source "${_edge_routes_lib_dir}/edge-want-list-host.sh"
+# shellcheck source=workload-manifest-host.sh
+source "${_edge_routes_lib_dir}/workload-manifest-host.sh"
 
 # Remove legacy projected `<name>.conf` and all `<name>--*` installed Routes for one Workload.
 edge_remove_workload_installed_routes() {
@@ -142,25 +144,6 @@ _edge_installed_route_workload_name() {
   esac
 }
 
-# Read Manifest Intent (run|stop|trash). Prints Intent on stdout; fails closed otherwise.
-_edge_read_workload_intent() {
-  local manifest="$1"
-  command -v python3 >/dev/null || {
-    echo "edge_gather_workload_routes: python3 required to read Workload Manifest Intent" >&2
-    return 1
-  }
-  python3 - "${manifest}" <<'PY'
-import json, sys
-m = json.load(open(sys.argv[1]))
-if not isinstance(m, dict):
-    raise SystemExit("manifest must be a JSON object")
-intent = m.get("intent")
-if intent not in ("run", "stop", "trash"):
-    raise SystemExit("manifest.intent must be run|stop|trash")
-print(intent)
-PY
-}
-
 # Gather Route Declarations from Workload Host Volume SoT and fulfill into Edge interior.
 # Intent run → validate want-list and install; stop/trash → drop that Workload's fulfillment.
 # Workloads missing from SoT leave orphan Edge installs, which are removed.
@@ -184,7 +167,7 @@ edge_gather_workload_routes() {
     for wl_dir in "${workloads_root}"/*; do
       [[ -d "${wl_dir}" && -f "${wl_dir}/manifest.json" ]] || continue
       wl_name="$(basename "${wl_dir}")"
-      intent="$(_edge_read_workload_intent "${wl_dir}/manifest.json")" || return 1
+      intent="$(workload_manifest_intent "${wl_dir}/manifest.json")" || return 1
       sot_dir="${wl_dir}/routes"
       if [[ ! -d "${sot_dir}" ]]; then
         sot_dir=""
