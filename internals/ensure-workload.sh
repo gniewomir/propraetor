@@ -19,6 +19,7 @@ UNITS_LIB="${REPO_ROOT}/internals/host-scripts/lib/workload-units-host.sh"
 QUADLETS_LIB="${REPO_ROOT}/internals/host-scripts/lib/workload-quadlets-host.sh"
 UNIT_CONSUMERS_LIB="${REPO_ROOT}/internals/host-scripts/lib/unit-consumers-host.sh"
 ENV_HOST_LIB="${REPO_ROOT}/internals/host-scripts/lib/workload-environment-host.sh"
+MANIFEST_LIB="${REPO_ROOT}/internals/host-scripts/lib/workload-manifest-host.sh"
 QUADLET_SESSION_LIB="${REPO_ROOT}/internals/host-scripts/lib/quadlet-user-session.sh"
 SYNC_LIB="${REPO_ROOT}/internals/host-scripts/lib/sync-tree-host.sh"
 # shellcheck source=lib/cli.sh
@@ -92,6 +93,10 @@ MANIFEST_ABS="${MANIFEST_DIR}/manifest.json"
   echo "missing ${ENV_HOST_LIB}" >&2
   exit 1
 }
+[[ -f "${MANIFEST_LIB}" ]] || {
+  echo "missing ${MANIFEST_LIB}" >&2
+  exit 1
+}
 [[ -f "${QUADLET_SESSION_LIB}" ]] || {
   echo "missing ${QUADLET_SESSION_LIB}" >&2
   exit 1
@@ -120,6 +125,7 @@ cp "${UNITS_LIB}" "${STAGE}/workload-units-host.sh"
 cp "${QUADLETS_LIB}" "${STAGE}/workload-quadlets-host.sh"
 cp "${UNIT_CONSUMERS_LIB}" "${STAGE}/unit-consumers-host.sh"
 cp "${ENV_HOST_LIB}" "${STAGE}/workload-environment-host.sh"
+cp "${MANIFEST_LIB}" "${STAGE}/workload-manifest-host.sh"
 cp "${QUADLET_SESSION_LIB}" "${STAGE}/quadlet-user-session.sh"
 cp "${SYNC_LIB}" "${STAGE}/sync-tree-host.sh"
 mkdir -p "${STAGE}/${WL_NAME}"

@@ -54,6 +54,18 @@ grep -Fq '</dev/null' "${INTERNALS}/ensure-workloads.sh" \
   || fail "ensure-workloads must close child stdin so discovery names are not stolen"
 pass "ensure-workloads composes discovery + singular ensure-workload"
 
+# Flat Host stage must ship every lib ensure-workload-host sources from HERE (#157 / ADR-0052 regress).
+HOST_SH="${HOST_SCRIPTS}/ensure-workload-host.sh"
+ENSURE_SH="${INTERNALS}/ensure-workload.sh"
+while IFS= read -r lib; do
+  [[ -n "${lib}" ]] || continue
+  grep -Eq "cp \"\\\$\{[A-Z_]+\}\" \"\\\$\{STAGE\}/${lib}\"" "${ENSURE_SH}" \
+    || grep -Fq "\"\${STAGE}/${lib}\"" "${ENSURE_SH}" \
+    || fail "ensure-workload.sh must stage ${lib} (sourced by ensure-workload-host from HERE)"
+done < <(grep -E '^\s*source "\$\{HERE\}/[^"]+\.sh"' "${HOST_SH}" \
+  | sed -E 's/.*source "\$\{HERE\}\/([^"]+\.sh)".*/\1/')
+pass "ensure-workload stages every HERE-sourced host lib"
+
 # Offline batch loop: child that reads stdin must not drop remaining names
 FAKE_BIN="${TMP}/fake-bin"
 mkdir -p "${FAKE_BIN}"
