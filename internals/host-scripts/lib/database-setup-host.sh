@@ -31,14 +31,23 @@ source "${_database_setup_lib_dir}/database-auth-conf-host.sh"
 source "${_database_setup_lib_dir}/database-fulfill-host.sh"
 
 # Wait until Postgres accepts connections inside the database-postgres container.
+# Covers cold image pull (unit stays "activating"); fails closed as soon as the unit
+# is "failed" so a hard start error does not burn the full timeout.
 database_wait_ready() {
   local _
   local cname="database-postgres"
   local admin_user=""
+  local state=""
   if [[ -f "${ADMIN_ENV:-}" ]]; then
     admin_user="$(database_admin_user_from_env "${ADMIN_ENV}" 2>/dev/null || true)"
   fi
-  for _ in $(seq 1 180); do
+  # Pull timeout inside systemd is 5m; leave headroom for initdb after pull.
+  for _ in $(seq 1 360); do
+    state="$(quadlet_user systemctl --user show -p ActiveState --value database-postgres.service 2>/dev/null || true)"
+    if [[ "${state}" == "failed" ]]; then
+      echo "Database: database-postgres.service failed before ready" >&2
+      return 1
+    fi
     if [[ -n "${admin_user}" ]]; then
       if quadlet_user env "HOME=${HOME_DIR}" bash -c \
         "cd \"\$HOME\" && podman exec ${cname} pg_isready -U $(printf '%q' "${admin_user}") -q" \
@@ -98,8 +107,11 @@ database_setup() {
   }
   chmod a+x "${component_tree}/entrypoint.sh"
 
-  # Do not chown pgdata — Podman :U maps it to the container postgres uid on start.
-  # Host Setup chown of a live cluster causes Permission denied / PANIC (ADR-0049 / #188).
+  # TLS/auth leaves: Platform User–owned for rootless mounts.
+  # pgdata mount root: mkdir above runs as root; rootless :U must be able to lchown
+  # that path or start fails with "operation not permitted". Own the mount point only
+  # (non-recursive) — live cluster files stay on subuids after :U; recursive Host
+  # chown of a running cluster causes Permission denied / PANIC (ADR-0049 / #188).
   chown -R "${USER_NAME}:${USER_NAME}" "${HOME_DIR}/.config" 2>/dev/null || true
   for leaf in ca server admin conf clients; do
     if [[ -e "${DATA_ROOT}/${leaf}" ]]; then
@@ -107,12 +119,14 @@ database_setup() {
     fi
   done
   chown "${USER_NAME}:${USER_NAME}" "${DATA_ROOT}" 2>/dev/null || true
+  chown "${USER_NAME}:${USER_NAME}" "${PGDATA_DIR}"
 
   quadlet_user_session_reload
   quadlet_user systemctl --user reset-failed \
     database-pod.service database-postgres.service 2>/dev/null || true
 
   # Always restart so unit/config mounts and :U ownership stay coherent after Setup.
+  # Pod becomes active before postgres finishes pull/start; readiness wait covers that.
   quadlet_user systemctl --user restart database-pod.service
   quadlet_user systemctl --user --quiet is-active database-pod.service || {
     echo "Database: database-pod.service is not active" >&2
