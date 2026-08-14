@@ -18,7 +18,7 @@ acceptance_wl_track "${WL}"
 trap 'acceptance_wl_cleanup' EXIT
 
 [[ -d "${EXAMPLE_SRC}" ]] || fail "missing teaching example at environments/example/${WL}"
-[[ -f "${EXAMPLE_SRC}/manifest.json" ]] || fail "example missing manifest.json"
+acceptance_assert_artifact_tree "${EXAMPLE_SRC}" "example ${WL}"
 [[ -f "${EXAMPLE_SRC}/quadlets/${WL}.pod" ]] || fail "example missing soft-default pod ${WL}.pod"
 [[ -f "${EXAMPLE_SRC}/quadlets/${WL}-web.container" ]] \
   || fail "example missing member container ${WL}-web.container"

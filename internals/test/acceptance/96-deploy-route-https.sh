@@ -26,6 +26,7 @@ acceptance_wl_track "${WL}"
 trap 'acceptance_wl_cleanup' EXIT
 
 [[ -d "${EXAMPLE_SRC}" ]] || fail "missing teaching example at environments/example/${WL}"
+acceptance_assert_artifact_tree "${EXAMPLE_SRC}" "example ${WL}"
 
 rm -rf "${FIX_DIR:?}/${WL:?}"
 cp -R "${EXAMPLE_SRC}" "${FIX_DIR}/${WL}"

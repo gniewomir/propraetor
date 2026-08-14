@@ -25,25 +25,17 @@ MODE='env-config-mode-acceptance'
 trap 'rm -f "${ENV_FILE}"; acceptance_wl_cleanup' EXIT
 
 [[ -d "${EXAMPLE_SRC}" ]] || fail "missing teaching example at environments/example/${WL}"
-[[ -f "${EXAMPLE_SRC}/manifest.json" ]] || fail "example missing manifest.json"
-[[ -f "${EXAMPLE_SRC}/provides.json" ]] || fail "example missing Provides"
-[[ -f "${EXAMPLE_SRC}/requires.json" ]] || fail "example missing Requires"
-[[ -f "${EXAMPLE_SRC}/binding.json" ]] || fail "example missing Binding"
+acceptance_assert_artifact_tree "${EXAMPLE_SRC}" "example ${WL}"
 [[ -f "${EXAMPLE_SRC}/quadlets/${WL}.pod" ]] || fail "example missing soft-default pod ${WL}.pod"
 [[ -f "${EXAMPLE_SRC}/quadlets/${WL}-${ROLE}.container" ]] \
   || fail "example missing member container ${WL}-${ROLE}.container"
 [[ -f "${EXAMPLE_DOTENV}" ]] || fail "missing environments/example/.env.example"
 
-python3 - "${EXAMPLE_SRC}/manifest.json" "${EXAMPLE_SRC}/requires.json" \
-  "${EXAMPLE_SRC}/binding.json" <<'PY' || fail "example must declare Source internal + Binding remap × Requires"
+python3 - "${EXAMPLE_SRC}/requires.json" "${EXAMPLE_SRC}/binding.json" <<'PY' \
+  || fail "example must identity-remap EXAMPLE_GREETING and EXAMPLE_MODE"
 import json, sys
 
-manifest, requires_path, binding_path = sys.argv[1:4]
-m = json.load(open(manifest, encoding="utf-8"))
-if m.get("source") != "internal":
-    raise SystemExit(f"expected source internal, got {m.get('source')!r}")
-if "environment" in m or "database" in m:
-    raise SystemExit("Manifest must not carry retired environment/database")
+requires_path, binding_path = sys.argv[1:3]
 need = {"EXAMPLE_GREETING", "EXAMPLE_MODE"}
 req = json.load(open(requires_path, encoding="utf-8"))
 env = req.get("environment") or {}

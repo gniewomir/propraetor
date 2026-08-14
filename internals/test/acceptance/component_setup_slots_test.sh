@@ -63,4 +63,18 @@ fqdn_sot="$(
 ${fqdn_sot}"
 pass "Acceptance Route SoT is Binding-attached Provides fragments"
 
+# --- teaching examples used by Acceptance are ADR-0053 trees ---
+example_dir="${REPO_ROOT}/environments/example"
+for example_tree in "${example_dir}"/*; do
+  [[ -d "${example_tree}" && -f "${example_tree}/manifest.json" ]] || continue
+  for f in provides.json requires.json binding.json; do
+    [[ -f "${example_tree}/${f}" ]] \
+      || fail "example $(basename "${example_tree}") missing ${f}"
+  done
+  if grep -Eq '"environment"|"database"' "${example_tree}/manifest.json"; then
+    fail "example $(basename "${example_tree}") Manifest still has retired environment/database"
+  fi
+done
+pass "teaching examples used by Acceptance declare Provides/Requires/Binding, not Manifest env/db"
+
 echo "All Component Setup slot caller checks passed."
