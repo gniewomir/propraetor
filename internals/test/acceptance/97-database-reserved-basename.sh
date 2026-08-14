@@ -19,7 +19,7 @@ trap 'rm -f "${err}"; acceptance_wl_cleanup' EXIT
 
 mkdir -p "${FIX_DIR}/${WL}/quadlets"
 cat >"${FIX_DIR}/${WL}/manifest.json" <<'EOF'
-{ "intent": "run" }
+{ "intent": "run", "source": "internal" }
 EOF
 cat >"${FIX_DIR}/${WL}/quadlets/${WL}.container" <<'EOF'
 [Unit]

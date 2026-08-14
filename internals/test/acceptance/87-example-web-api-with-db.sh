@@ -261,6 +261,6 @@ else
 fi
 
 cat >"${FIX_DIR}/${WL}/manifest.json" <<'EOF'
-{ "intent": "trash" }
+{ "intent": "trash", "source": "internal" }
 EOF
 "${REPO_ROOT}/internals/ensure-workload.sh" "${WL}" --env "${PLATFORM_ENV:-test}"

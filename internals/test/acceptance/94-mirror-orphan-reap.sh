@@ -19,7 +19,8 @@ stage_wl() {
   mkdir -p "${FIX_DIR}/${name}/quadlets"
   cat >"${FIX_DIR}/${name}/manifest.json" <<EOF
 {
-  "intent": "stop"
+  "intent": "stop",
+  "source": "internal"
 }
 EOF
   cat >"${FIX_DIR}/${name}/quadlets/${name}.container" <<EOF
@@ -66,7 +67,7 @@ host_ssh "test -f /home/platform/.config/containers/systemd/gone-soon.container"
 rm -rf "${FIX_DIR}/gone-soon"
 
 # Mirror upserts keep-alive and must leave the orphan alone
-printf '{"intent":"stop","description":"mirrored"}\n' >"${FIX_DIR}/keep-alive/manifest.json"
+printf '{"intent":"stop","source":"internal","description":"mirrored"}\n' >"${FIX_DIR}/keep-alive/manifest.json"
 "${REPO_ROOT}/internals/ensure-mirror.sh" --env "${ENV_SLUG}"
 
 host_ssh "grep -Fq mirrored /var/lib/host-volume/internals/workloads/keep-alive/manifest.json" \

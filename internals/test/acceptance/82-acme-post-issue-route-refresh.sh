@@ -24,7 +24,8 @@ trap 'acceptance_wl_cleanup' EXIT
 mkdir -p "${FIX_DIR}/${WL}/routes"
 cat >"${FIX_DIR}/${WL}/manifest.json" <<EOF
 {
-  "intent": "run"
+  "intent": "run",
+  "source": "internal"
 }
 EOF
 MARKER="# operator-route-marker-${WL}"

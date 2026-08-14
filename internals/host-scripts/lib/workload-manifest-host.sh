@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
-# Host Workload Manifest readers (Intent + Database Declaration).
+# Host Workload Manifest Intent reader.
 # Sourced by Workload Setup, Edge Route gather, and Database fulfill.
-# Single contract for Manifest Intent and optional boolean `database` (ADR-0024 / ADR-0049).
+# Manifest allowlist + Source live in internals/lib/artifact/manifest.sh (ADR-0053 / #200).
+# Optional boolean `database` is still read by Database gather until #202.
 
 # Print Manifest Intent (run|stop|trash). Fail closed otherwise.
 workload_manifest_intent() {

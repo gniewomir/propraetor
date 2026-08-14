@@ -33,6 +33,7 @@ mkdir -p "${FIX_DIR}/${WL}/quadlets" "${FIX_DIR}/${WL}/routes"
 cat >"${FIX_DIR}/${WL}/manifest.json" <<'EOF'
 {
   "intent": "run",
+  "source": "internal",
   "description": "Ephemeral Acceptance probe: echo proxied request headers."
 }
 EOF

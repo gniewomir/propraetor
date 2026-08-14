@@ -29,6 +29,7 @@ write_manifest() {
   cat >"${FIX_DIR}/${WL}/manifest.json" <<EOF
 {
   "intent": "${intent}",
+  "source": "internal",
   "database": true,
   "description": "Database Intent stop unpublish probe"
 }
