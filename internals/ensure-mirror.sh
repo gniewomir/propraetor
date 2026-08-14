@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
-# Mirror — upsert Environment Workload directories onto the Host Volume.
+# Mirror — materialize Environment Workloads onto the Host Volume regardless of Source.
 # Discovers Workloads as immediate non-hidden Environment dirs (ADR-0033 / ADR-0047);
-# recursive opaque-bag copy (no Manifest validation or shape filter).
+# Host half: Environment upsert + resolve Source + Provides directories (ADR-0053 / #204).
 # Leaves Host orphans alone (see purge-orphans). Does not Apply Intent or ship Fabric/Components.
 # Environment: omitted / --env default|test → workspace default; --env <slug> otherwise (ADR-0019).
 # Usage: ./internals/ensure-mirror.sh [--env <slug>]
 # Optional: PLATFORM_USER=platform
 # Requires: Operator Configuration private key path (PROPRAETOR_PRIVATE_KEY_PATH).
-# ADR-0047 / ADR-0041 / #156.
+# ADR-0053 / ADR-0047 / ADR-0041 / #204.
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -15,6 +15,9 @@ STACK_DIR="${REPO_ROOT}/internals/terraform"
 USER_NAME="${PLATFORM_USER:-platform}"
 HOST_SCRIPT="${REPO_ROOT}/internals/host-scripts/ensure-mirror-host.sh"
 SYNC_LIB="${REPO_ROOT}/internals/host-scripts/lib/sync-tree-host.sh"
+MATERIALIZE_LIB="${REPO_ROOT}/internals/host-scripts/lib/workload-materialize-host.sh"
+ARTIFACT_SOURCE_LIB="${REPO_ROOT}/internals/lib/artifact/source.sh"
+ARTIFACT_PROVIDES_LIB="${REPO_ROOT}/internals/lib/artifact/provides.sh"
 # shellcheck source=lib/cli.sh
 source "${REPO_ROOT}/internals/lib/cli.sh"
 # shellcheck source=lib/environment/environment.sh
@@ -45,6 +48,18 @@ environment_activate "${STACK_DIR}" "${CLI_env}" || exit 1
   echo "missing ${SYNC_LIB}" >&2
   exit 1
 }
+[[ -f "${MATERIALIZE_LIB}" ]] || {
+  echo "missing ${MATERIALIZE_LIB}" >&2
+  exit 1
+}
+[[ -f "${ARTIFACT_SOURCE_LIB}" ]] || {
+  echo "missing ${ARTIFACT_SOURCE_LIB}" >&2
+  exit 1
+}
+[[ -f "${ARTIFACT_PROVIDES_LIB}" ]] || {
+  echo "missing ${ARTIFACT_PROVIDES_LIB}" >&2
+  exit 1
+}
 
 command -v terraform >/dev/null || { echo "terraform not found" >&2; exit 1; }
 command -v ssh >/dev/null || { echo "ssh not found" >&2; exit 1; }
@@ -59,6 +74,9 @@ trap 'rm -rf "${STAGE}"' EXIT
 
 mkdir -p "${STAGE}/lib" "${STAGE}/workloads"
 cp "${SYNC_LIB}" "${STAGE}/lib/sync-tree-host.sh"
+cp "${MATERIALIZE_LIB}" "${STAGE}/lib/workload-materialize-host.sh"
+cp "${ARTIFACT_SOURCE_LIB}" "${STAGE}/lib/source.sh"
+cp "${ARTIFACT_PROVIDES_LIB}" "${STAGE}/lib/provides.sh"
 cp "${HOST_SCRIPT}" "${STAGE}/ensure-mirror-host.sh"
 
 mirrored=0
