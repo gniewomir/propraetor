@@ -9,10 +9,6 @@ Day-to-day operator surface stays at the repo root; project wiring moves under b
 - **`internals/`:** Stack (`terraform/`), operator-machine helpers (`lib/` — not shipped beside Host Workload mirrors), Host ship surfaces (`fabric/`, `components/`, `host-scripts/`), test suites under `test/<suite>/` (ADR-0036), and a **flat** glanceable list of non-root operations (`diagnostics.sh`, `lint-*.sh`, `ensure-*.sh`, `purge-orphans.sh`, `purge-trash.sh`, … — ADR-0041). Host copy tars must not share a tree with Stack/docs/tests/operator `lib/`.
 - **Rejected:** nesting internals under a project-brand directory (`prefect/`, later `propraetor/`); leaving today’s brand-named folder as both Component ship surface and junk drawer; root clutter of every runnable script; naming the Host mount or repo internals folder from the carrier metaphor.
 
-**Amended by ADR-0041:** `deploy.sh` is the composed root Host operation; Fabric vs Components vs `host-scripts` vs operator `lib/` split as above.
-
-**Amended by ADR-0049:** `database.sh` is a root operator entrypoint (Database admin console over SSH TCP tunnel).
-
 **Host-local function names** (same cut as the layout move; not the Propraetor brand rename)
 
 | Concern | Name |
@@ -29,4 +25,4 @@ Day-to-day operator surface stays at the repo root; project wiring moves under b
 
 **Provider-visible names:** Cloud Project, Propraetor Tag / Role Tag, and other account-unique resource name prefixes are Propraetor-derived per ADR-0027. Host paths/user remain **function-named**, not brand-Propraetor.
 
-**Builds on:** ADR-0010 (Host Volume layout — paths update), ADR-0018, ADR-0019 (Environment / `--env`), ADR-0027 (amended: Host-local ≠ brand). Amended by ADR-0036 for `./test.sh` and `internals/test/`.
+**Builds on:** ADR-0010 (Host Volume layout — paths update), ADR-0018, ADR-0019 (Environment / `--env`), ADR-0027 (amended: Host-local ≠ brand), ADR-0036 (`./test.sh` and `internals/test/`).

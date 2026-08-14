@@ -14,6 +14,4 @@ Lifecycle Tests and future parallel use needed isolation under a **single** prov
 
 **Cutover note:** Current State is already the test Stack and stays in workspace `default`. Introducing Environments means renaming today’s bare cloud names onto the `test` prefix under the uniform rule — not migrating State into a `prod` workspace.
 
-**Amended by ADR-0042:** Lifecycle Tests are hard-bound to the **test** Environment (fail closed); Acceptance non-**test** is diagnostic and confirm-gated.
-
 **Considered:** Required `-var=environment` with no default (forces naming every raw Apply; fights “unspecified → test”); Terraform `default` workspace overloaded as prod; `prod` keeps bare names; closed enum of Environment slugs; Lifecycle Tests sharing Acceptance’s “any `--env` allowed” rule (rejected later — ADR-0042: Lifecycle stays test-only); scripts only as strict as raw workspace selection; separate State-path scheme instead of workspaces; separate DO accounts for isolation. Rejected for friction, footguns, or premature complexity under one account.

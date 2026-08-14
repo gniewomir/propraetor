@@ -11,5 +11,3 @@ Operators need non-committed, Environment-scoped key/value configuration in Work
 **Deferred to `/to-spec` / implementation planning (not this ADR):** drop-in basenames, Setup script module layout, parser internals, teaching/`environments/example/` cutover, Acceptance/Lifecycle Test design, operator-facing rotation UX beyond re-Setup rewrite, CI shell-only ergonomics, and when Components might later consume the bag.
 
 **Amended by ADR-0049:** `ROOT_DB_USER` / `ROOT_DB_PASSWORD` may share `environments/<slug>/.env` (and `.env.override`) but are **Database admin credentials**, not this Workload bag — ensure-components stages them for Database; Binding must not remap them into Workloads (fail closed). Components still do not consume the Workload Environment Configuration bag.
-
-**Amended by ADR-0053:** selection is Requires + Binding remap, not Manifest `environment[]`.

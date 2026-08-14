@@ -6,6 +6,4 @@ Propraetor needs a shared relational database for Workloads that should not inve
 
 **Rejected:** Network `trust`, hostname/`NetworkAlias` auth, Unix `peer`, IP allowlists; storing generated Workload DB passwords on the Host Volume; Manifest-held DB secrets; Operator Configuration for admin creds (cross-Environment coupling); bind-mounting Workloads into Component interior as the supported publish path; retain-DB-on-Purge; optional/absent Database Component when Requires claims `database`; hard RO admin role split for v1 `database.sh read`.
 
-**Amended by ADR-0053:** Declaration input is Requires `database`, not Manifest `database`.
-
 **Day-to-day truth:** `CONTEXT.md` (**Database**, **Database admin credentials**, Requires / Declaration / Purge).

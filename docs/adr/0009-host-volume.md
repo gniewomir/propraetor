@@ -1,7 +1,5 @@
 # Mandatory Host Volume on public Hosts
 
-**Amended by [ADR-0025](0025-lifecycle-convergence-by-structural-class.md):** Park/Teardown durability (supersedes ADR-0016). **Amended by [ADR-0019](0019-environments.md):** Cloud Project assignment is Environment-namespaced.
-
 Public Hosts get a mandatory **Host Volume**: a Stack-owned 1 GiB block volume attached at Host create (`volume_ids`), assigned to the Environment’s Cloud Project (e.g. `propraetor-<slug>`), formatted `ext4` on first volume create only. It survives Host rebuilds and **Park**; **Teardown** removes it with the rest of the Stack (ADR-0025). Initial Host Provisioning mounts it at `/var/lib/host-volume` (fstab via `/dev/disk/by-id/…`, `defaults,nofail,discard,noatime`); the mount root stays root-owned. How that mount converges without depending on cloud-init `scripts_user` (and how late attach after Park is handled) is [ADR-0031](0031-host-volume-mount-without-scripts-user.md). Component source/data layout under the mount is defined in ADR-0010 (this ADR only established the volume + mount); Host Volume `internals/` / `data/` split is ADR-0041. Acceptance Tests assert State (size, attachment, Cloud Project URN) and a live mounted filesystem at `/var/lib/host-volume`.
 
 **One Host Volume over per-Workload volumes:** durable bytes are a Propraetor Host concern (parallel to Reserved IP for address). Split volumes later only if a Workload needs a separate lifecycle or isolation.
