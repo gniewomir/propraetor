@@ -152,8 +152,6 @@ pass "gather drops fulfillment for Intent stop and trash"
 printf '%s\n' '{"intent":"run"}' >"${WL_ROOT}/alpha/manifest.json"
 rm -rf "${WL_ROOT}/beta"
 printf '%s\n' '# orphan' >"${ROUTES_DIR}/gone--alpha.example.test.conf"
-printf '%s\n' '# legacy projected' >"${ROUTES_DIR}/alpha.conf"
-printf '%s\n' '# legacy projected gone' >"${ROUTES_DIR}/gone.conf"
 edge_gather_workload_routes "${WL_ROOT}"
 [[ -f "${ROUTES_DIR}/alpha--alpha.example.test.conf" ]] \
   || fail "gather must fulfill remaining Intent-run Workload"
@@ -161,10 +159,6 @@ edge_gather_workload_routes "${WL_ROOT}"
   || fail "gather must remove fulfilled Routes when Workload SoT is gone"
 [[ ! -f "${ROUTES_DIR}/beta--alpha.example.test.conf" ]] \
   || fail "gather must not leave Routes for removed Workload SoT"
-[[ ! -f "${ROUTES_DIR}/alpha.conf" ]] \
-  || fail "gather must one-shot delete leftover projected <wl>.conf"
-[[ ! -f "${ROUTES_DIR}/gone.conf" ]] \
-  || fail "gather must one-shot delete leftover projected <wl>.conf for gone Workloads"
 pass "gather removes orphan Edge installs when Workload SoT is gone"
 
 # --- gather fail-closed preserves prior good fulfillments ---

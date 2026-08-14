@@ -28,11 +28,10 @@ fi
 # shellcheck source=../../lib/artifact/binding.sh
 source "${_binding_lib}"
 
-# Remove legacy projected `<name>.conf` and all `<name>--*` installed Routes for one Workload.
+# Remove fulfilled `<name>--*` Routes for one Workload.
 edge_remove_workload_installed_routes() {
   local wl_name="$1"
   local f
-  rm -f "${ROUTES_DIR}/${wl_name}.conf"
   if compgen -G "${ROUTES_DIR}/${wl_name}--*" >/dev/null; then
     for f in "${ROUTES_DIR}/${wl_name}"--*; do
       rm -f "${f}"
@@ -234,17 +233,11 @@ edge_gather_workload_routes() {
   fi
 
   # Drop fulfillments whose Workload SoT tree (with Manifest) is gone.
-  # Interior is only <wl>--<fqdn>.conf; delete leftover projected <wl>.conf (no --) one-shot.
   while IFS= read -r f; do
     [[ -n "${f}" ]] || continue
     base="$(basename "${f}")"
     installed_wl="$(_edge_installed_route_workload_name "${base}")"
-    if [[ -z "${installed_wl}" ]]; then
-      case "${base}" in
-        *.conf) rm -f "${f}" ;;
-      esac
-      continue
-    fi
+    [[ -n "${installed_wl}" ]] || continue
     if [[ ! -f "${workloads_root}/${installed_wl}/manifest.json" ]]; then
       rm -f "${f}"
     fi
