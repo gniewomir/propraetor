@@ -3,6 +3,7 @@
 # Usage: PLATFORM_USER=platform bash ensure-workload-host.sh /path/to/workload-tree
 # Workload tree must contain manifest.json; bag may include arbitrary siblings (ADR-0047).
 # Identity is the basename of the Workload tree directory.
+# Materialize matches Mirror (ADR-0053 / #204) — no second projection rule.
 # Does not build ACME want-list, claim hostnames, or start ACME (ADR-0023).
 set -euo pipefail
 
@@ -10,10 +11,8 @@ TREE="${1:?workload tree required}"
 USER_NAME="${PLATFORM_USER:-platform}"
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 MANIFEST="${TREE}/manifest.json"
-QUADLETS_STAGE="${TREE}/quadlets"
-SYSTEMD_STAGE="${TREE}/systemd"
 
-# SoT (Mirrored opaque bag) vs durable Host bytes (ADR-0047 / ADR-0041).
+# SoT (Mirrored materialize) vs durable Host bytes (ADR-0053 / ADR-0047 / ADR-0041).
 WORKLOADS_ROOT=/var/lib/host-volume/internals/workloads
 WORKLOADS_DATA=/var/lib/host-volume/data/workloads
 
@@ -30,6 +29,8 @@ source "${HERE}/sync-tree-host.sh"
 source "${HERE}/workload-manifest-host.sh"
 # shellcheck source=../lib/artifact/manifest.sh
 source "${HERE}/manifest.sh"
+# shellcheck source=workload-materialize-host.sh
+source "${HERE}/workload-materialize-host.sh"
 
 [[ -d "${TREE}" ]] || {
   echo "workload tree missing: ${TREE}" >&2
@@ -78,7 +79,14 @@ fi
 mkdir -p "${WORKLOADS_ROOT}/${WL_NAME}" "${WORKLOADS_DATA}/${WL_NAME}"
 
 STAGE_UNITS="$(mktemp "${TMPDIR:-/tmp}/platform-stage-units.XXXXXX")"
-trap 'rm -f "${STAGE_UNITS}"' EXIT
+MAT_TREE="$(umask 077; mktemp -d "${TMPDIR:-/tmp}/platform-wl-mat.XXXXXX")"
+trap 'rm -f "${STAGE_UNITS}"; rm -rf "${MAT_TREE}"' EXIT
+
+# Same Host projection as Mirror (ADR-0053 / #204).
+workload_materialize_tree "${TREE}" "${MAT_TREE}" || exit 1
+
+QUADLETS_STAGE="${MAT_TREE}/quadlets"
+SYSTEMD_STAGE="${MAT_TREE}/systemd"
 
 {
   workload_quadlet_sot_basenames "${QUADLETS_STAGE}"
@@ -93,10 +101,10 @@ workload_units_before_reload() {
   environment_configuration_apply_resolved "${WL_NAME}" "${WL_ENV_RESOLVED}"
 }
 
-# Noop when definition tree equals Host Volume SoT (ADR-0033). Intent run still
+# Noop when materialize result equals Host Volume SoT (ADR-0033). Intent run still
 # converges if required unit files are missing (e.g. Host recreated).
 SOT_TREE="${WORKLOADS_ROOT}/${WL_NAME}"
-if [[ -f "${SOT_TREE}/manifest.json" ]] && diff -rq "${TREE}" "${SOT_TREE}" >/dev/null 2>&1; then
+if [[ -f "${SOT_TREE}/manifest.json" ]] && diff -rq "${MAT_TREE}" "${SOT_TREE}" >/dev/null 2>&1; then
   units_ok=1
   if [[ "${WL_INTENT}" == "run" ]]; then
     while IFS= read -r base; do
@@ -119,8 +127,8 @@ fi
 # Refuse foreign / wrong-folder units before mutating Host Volume SoT.
 workload_units_preflight "${WL_NAME}" "${QUADLETS_STAGE}" "${SYSTEMD_STAGE}" || exit 1
 
-# Same opaque-bag projection as Mirror (ADR-0047); unit apply then syncs consumer dirs.
-sync_tree_inplace "${TREE}" "${WORKLOADS_ROOT}/${WL_NAME}" || exit 1
+# Same materialize projection as Mirror (ADR-0053); unit apply then syncs consumer dirs.
+sync_tree_inplace "${MAT_TREE}" "${WORKLOADS_ROOT}/${WL_NAME}" || exit 1
 
 # Route Declarations stay in Workload SoT only (ADR-0040). Edge Component Setup gathers.
 workload_units_apply "${WL_NAME}" "${WL_INTENT}" "${QUADLETS_STAGE}" "${SYSTEMD_STAGE}" || exit 1

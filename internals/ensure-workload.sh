@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Workload Setup — apply one Workload from the Environment tree on the Host (after Components).
 # Idempotent: identical Host Volume SoT bag (and Intent run unit files when required) → noop (ADR-0033).
-# Recursive opaque-bag SoT sync (same projection as Mirror — ADR-0047); then Intent apply.
+# Recursive opaque-bag SoT sync replaced by Mirror-matching materialize (ADR-0053);
+# then Intent apply.
 # Edge Component Setup gathers Routes from SoT (ADR-0040). Does not wait for ACME issuance.
 # Environment: omitted / --env default|test → workspace default; --env <slug> otherwise (ADR-0019).
 # Usage: ./internals/ensure-workload.sh <workload-name> [--env <slug>]
@@ -22,6 +23,8 @@ ENV_HOST_LIB="${REPO_ROOT}/internals/host-scripts/lib/workload-environment-host.
 MANIFEST_LIB="${REPO_ROOT}/internals/host-scripts/lib/workload-manifest-host.sh"
 ARTIFACT_SOURCE_LIB="${REPO_ROOT}/internals/lib/artifact/source.sh"
 ARTIFACT_MANIFEST_LIB="${REPO_ROOT}/internals/lib/artifact/manifest.sh"
+ARTIFACT_PROVIDES_LIB="${REPO_ROOT}/internals/lib/artifact/provides.sh"
+MATERIALIZE_LIB="${REPO_ROOT}/internals/host-scripts/lib/workload-materialize-host.sh"
 QUADLET_SESSION_LIB="${REPO_ROOT}/internals/host-scripts/lib/quadlet-user-session.sh"
 SYNC_LIB="${REPO_ROOT}/internals/host-scripts/lib/sync-tree-host.sh"
 # shellcheck source=lib/cli.sh
@@ -110,6 +113,14 @@ artifact_manifest_validate "${MANIFEST_ABS}" || exit 1
   echo "missing ${ARTIFACT_MANIFEST_LIB}" >&2
   exit 1
 }
+[[ -f "${ARTIFACT_PROVIDES_LIB}" ]] || {
+  echo "missing ${ARTIFACT_PROVIDES_LIB}" >&2
+  exit 1
+}
+[[ -f "${MATERIALIZE_LIB}" ]] || {
+  echo "missing ${MATERIALIZE_LIB}" >&2
+  exit 1
+}
 [[ -f "${QUADLET_SESSION_LIB}" ]] || {
   echo "missing ${QUADLET_SESSION_LIB}" >&2
   exit 1
@@ -152,6 +163,8 @@ cp "${ENV_HOST_LIB}" "${STAGE}/workload-environment-host.sh"
 cp "${MANIFEST_LIB}" "${STAGE}/workload-manifest-host.sh"
 cp "${ARTIFACT_SOURCE_LIB}" "${STAGE}/source.sh"
 cp "${ARTIFACT_MANIFEST_LIB}" "${STAGE}/manifest.sh"
+cp "${ARTIFACT_PROVIDES_LIB}" "${STAGE}/provides.sh"
+cp "${MATERIALIZE_LIB}" "${STAGE}/workload-materialize-host.sh"
 cp "${QUADLET_SESSION_LIB}" "${STAGE}/quadlet-user-session.sh"
 cp "${SYNC_LIB}" "${STAGE}/sync-tree-host.sh"
 mkdir -p "${STAGE}/${WL_NAME}"
