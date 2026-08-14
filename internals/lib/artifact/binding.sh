@@ -42,8 +42,6 @@ if extra:
     )
 
 domains = raw.get("domains", {})
-if "domains" in raw and not isinstance(domains, dict):
-    raise SystemExit(f"Binding.domains must be an object: {path}")
 if not isinstance(domains, dict):
     raise SystemExit(f"Binding.domains must be an object: {path}")
 
@@ -61,8 +59,6 @@ for fqdn, routes in domains.items():
             )
 
 environment = raw.get("environment", {})
-if "environment" in raw and not isinstance(environment, dict):
-    raise SystemExit(f"Binding.environment must be an object: {path}")
 if not isinstance(environment, dict):
     raise SystemExit(f"Binding.environment must be an object: {path}")
 

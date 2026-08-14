@@ -28,13 +28,10 @@ artifact_provides_validate() {
     echo "artifact_provides_validate: python3 required" >&2
     return 1
   }
-  python3 - "${path}" <<'PY'
+  python3 - "${path}" "$(artifact_reserved_basenames)" <<'PY'
 import json, sys
 
-RESERVED = frozenset(
-    ("manifest.json", "binding.json", "provides.json", "requires.json")
-)
-
+RESERVED = frozenset(sys.argv[2].split())
 path = sys.argv[1]
 with open(path, encoding="utf-8") as f:
     raw = json.load(f)
@@ -124,13 +121,10 @@ artifact_provides_reserved_collision() {
     echo "artifact_provides_reserved_collision: python3 required" >&2
     return 1
   }
-  python3 - "${dest}" "${provides}" <<'PY'
+  python3 - "${dest}" "${provides}" "$(artifact_reserved_basenames)" <<'PY'
 import json, os, sys
 
-RESERVED = frozenset(
-    ("manifest.json", "binding.json", "provides.json", "requires.json")
-)
-
+RESERVED = frozenset(sys.argv[3].split())
 dest, provides_path = sys.argv[1], sys.argv[2]
 if not os.path.isdir(dest):
     raise SystemExit(f"destination must be a directory: {dest}")
