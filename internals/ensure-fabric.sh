@@ -71,8 +71,10 @@ STAGE="$(umask 077; mktemp -d "${TMPDIR:-/tmp}/platform-ensure-fabric-stage.XXXX
 trap 'rm -rf "${STAGE}"' EXIT
 
 cp -a "${REPO_ROOT}/internals/host-scripts/lib" "${STAGE}/lib"
-# Database gather on Host reuses the operator Requires lib (ADR-0053 / #202).
-# Fabric also ships host-scripts/lib and prunes dest extras — keep Requires beside fulfill.
+# Host gather reuses Artifact contract libs (ADR-0053 / #202 / #203).
+# Fabric also ships host-scripts/lib and prunes dest extras — keep copies beside helpers.
+cp "${REPO_ROOT}/internals/lib/artifact/binding.sh" "${STAGE}/lib/binding.sh"
+cp "${REPO_ROOT}/internals/lib/artifact/provides.sh" "${STAGE}/lib/provides.sh"
 cp "${REPO_ROOT}/internals/lib/artifact/requires.sh" "${STAGE}/lib/requires.sh"
 cp "${HOST_SCRIPT}" "${STAGE}/ensure-fabric-host.sh"
 for name in "${FABRIC[@]}"; do

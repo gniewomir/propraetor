@@ -113,8 +113,8 @@ edge_setup() {
     edge_clear_fulfilled_routes
   fi
 
-  # Route Declarations: gather Intent-run SoT into Edge interior (ADR-0040 / ADR-0041).
-  # Workload Setup/Purge do not write Edge routes; refresh by re-running Edge Setup.
+  # Route Declarations: gather Intent-run Binding×Provides into Edge interior
+  # (ADR-0040 / ADR-0041 / ADR-0053). Workload Setup/Purge do not write Edge routes.
   WORKLOADS_ROOT="${WORKLOADS_ROOT:-/var/lib/host-volume/internals/workloads}"
   local routes_changed=0
   if [[ "${skip_gather}" == "1" ]]; then

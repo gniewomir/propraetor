@@ -30,13 +30,14 @@ cat >"${FIX_DIR}/${WL}/manifest.json" <<EOF
 }
 EOF
 MARKER="# operator-route-marker-${WL}"
-cat >"${FIX_DIR}/${WL}/routes/${HOST}.conf" <<EOF
+cat >"${FIX_DIR}/${WL}/routes/probe.conf" <<EOF
 ${MARKER}
 location = /acme-refresh-probe {
     default_type text/plain;
     return 200 'acme-refresh-ok';
 }
 EOF
+acceptance_bind_route_fragment "${FIX_DIR}/${WL}" "routes/probe.conf" "${HOST}"
 
 host_ssh \
   "rm -rf /var/lib/host-volume/internals/workloads/${WL}"

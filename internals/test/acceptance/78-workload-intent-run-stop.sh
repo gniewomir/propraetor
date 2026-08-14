@@ -31,12 +31,13 @@ write_manifest() {
 EOF
 }
 if [[ -n "${HOST}" ]]; then
-  cat >"${FIX_DIR}/${WL}/routes/${HOST}.conf" <<EOF
+  cat >"${FIX_DIR}/${WL}/routes/probe.conf" <<EOF
 location = /app-route-probe {
     default_type text/plain;
     return 200 'app-route-ok';
 }
 EOF
+  acceptance_bind_route_fragment "${FIX_DIR}/${WL}" "routes/probe.conf" "${HOST}"
 fi
 cat >"${FIX_DIR}/${WL}/quadlets/${WL}.container" <<EOF
 [Unit]
@@ -82,7 +83,7 @@ if [[ -n "${HOST}" ]]; then
   host_ssh \
     "test -f /var/lib/host-volume/data/components/edge/routes/${WL}--${HOST}.conf" \
     || fail "Edge Setup should fulfill Route fragment ${WL}--${HOST}.conf"
-  pass "Edge Setup gathers FQDN-keyed Route fragment after Intent run"
+  pass "Edge Setup gathers Binding-attached Route fragment after Intent run"
 else
   echo "SOFT-SKIP: empty Domain want-list — Route install/stop assertions"
 fi

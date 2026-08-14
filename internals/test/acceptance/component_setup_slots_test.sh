@@ -54,4 +54,13 @@ for case_path in "${refresh_cases[@]}"; do
 done
 pass "Intent-transition cases compose Edge refresh via post-workloads (helper or direct)"
 
+# --- Acceptance does not author FQDN-as-filename Route SoT (ADR-0053 / #203) ---
+fqdn_sot="$(
+  grep -nE 'routes/\$\{(ROUTE_FQDN|HOST|FQDN)\}\.conf' "${CASE_DIR}"/[0-9]*.sh \
+    || true
+)"
+[[ -z "${fqdn_sot}" ]] || fail "Acceptance must not author FQDN-as-filename Route SoT:
+${fqdn_sot}"
+pass "Acceptance Route SoT is Binding-attached Provides fragments"
+
 echo "All Component Setup slot caller checks passed."

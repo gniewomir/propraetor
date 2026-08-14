@@ -75,11 +75,12 @@ Restart=on-failure
 WantedBy=default.target
 EOF
 
-cat >"${FIX_DIR}/${WL}/routes/${ROUTE_FQDN}.conf" <<EOF
+cat >"${FIX_DIR}/${WL}/routes/probe.conf" <<EOF
 location / {
     proxy_pass http://${WL};
 }
 EOF
+acceptance_bind_route_fragment "${FIX_DIR}/${WL}" "routes/probe.conf" "${ROUTE_FQDN}"
 
 "${REPO_ROOT}/internals/ensure-workload.sh" "${WL}" --env "${PLATFORM_ENV:-test}"
 ensure_edge_route_fulfillment
