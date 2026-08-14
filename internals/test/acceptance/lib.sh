@@ -452,6 +452,45 @@ acceptance_write_database_claim() {
   printf '{ "database": true }\n' >"${tree}/requires.json"
 }
 
+# Attach an existing Provides route fragment to a Domain FQDN via Binding (ADR-0053 / #203).
+# Never uses FQDN-as-filename. TREE should already have artifact stubs.
+# Args: tree fragment_relpath fqdn [description]
+acceptance_bind_route_fragment() {
+  local tree="${1:?acceptance_bind_route_fragment: Workload tree required}"
+  local fragment="${2:?acceptance_bind_route_fragment: fragment relative path required}"
+  local fqdn="${3:?acceptance_bind_route_fragment: FQDN required}"
+  local description="${4:-Acceptance Route fragment}"
+
+  [[ -f "${tree}/${fragment}" ]] \
+    || fail "acceptance_bind_route_fragment: missing fragment ${tree}/${fragment}"
+  command -v python3 >/dev/null \
+    || fail "acceptance_bind_route_fragment: python3 required"
+  python3 - "${tree}" "${fragment}" "${fqdn}" "${description}" <<'PY'
+import json, pathlib, sys
+
+tree = pathlib.Path(sys.argv[1])
+fragment, fqdn, description = sys.argv[2], sys.argv[3], sys.argv[4]
+
+provides_path = tree / "provides.json"
+binding_path = tree / "binding.json"
+provides = json.loads(provides_path.read_text(encoding="utf-8")) if provides_path.is_file() else {}
+if not isinstance(provides, dict):
+    raise SystemExit("provides.json must be a JSON object")
+routes = provides.setdefault("routes", {})
+routes[fragment] = description
+provides_path.write_text(json.dumps(provides, indent=2) + "\n", encoding="utf-8")
+
+binding = json.loads(binding_path.read_text(encoding="utf-8")) if binding_path.is_file() else {}
+if not isinstance(binding, dict):
+    raise SystemExit("binding.json must be a JSON object")
+domains = binding.setdefault("domains", {})
+arr = domains.setdefault(fqdn, [])
+if fragment not in arr:
+    arr.append(fragment)
+binding_path.write_text(json.dumps(binding, indent=2) + "\n", encoding="utf-8")
+PY
+}
+
 # Re-run Component Setup post-workloads so Edge gathers Route Declarations (ADR-0043).
 # Workload Setup / Purge sync SoT only; fulfillment refreshes on Edge Component Setup.
 ensure_edge_route_fulfillment() {

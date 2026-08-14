@@ -1,1 +1,6 @@
-{}
+{
+  "domains": {
+    "www.propreator.gniewomir.pl": ["routes/panel.conf"],
+    "propreator.gniewomir.pl": ["routes/panel.conf"]
+  }
+}

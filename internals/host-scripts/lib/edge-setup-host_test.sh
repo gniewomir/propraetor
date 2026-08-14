@@ -11,6 +11,17 @@ source "${REPO_ROOT}/internals/host-scripts/lib/edge-setup-host.sh"
 fail() { echo "FAIL: $*" >&2; exit 1; }
 pass() { echo "PASS: $*"; }
 
+# Binding×Provides plant (stable fragment path; FQDN is Binding-only).
+plant_bound_route() {
+  local wl_dir="$1" fqdn="$2" body="$3"
+  mkdir -p "${wl_dir}/routes"
+  [[ -f "${wl_dir}/manifest.json" ]] || printf '%s\n' '{"intent":"run"}' >"${wl_dir}/manifest.json"
+  printf '%s\n' '{ "database": false }' >"${wl_dir}/requires.json"
+  printf '%s\n' "${body}" >"${wl_dir}/routes/fragment.conf"
+  printf '%s\n' '{"routes":{"routes/fragment.conf":"test"}}' >"${wl_dir}/provides.json"
+  printf '%s\n' "{\"domains\":{\"${fqdn}\":[\"routes/fragment.conf\"]}}" >"${wl_dir}/binding.json"
+}
+
 TMP="$(mktemp -d "${TMPDIR:-/tmp}/edge-setup.XXXXXX")"
 trap 'rm -rf "${TMP}"' EXIT
 STATE="${TMP}/state"
@@ -203,26 +214,26 @@ grep -Fxq 'EDGE_ACME_DIRECTORY=production' "${ACME_ENV_FILE}" || fail "staged DI
 grep -Fxq 'EDGE_ACME_EMAIL=ops@example.com' "${ACME_ENV_FILE}" || fail "staged EMAIL not installed"
 pass "edge_setup installs staged ACME EnvironmentFile"
 
-# --- gathers Intent-run Route Declarations from Workload SoT (ADR-0040) ---
+# --- gathers Intent-run Binding×Provides Routes (ADR-0040 / ADR-0053) ---
 : >"${STATE}/curl_count"
 : >"${STATE}/systemctl.calls"
 export CURL_SUCCEED_AFTER=1
 DATA_ROOT="${TMP}/edge-data"
 WORKLOADS_ROOT="${TMP}/workloads"
-mkdir -p "${WORKLOADS_ROOT}/alpha/routes"
+mkdir -p "${WORKLOADS_ROOT}/alpha"
 printf '%s\n' '{"intent":"run"}' >"${WORKLOADS_ROOT}/alpha/manifest.json"
-printf '%s\n' 'location /gather { return 200 "g"; }' \
-  >"${WORKLOADS_ROOT}/alpha/routes/alpha.example.test.conf"
+plant_bound_route "${WORKLOADS_ROOT}/alpha" "alpha.example.test" \
+  'location /gather { return 200 "g"; }'
 # Prior Edge install must be replaced from SoT on gather.
 printf '%s\n' '# stale' >"${DATA_ROOT}/routes/stale--alpha.example.test.conf"
 edge_setup "${TREE}" "${STAGE}" || fail "edge_setup with Workload SoT should succeed"
 [[ -f "${DATA_ROOT}/routes/alpha--alpha.example.test.conf" ]] \
-  || fail "edge_setup must fulfill Intent-run Route from Workload SoT"
+  || fail "edge_setup must fulfill Intent-run Binding-attached Route"
 grep -Fq 'location /gather' "${DATA_ROOT}/routes/alpha--alpha.example.test.conf" \
-  || fail "fulfilled Route must keep SoT bytes"
+  || fail "fulfilled Route must keep Provides fragment bytes"
 [[ ! -f "${DATA_ROOT}/routes/stale--alpha.example.test.conf" ]] \
   || fail "edge_setup gather must drop orphan Edge Route installs"
-pass "edge_setup gathers Intent-run Route Declarations from Workload SoT"
+pass "edge_setup gathers Intent-run Binding×Provides Route Declarations"
 
 # --- unchanged gather skips front-door bounce (Setup noop for Routes) ---
 : >"${STATE}/curl_count"
@@ -322,11 +333,11 @@ export CURL_SUCCEED_AFTER=1
 DATA_ROOT="${TMP}/edge-data-pre-cold"
 WORKLOADS_ROOT="${TMP}/workloads-pre-cold"
 mkdir -p "${DATA_ROOT}/acme/bin" "${DATA_ROOT}/routes" \
-  "${WORKLOADS_ROOT}/welcome/routes"
+  "${WORKLOADS_ROOT}/welcome"
 cp "${TMP}/edge-data/acme/bin/lego" "${DATA_ROOT}/acme/bin/lego"
 printf '%s\n' '{"intent":"run"}' >"${WORKLOADS_ROOT}/welcome/manifest.json"
-printf '%s\n' 'location /welcome { return 200 "w"; }' \
-  >"${WORKLOADS_ROOT}/welcome/routes/alpha.example.test.conf"
+plant_bound_route "${WORKLOADS_ROOT}/welcome" "alpha.example.test" \
+  'location /welcome { return 200 "w"; }'
 printf '%s\n' 'location /stale { return 200 "s"; }' \
   >"${DATA_ROOT}/routes/welcome--alpha.example.test.conf"
 edge_setup_pre_workloads "${TREE}" "${STAGE}" \
@@ -348,11 +359,11 @@ export CURL_SUCCEED_AFTER=1
 DATA_ROOT="${TMP}/edge-data-pre-warm"
 WORKLOADS_ROOT="${TMP}/workloads-pre-warm"
 mkdir -p "${DATA_ROOT}/acme/bin" "${DATA_ROOT}/routes" \
-  "${WORKLOADS_ROOT}/welcome/routes"
+  "${WORKLOADS_ROOT}/welcome"
 cp "${TMP}/edge-data/acme/bin/lego" "${DATA_ROOT}/acme/bin/lego"
 printf '%s\n' '{"intent":"run"}' >"${WORKLOADS_ROOT}/welcome/manifest.json"
-printf '%s\n' 'location /from-sot { return 200 "sot"; }' \
-  >"${WORKLOADS_ROOT}/welcome/routes/alpha.example.test.conf"
+plant_bound_route "${WORKLOADS_ROOT}/welcome" "alpha.example.test" \
+  'location /from-sot { return 200 "sot"; }'
 printf '%s\n' 'location /live { return 200 "live"; }' \
   >"${DATA_ROOT}/routes/welcome--alpha.example.test.conf"
 : >"${STATE}/edge-pod-started"
@@ -377,11 +388,11 @@ export CURL_SUCCEED_AFTER=1
 export EDGE_VALIDATE_FAIL=0
 DATA_ROOT="${TMP}/edge-data-post"
 WORKLOADS_ROOT="${TMP}/workloads-post"
-mkdir -p "${DATA_ROOT}/acme/bin" "${WORKLOADS_ROOT}/welcome/routes"
+mkdir -p "${DATA_ROOT}/acme/bin" "${WORKLOADS_ROOT}/welcome"
 cp "${TMP}/edge-data/acme/bin/lego" "${DATA_ROOT}/acme/bin/lego"
 printf '%s\n' '{"intent":"run"}' >"${WORKLOADS_ROOT}/welcome/manifest.json"
-printf '%s\n' 'location /post { return 200 "p"; }' \
-  >"${WORKLOADS_ROOT}/welcome/routes/alpha.example.test.conf"
+plant_bound_route "${WORKLOADS_ROOT}/welcome" "alpha.example.test" \
+  'location /post { return 200 "p"; }'
 edge_setup_post_workloads "${TREE}" "${STAGE}" \
   || fail "edge_setup_post_workloads should succeed"
 [[ -f "${DATA_ROOT}/routes/welcome--alpha.example.test.conf" ]] \
@@ -400,11 +411,11 @@ pass "edge_setup_post_workloads gathers, validates, starts, runs ACME"
 export EDGE_VALIDATE_FAIL=1
 DATA_ROOT="${TMP}/edge-data-post-bad"
 WORKLOADS_ROOT="${TMP}/workloads-post-bad"
-mkdir -p "${DATA_ROOT}/acme/bin" "${WORKLOADS_ROOT}/welcome/routes"
+mkdir -p "${DATA_ROOT}/acme/bin" "${WORKLOADS_ROOT}/welcome"
 cp "${TMP}/edge-data/acme/bin/lego" "${DATA_ROOT}/acme/bin/lego"
 printf '%s\n' '{"intent":"run"}' >"${WORKLOADS_ROOT}/welcome/manifest.json"
-printf '%s\n' 'location /bad { return 200 "b"; }' \
-  >"${WORKLOADS_ROOT}/welcome/routes/alpha.example.test.conf"
+plant_bound_route "${WORKLOADS_ROOT}/welcome" "alpha.example.test" \
+  'location /bad { return 200 "b"; }'
 : >"${STATE}/edge-pod-started"
 if edge_setup_post_workloads "${TREE}" "${STAGE}" 2>"${STATE}/post-bad.err"; then
   fail "post-workloads must fail closed when nginx -t fails"
@@ -425,11 +436,11 @@ export EDGE_FRONT_DOOR_WAIT_SLEEP=0
 DATA_ROOT="${TMP}/edge-data-clear"
 WORKLOADS_ROOT="${TMP}/workloads-clear"
 mkdir -p "${DATA_ROOT}/acme/bin" "${DATA_ROOT}/routes" "${DATA_ROOT}/domains" \
-  "${WORKLOADS_ROOT}/welcome/routes"
+  "${WORKLOADS_ROOT}/welcome"
 cp "${TMP}/edge-data/acme/bin/lego" "${DATA_ROOT}/acme/bin/lego"
 printf '%s\n' '{"intent":"run"}' >"${WORKLOADS_ROOT}/welcome/manifest.json"
-printf '%s\n' 'location /welcome { return 200 "w"; }' \
-  >"${WORKLOADS_ROOT}/welcome/routes/alpha.example.test.conf"
+plant_bound_route "${WORKLOADS_ROOT}/welcome" "alpha.example.test" \
+  'location /welcome { return 200 "w"; }'
 printf '%s\n' 'location /stale { return 200 "s"; }' \
   >"${DATA_ROOT}/routes/welcome--alpha.example.test.conf"
 printf '%s\n' '# prior domain front' >"${DATA_ROOT}/domains/alpha.example.test.conf"
@@ -451,11 +462,11 @@ export CURL_SUCCEED_AFTER=1
 DATA_ROOT="${TMP}/edge-data-skip-gather"
 WORKLOADS_ROOT="${TMP}/workloads-skip-gather"
 mkdir -p "${DATA_ROOT}/acme/bin" "${DATA_ROOT}/routes" \
-  "${WORKLOADS_ROOT}/welcome/routes"
+  "${WORKLOADS_ROOT}/welcome"
 cp "${TMP}/edge-data/acme/bin/lego" "${DATA_ROOT}/acme/bin/lego"
 printf '%s\n' '{"intent":"run"}' >"${WORKLOADS_ROOT}/welcome/manifest.json"
-printf '%s\n' 'location /from-sot { return 200 "sot"; }' \
-  >"${WORKLOADS_ROOT}/welcome/routes/alpha.example.test.conf"
+plant_bound_route "${WORKLOADS_ROOT}/welcome" "alpha.example.test" \
+  'location /from-sot { return 200 "sot"; }'
 printf '%s\n' 'location /live { return 200 "live"; }' \
   >"${DATA_ROOT}/routes/welcome--alpha.example.test.conf"
 : >"${STATE}/edge-pod-started"
@@ -476,11 +487,11 @@ export CURL_SUCCEED_AFTER=1
 DATA_ROOT="${TMP}/edge-data-skip-bounce"
 WORKLOADS_ROOT="${TMP}/workloads-skip-bounce"
 mkdir -p "${DATA_ROOT}/acme/bin" "${DATA_ROOT}/routes" \
-  "${WORKLOADS_ROOT}/welcome/routes"
+  "${WORKLOADS_ROOT}/welcome"
 cp "${TMP}/edge-data/acme/bin/lego" "${DATA_ROOT}/acme/bin/lego"
 printf '%s\n' '{"intent":"run"}' >"${WORKLOADS_ROOT}/welcome/manifest.json"
-printf '%s\n' 'location /new { return 200 "n"; }' \
-  >"${WORKLOADS_ROOT}/welcome/routes/alpha.example.test.conf"
+plant_bound_route "${WORKLOADS_ROOT}/welcome" "alpha.example.test" \
+  'location /new { return 200 "n"; }'
 # Pod already healthy (warm path); gather will change Routes → default would bounce.
 : >"${STATE}/edge-pod-started"
 edge_setup "${TREE}" "${STAGE}" --skip-front-door-bounce \
@@ -521,11 +532,11 @@ rm -f "${STATE}/edge-pod-started"
 export CURL_SUCCEED_AFTER=1
 DATA_ROOT="${TMP}/edge-data-default"
 WORKLOADS_ROOT="${TMP}/workloads-default"
-mkdir -p "${DATA_ROOT}/acme/bin" "${WORKLOADS_ROOT}/welcome/routes"
+mkdir -p "${DATA_ROOT}/acme/bin" "${WORKLOADS_ROOT}/welcome"
 cp "${TMP}/edge-data/acme/bin/lego" "${DATA_ROOT}/acme/bin/lego"
 printf '%s\n' '{"intent":"run"}' >"${WORKLOADS_ROOT}/welcome/manifest.json"
-printf '%s\n' 'location /default { return 200 "d"; }' \
-  >"${WORKLOADS_ROOT}/welcome/routes/alpha.example.test.conf"
+plant_bound_route "${WORKLOADS_ROOT}/welcome" "alpha.example.test" \
+  'location /default { return 200 "d"; }'
 edge_setup "${TREE}" "${STAGE}" || fail "default edge_setup should succeed"
 [[ -f "${DATA_ROOT}/routes/welcome--alpha.example.test.conf" ]] \
   || fail "default edge_setup must gather Intent-run Routes"

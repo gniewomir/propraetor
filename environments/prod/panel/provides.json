@@ -1,1 +1,5 @@
-{}
+{
+  "routes": {
+    "routes/panel.conf": "Proxy to panel on the Service Network"
+  }
+}

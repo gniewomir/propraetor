@@ -29,8 +29,9 @@ trap 'acceptance_wl_cleanup' EXIT
 
 rm -rf "${FIX_DIR:?}/${WL:?}"
 cp -R "${EXAMPLE_SRC}" "${FIX_DIR}/${WL}"
-rm -f "${FIX_DIR}/${WL}/routes/"*.conf
-cp "${EXAMPLE_SRC}/routes/site.conf.example" "${FIX_DIR}/${WL}/routes/${ROUTE_FQDN}.conf"
+# Teaching fragment is Binding-attached, not copied to an FQDN filename.
+acceptance_bind_route_fragment \
+  "${FIX_DIR}/${WL}" "routes/site.conf.example" "${ROUTE_FQDN}"
 
 # Full Deploy with the Workload in Environment SoT — Mirror + both Component Setup slots.
 "${REPO_ROOT}/internals/ensure.sh" --env "${PLATFORM_ENV:-test}"

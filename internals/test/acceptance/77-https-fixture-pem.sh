@@ -29,12 +29,13 @@ cat >"${FIX_DIR}/${WL}/manifest.json" <<EOF
   "source": "internal"
 }
 EOF
-cat >"${FIX_DIR}/${WL}/routes/${HOST}.conf" <<EOF
+cat >"${FIX_DIR}/${WL}/routes/probe.conf" <<EOF
 location = /tlsprobe {
     default_type text/plain;
     return 200 'tlsprobe-ok';
 }
 EOF
+acceptance_bind_route_fragment "${FIX_DIR}/${WL}" "routes/probe.conf" "${HOST}"
 
 host_ssh \
   "rm -rf /var/lib/host-volume/internals/workloads/${WL}"

@@ -107,7 +107,10 @@ database_admin_credentials_dotenv_for \
   "${STAGE}/platform-database-admin.env"
 
 cp -a "${REPO_ROOT}/internals/host-scripts/lib" "${STAGE}/lib"
-# Database gather on Host reuses the operator Requires lib (ADR-0053 / #202).
+# Host gather reuses Artifact contract libs (ADR-0053 / #202 / #203).
+# Fabric also ships host-scripts/lib and prunes dest extras — keep copies beside helpers.
+cp "${REPO_ROOT}/internals/lib/artifact/binding.sh" "${STAGE}/lib/binding.sh"
+cp "${REPO_ROOT}/internals/lib/artifact/provides.sh" "${STAGE}/lib/provides.sh"
 cp "${REPO_ROOT}/internals/lib/artifact/requires.sh" "${STAGE}/lib/requires.sh"
 cp "${HOST_SCRIPT}" "${STAGE}/ensure-components-host.sh"
 for name in "${COMPONENTS[@]}"; do

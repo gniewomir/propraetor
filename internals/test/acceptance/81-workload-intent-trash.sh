@@ -30,12 +30,13 @@ write_manifest() {
 EOF
 }
 if [[ -n "${HOST}" ]]; then
-  cat >"${FIX_DIR}/${WL}/routes/${HOST}.conf" <<EOF
+  cat >"${FIX_DIR}/${WL}/routes/probe.conf" <<EOF
 location = /trash-probe {
     default_type text/plain;
     return 200 'trash-probe';
 }
 EOF
+  acceptance_bind_route_fragment "${FIX_DIR}/${WL}" "routes/probe.conf" "${HOST}"
 fi
 cat >"${FIX_DIR}/${WL}/quadlets/${WL}.container" <<EOF
 [Unit]
@@ -91,8 +92,11 @@ host_ssh "test -f /var/lib/host-volume/internals/workloads/${WL}/manifest.json" 
   || fail "Intent trash Workload data should remain until Purge"
 if [[ -n "${HOST}" ]]; then
   host_ssh \
-    "test -f /var/lib/host-volume/internals/workloads/${WL}/routes/${HOST}.conf" \
-    || fail "Intent trash should retain Route SoT under Workload tree until Purge"
+    "test -f /var/lib/host-volume/internals/workloads/${WL}/routes/probe.conf" \
+    || fail "Intent trash should retain Provides Route fragment under Workload tree until Purge"
+  host_ssh \
+    "test -f /var/lib/host-volume/internals/workloads/${WL}/binding.json" \
+    || fail "Intent trash should retain Binding until Purge"
   still_present="$(host_ssh \
     "ls /var/lib/host-volume/data/components/edge/routes/${WL}.conf /var/lib/host-volume/data/components/edge/routes/${WL}--* 2>/dev/null || true")"
   [[ -n "${still_present}" ]] \

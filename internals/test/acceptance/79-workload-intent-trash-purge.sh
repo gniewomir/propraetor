@@ -45,12 +45,13 @@ EOF
 write_purge_route() {
   mkdir -p "${FIX_DIR}/purge-me/routes"
   if [[ -n "${ROUTE_FQDN}" ]]; then
-    cat >"${FIX_DIR}/purge-me/routes/${ROUTE_FQDN}.conf" <<EOF
+    cat >"${FIX_DIR}/purge-me/routes/probe.conf" <<EOF
 location = /purge-probe {
     default_type text/plain;
     return 200 'purge-probe';
 }
 EOF
+    acceptance_bind_route_fragment "${FIX_DIR}/purge-me" "routes/probe.conf" "${ROUTE_FQDN}"
   fi
 }
 

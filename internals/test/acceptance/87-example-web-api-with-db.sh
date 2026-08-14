@@ -60,11 +60,11 @@ grep -qE ":5432|${WL}-db" "${EXAMPLE_SRC}/routes/api.conf.example" \
 
 rm -rf "${FIX_DIR:?}/${WL:?}"
 cp -R "${EXAMPLE_SRC}" "${FIX_DIR}/${WL}"
-# Teaching fragment is not a want-list basename; materialize a real Route when Domains exist.
-rm -f "${FIX_DIR}/${WL}/routes/"*.conf
+# Teaching fragment is Binding-attached, not copied to an FQDN filename.
 ROUTE_FQDN="$(acceptance_route_fqdn)"
 if [[ -n "${ROUTE_FQDN}" ]]; then
-  cp "${EXAMPLE_SRC}/routes/api.conf.example" "${FIX_DIR}/${WL}/routes/${ROUTE_FQDN}.conf"
+  acceptance_bind_route_fragment \
+    "${FIX_DIR}/${WL}" "routes/api.conf.example" "${ROUTE_FQDN}"
 fi
 
 host_ssh bash -s <<REMOTE
