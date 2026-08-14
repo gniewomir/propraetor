@@ -1,8 +1,13 @@
 #!/usr/bin/env bash
-# Binding contract + full-fulfill rules (ADR-0053 / #199).
+# Binding contract + full-fulfill rules (ADR-0053 / #199 / #201).
 #
 # artifact_binding_validate PATH
 #   Fail closed on invalid Binding JSON shape.
+#
+# artifact_binding_environment_remap BINDING REQUIRES
+#   Enforce Requires environment full-fulfill (every Requires environment name
+#   exactly one remap RHS; Binding remap RHS ⊆ Requires names). Print
+#   bag_key=Requires_name one per line, sorted by Requires name.
 #
 # artifact_binding_fulfill BINDING PROVIDES REQUIRES [WANTLIST]
 #   Enforce full fulfill: every Provides route in ≥1 FQDN array; every
@@ -73,37 +78,73 @@ for bag_key, req_name in environment.items():
 PY
 }
 
+artifact_binding_environment_remap() {
+  local binding="${1:?artifact_binding_environment_remap: Binding path required}"
+  local requires="${2:?artifact_binding_environment_remap: Requires path required}"
+
+  artifact_binding_validate "${binding}" || return 1
+  artifact_requires_validate "${requires}" || return 1
+
+  python3 - "${binding}" "${requires}" <<'PY'
+import json, sys
+
+binding_path, requires_path = sys.argv[1], sys.argv[2]
+
+with open(binding_path, encoding="utf-8") as f:
+    binding = json.load(f)
+with open(requires_path, encoding="utf-8") as f:
+    requires = json.load(f)
+
+requires_env = set((requires.get("environment") or {}).keys())
+remap = binding.get("environment") or {}
+
+rhs_counts = {}
+rev = {}
+for bag_key, req_name in remap.items():
+    rhs_counts[req_name] = rhs_counts.get(req_name, 0) + 1
+    if req_name not in requires_env:
+        raise SystemExit(
+            f"Binding.environment[{bag_key!r}] remaps to unknown Requires name {req_name!r}"
+        )
+    rev[req_name] = bag_key
+
+for name in sorted(requires_env):
+    count = rhs_counts.get(name, 0)
+    if count != 1:
+        raise SystemExit(
+            f"Requires environment name {name!r} must appear exactly once as a "
+            f"Binding remap RHS (found {count})"
+        )
+    print(f"{rev[name]}={name}")
+PY
+}
+
 artifact_binding_fulfill() {
   local binding="${1:?artifact_binding_fulfill: Binding path required}"
   local provides="${2:?artifact_binding_fulfill: Provides path required}"
   local requires="${3:?artifact_binding_fulfill: Requires path required}"
   local wantlist="${4-}"
 
-  artifact_binding_validate "${binding}" || return 1
   artifact_provides_validate "${provides}" || return 1
-  artifact_requires_validate "${requires}" || return 1
+  artifact_binding_environment_remap "${binding}" "${requires}" >/dev/null || return 1
 
   if [[ -n "${wantlist}" && ! -f "${wantlist}" ]]; then
     echo "artifact_binding_fulfill: want-list file not found: ${wantlist}" >&2
     return 1
   fi
 
-  python3 - "${binding}" "${provides}" "${requires}" "${wantlist}" <<'PY'
+  python3 - "${binding}" "${provides}" "${wantlist}" <<'PY'
 import json, sys
 
-binding_path, provides_path, requires_path, wantlist_path = sys.argv[1:5]
+binding_path, provides_path, wantlist_path = sys.argv[1:4]
 
 with open(binding_path, encoding="utf-8") as f:
     binding = json.load(f)
 with open(provides_path, encoding="utf-8") as f:
     provides = json.load(f)
-with open(requires_path, encoding="utf-8") as f:
-    requires = json.load(f)
 
 provides_routes = set((provides.get("routes") or {}).keys())
-requires_env = set((requires.get("environment") or {}).keys())
 domains = binding.get("domains") or {}
-remap = binding.get("environment") or {}
 
 bound_routes = set()
 for fqdn, routes in domains.items():
@@ -120,22 +161,6 @@ if missing_routes:
         "Binding must attach every Provides route to ≥1 FQDN; unbound: "
         + ", ".join(missing_routes)
     )
-
-rhs_counts = {}
-for bag_key, req_name in remap.items():
-    rhs_counts[req_name] = rhs_counts.get(req_name, 0) + 1
-    if req_name not in requires_env:
-        raise SystemExit(
-            f"Binding.environment[{bag_key!r}] remaps to unknown Requires name {req_name!r}"
-        )
-
-for name in sorted(requires_env):
-    count = rhs_counts.get(name, 0)
-    if count != 1:
-        raise SystemExit(
-            f"Requires environment name {name!r} must appear exactly once as a "
-            f"Binding remap RHS (found {count})"
-        )
 
 if wantlist_path:
     with open(wantlist_path, encoding="utf-8") as f:

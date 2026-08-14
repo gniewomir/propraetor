@@ -29,6 +29,7 @@ SPOOF_HOST=spoof.example.invalid
 
 rm -rf "${FIX_DIR:?}/${WL:?}"
 mkdir -p "${FIX_DIR}/${WL}/quadlets" "${FIX_DIR}/${WL}/routes"
+acceptance_write_artifact_stubs "${FIX_DIR}/${WL}"
 
 cat >"${FIX_DIR}/${WL}/manifest.json" <<'EOF'
 {

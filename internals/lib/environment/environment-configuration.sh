@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# Environment Configuration module for Workload Setup / Purge (ADR-0035 / #132 / #140).
+# Environment Configuration module for Workload Setup / Purge (ADR-0035 / ADR-0053 / #201).
 # Sourced by Workload Setup and offline tests — not an operator entrypoint.
 #
 # Public interface (one outcome chain — install or clear):
-#   environment_configuration_stage_for_setup STAGE MANIFEST ENV_DIR TREE REMOTE_ROOT
+#   environment_configuration_stage_for_setup STAGE BINDING REQUIRES ENV_DIR TREE REMOTE_ROOT
 #     Resolve+gate into STAGE/environment.resolved; sets WL_ENV_ACTIVE and
 #     WL_ENV_RESOLVED_REMOTE (under REMOTE_ROOT when active; empty when inactive).
 #   environment_configuration_apply_resolved WL_NAME RESOLVED_SRC
@@ -23,25 +23,26 @@ source "${_ENVCFG_LIB_DIR}/environment-dotenv.sh"
 # shellcheck source=../../host-scripts/lib/workload-environment-host.sh
 source "${_ENVCFG_LIB_DIR}/../../host-scripts/lib/workload-environment-host.sh"
 
-# Resolve Manifest environment keys from Environment dotenv bag
-# (.env ← .env.override) with shell overrides into OUTFILE.
-# Omit/[] → remove OUTFILE, WL_ENV_ACTIVE=0.
+# Resolve Binding remaps of Requires environment names from the Environment
+# dotenv bag (.env ← .env.override) with shell overrides (on bag keys) into
+# OUTFILE as Requires_name=value. Empty remap → remove OUTFILE, WL_ENV_ACTIVE=0.
 # Prints WL_ENV_ACTIVE=0|1 on stdout for the caller to eval.
 environment_configuration_resolve() {
-  local manifest="${1:?manifest required}"
-  local env_dir="${2:?env dir required}"
-  local outfile="${3:?outfile required}"
-  local keys_file bag_file
-  keys_file="$(mktemp "${TMPDIR:-/tmp}/envcfg-keys.XXXXXX")"
+  local binding="${1:?Binding path required}"
+  local requires="${2:?Requires path required}"
+  local env_dir="${3:?env dir required}"
+  local outfile="${4:?outfile required}"
+  local pairs_file bag_file
+  pairs_file="$(mktemp "${TMPDIR:-/tmp}/envcfg-pairs.XXXXXX")"
   bag_file="$(mktemp "${TMPDIR:-/tmp}/envcfg-bag.XXXXXX")"
 
-  if ! environment_configuration_keys "${manifest}" >"${keys_file}"; then
-    rm -f "${keys_file}" "${bag_file}"
+  if ! environment_configuration_remap "${binding}" "${requires}" >"${pairs_file}"; then
+    rm -f "${pairs_file}" "${bag_file}"
     return 1
   fi
 
-  if [[ ! -s "${keys_file}" ]]; then
-    rm -f "${keys_file}" "${bag_file}"
+  if [[ ! -s "${pairs_file}" ]]; then
+    rm -f "${pairs_file}" "${bag_file}"
     if [[ -e "${outfile}" ]]; then
       rm -f "${outfile}"
     fi
@@ -50,18 +51,24 @@ environment_configuration_resolve() {
   fi
 
   if ! environment_dotenv_bag "${env_dir}" >"${bag_file}"; then
-    rm -f "${keys_file}" "${bag_file}"
+    rm -f "${pairs_file}" "${bag_file}"
     return 1
   fi
 
-  if ! python3 - "${bag_file}" "${outfile}" "${keys_file}" <<'PY'
+  if ! python3 - "${bag_file}" "${outfile}" "${pairs_file}" <<'PY'
 import os
 import sys
 
-bag_path, outfile, keys_path = sys.argv[1], sys.argv[2], sys.argv[3]
+bag_path, outfile, pairs_path = sys.argv[1], sys.argv[2], sys.argv[3]
 
-with open(keys_path, encoding="utf-8") as f:
-    keys = [line.rstrip("\n") for line in f if line.rstrip("\n") != ""]
+pairs = []
+with open(pairs_path, encoding="utf-8") as f:
+    for line in f:
+        raw = line.rstrip("\n")
+        if not raw or "=" not in raw:
+            continue
+        bag_key, _, req_name = raw.partition("=")
+        pairs.append((bag_key, req_name))
 
 file_vals = {}
 with open(bag_path, encoding="utf-8") as f:
@@ -74,13 +81,13 @@ with open(bag_path, encoding="utf-8") as f:
 
 resolved = {}
 missing = []
-for key in keys:
-    if key in os.environ:
-        resolved[key] = os.environ[key]
-    elif key in file_vals:
-        resolved[key] = file_vals[key]
+for bag_key, req_name in pairs:
+    if bag_key in os.environ:
+        resolved[req_name] = os.environ[bag_key]
+    elif bag_key in file_vals:
+        resolved[req_name] = file_vals[bag_key]
     else:
-        missing.append(key)
+        missing.append(bag_key)
 
 if missing:
     raise SystemExit(
@@ -89,29 +96,31 @@ if missing:
 
 os.makedirs(os.path.dirname(outfile) or ".", exist_ok=True)
 with open(outfile, "w", encoding="utf-8") as out:
-    for key in keys:
-        out.write(f"{key}={resolved[key]}\n")
+    for _bag_key, req_name in pairs:
+        out.write(f"{req_name}={resolved[req_name]}\n")
 
 print("WL_ENV_ACTIVE=1")
 PY
   then
-    rm -f "${keys_file}" "${bag_file}"
+    rm -f "${pairs_file}" "${bag_file}"
     return 1
   fi
-  rm -f "${keys_file}" "${bag_file}"
+  rm -f "${pairs_file}" "${bag_file}"
   return 0
 }
 
 # Adapter internal: resolve + gate once. Writes OUTFILE when active.
 # Prints WL_ENV_ACTIVE=0|1 on stdout for eval.
 environment_configuration_prepare() {
-  local manifest="${1:?manifest required}"
-  local env_dir="${2:?env dir required}"
-  local tree="${3:?workload tree required}"
-  local outfile="${4:?outfile required}"
+  local binding="${1:?Binding path required}"
+  local requires="${2:?Requires path required}"
+  local env_dir="${3:?env dir required}"
+  local tree="${4:?workload tree required}"
+  local outfile="${5:?outfile required}"
   local resolve_out
 
-  resolve_out="$(environment_configuration_resolve "${manifest}" "${env_dir}" "${outfile}")" || return 1
+  resolve_out="$(environment_configuration_resolve \
+    "${binding}" "${requires}" "${env_dir}" "${outfile}")" || return 1
   eval "${resolve_out}"
   environment_configuration_require_containers "${tree}" "${WL_ENV_ACTIVE}" || return 1
   printf '%s\n' "${resolve_out}"
@@ -122,14 +131,16 @@ environment_configuration_prepare() {
 # No stdout assignment protocol — callers read the globals after a successful return.
 environment_configuration_stage_for_setup() {
   local stage="${1:?stage dir required}"
-  local manifest="${2:?manifest required}"
-  local env_dir="${3:?env dir required}"
-  local tree="${4:?workload tree required}"
-  local remote_root="${5:?remote stage root required}"
+  local binding="${2:?Binding path required}"
+  local requires="${3:?Requires path required}"
+  local env_dir="${4:?env dir required}"
+  local tree="${5:?workload tree required}"
+  local remote_root="${6:?remote stage root required}"
   local outfile="${stage}/environment.resolved"
   local prepare_out
 
-  prepare_out="$(environment_configuration_prepare "${manifest}" "${env_dir}" "${tree}" "${outfile}")" || return 1
+  prepare_out="$(environment_configuration_prepare \
+    "${binding}" "${requires}" "${env_dir}" "${tree}" "${outfile}")" || return 1
   eval "${prepare_out}"
   if [[ "${WL_ENV_ACTIVE}" == "1" ]]; then
     [[ -f "${outfile}" ]] || {

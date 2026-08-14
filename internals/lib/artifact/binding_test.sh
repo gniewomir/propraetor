@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# Unit tests: Binding parse + full-fulfill (ADR-0053 / #199).
-# Seam: artifact_binding_validate / artifact_binding_fulfill.
+# Unit tests: Binding parse + full-fulfill + environment remap (ADR-0053 / #199 / #201).
+# Seam: artifact_binding_validate / artifact_binding_fulfill /
+# artifact_binding_environment_remap.
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"
@@ -195,6 +196,53 @@ EOF
 artifact_binding_fulfill "${BINDING}" "${PROVIDES}" "${REQUIRES}" "${WANTLIST}" \
   || fail "zero routes + empty Requires env must fulfill"
 pass "zero routes fulfill"
+
+# --- environment remap: bag key → Requires name (ADR-0053 / #201) ---
+cat >"${PROVIDES}" <<'EOF'
+{ "directories": { "quadlets": "./quadlets" } }
+EOF
+cat >"${REQUIRES}" <<'EOF'
+{
+  "environment": { "API_KEY": "key", "APP_URL": "url" },
+  "database": false
+}
+EOF
+cat >"${BINDING}" <<'EOF'
+{
+  "environment": {
+    "SECRET_BAG": "API_KEY",
+    "PUBLIC_URL": "APP_URL"
+  }
+}
+EOF
+got="$(artifact_binding_environment_remap "${BINDING}" "${REQUIRES}")" \
+  || fail "env remap happy path must pass"
+# Stable order: Requires environment names sorted.
+[[ "${got}" == $'SECRET_BAG=API_KEY\nPUBLIC_URL=APP_URL' ]] \
+  || fail "expected BAG=Requires pairs in Requires-name order, got: ${got}"
+pass "environment remap prints bag=Requires pairs"
+
+cat >"${REQUIRES}" <<'EOF'
+{ "environment": {}, "database": false }
+EOF
+cat >"${BINDING}" <<'EOF'
+{ "environment": {} }
+EOF
+got="$(artifact_binding_environment_remap "${BINDING}" "${REQUIRES}")" \
+  || fail "empty Requires environment must remap"
+[[ -z "${got}" ]] || fail "empty Requires environment should print no pairs"
+pass "empty Requires environment remaps to no pairs"
+
+cat >"${REQUIRES}" <<'EOF'
+{ "environment": { "API_KEY": "key" }, "database": false }
+EOF
+cat >"${BINDING}" <<'EOF'
+{ "environment": {} }
+EOF
+if artifact_binding_environment_remap "${BINDING}" "${REQUIRES}" >/dev/null 2>&1; then
+  fail "missing Requires remap RHS must fail closed"
+fi
+pass "incomplete environment remap fails closed"
 
 # --- no FQDN-as-filename Route SoT dual-read in contract libs ---
 if grep -E 'routes/\$\{|basename.*\.conf|/\$\{fqdn\}' \

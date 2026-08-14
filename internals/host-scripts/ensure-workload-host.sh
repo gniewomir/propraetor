@@ -66,7 +66,7 @@ WL_INTENT="$(workload_manifest_intent "${MANIFEST}")" || exit 1
 
 # Environment Configuration: operator stage_for_setup is the single authority.
 # Active iff a resolved file was staged (SSH adapter); Host does not re-parse
-# Manifest environment or re-run the containers gate.
+# Binding/Requires or re-run the containers gate.
 WL_ENV_RESOLVED="${WL_ENV_RESOLVED:-}"
 if [[ -n "${WL_ENV_RESOLVED}" ]]; then
   [[ -f "${WL_ENV_RESOLVED}" ]] || {

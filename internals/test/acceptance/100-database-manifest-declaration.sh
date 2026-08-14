@@ -108,6 +108,7 @@ cat >"${FIX_DIR}/${WL}/manifest.json" <<'EOF'
   "description": "allowlist probe — Setup must not fulfill Database"
 }
 EOF
+acceptance_write_artifact_stubs "${FIX_DIR}/${WL}"
 "${REPO_ROOT}/internals/ensure-workload.sh" "${WL}" --env "${ENV_SLUG}"
 pass "thin Manifest Setup succeeds without Manifest database"
 

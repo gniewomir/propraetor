@@ -17,6 +17,7 @@ trap 'acceptance_wl_cleanup' EXIT
 stage_wl() {
   local name="$1"
   mkdir -p "${FIX_DIR}/${name}/quadlets"
+  acceptance_write_artifact_stubs "${FIX_DIR}/${name}"
   cat >"${FIX_DIR}/${name}/manifest.json" <<EOF
 {
   "intent": "stop",

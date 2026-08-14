@@ -17,6 +17,7 @@ acceptance_wl_track "${WL}"
 trap 'acceptance_wl_cleanup' EXIT
 
 mkdir -p "${FIX_DIR}/${WL}/quadlets"
+acceptance_write_artifact_stubs "${FIX_DIR}/${WL}"
 if [[ -n "${HOST}" ]]; then
   mkdir -p "${FIX_DIR}/${WL}/routes"
 fi

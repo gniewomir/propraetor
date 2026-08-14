@@ -130,8 +130,19 @@ STAGE="$(umask 077; mktemp -d "${TMPDIR:-/tmp}/platform-ensure-workload-stage.XX
 trap 'rm -rf "${STAGE}"' EXIT
 
 RESOLVED_REMOTE_ROOT="/tmp/platform-ensure-workload"
+BINDING_ABS="${MANIFEST_DIR}/binding.json"
+REQUIRES_ABS="${MANIFEST_DIR}/requires.json"
+[[ -f "${BINDING_ABS}" ]] || {
+  echo "binding.json missing in ${MANIFEST_DIR}/" >&2
+  exit 1
+}
+[[ -f "${REQUIRES_ABS}" ]] || {
+  echo "requires.json missing in ${MANIFEST_DIR}/" >&2
+  exit 1
+}
 environment_configuration_stage_for_setup \
-  "${STAGE}" "${MANIFEST_ABS}" "${ENV_DIR}" "${MANIFEST_DIR}" "${RESOLVED_REMOTE_ROOT}" || exit 1
+  "${STAGE}" "${BINDING_ABS}" "${REQUIRES_ABS}" "${ENV_DIR}" "${MANIFEST_DIR}" \
+  "${RESOLVED_REMOTE_ROOT}" || exit 1
 
 cp "${HOST_SCRIPT}" "${STAGE}/ensure-workload-host.sh"
 cp "${UNITS_LIB}" "${STAGE}/workload-units-host.sh"

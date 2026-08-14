@@ -17,6 +17,7 @@ trap 'acceptance_wl_cleanup' EXIT
 ROUTE_FQDN="$(acceptance_route_fqdn)"
 
 mkdir -p "${FIX_DIR}/alpha/quadlets"
+acceptance_write_artifact_stubs "${FIX_DIR}/alpha"
 cat >"${FIX_DIR}/alpha/manifest.json" <<'EOF'
 {
   "intent": "run",
@@ -93,6 +94,7 @@ cat >"${FIX_DIR}/retired-db/manifest.json" <<'EOF'
 EOF
 
 mkdir -p "${FIX_DIR}/zero"
+acceptance_write_artifact_stubs "${FIX_DIR}/zero"
 cat >"${FIX_DIR}/zero/manifest.json" <<'EOF'
 {
   "intent": "run",
@@ -101,6 +103,7 @@ cat >"${FIX_DIR}/zero/manifest.json" <<'EOF'
 EOF
 
 mkdir -p "${FIX_DIR}/clash/quadlets"
+acceptance_write_artifact_stubs "${FIX_DIR}/clash"
 cat >"${FIX_DIR}/clash/manifest.json" <<'EOF'
 {
   "intent": "run",
@@ -125,6 +128,8 @@ WantedBy=default.target
 EOF
 
 mkdir -p "${FIX_DIR}/owner-a/quadlets" "${FIX_DIR}/owner-b/quadlets"
+acceptance_write_artifact_stubs "${FIX_DIR}/owner-a"
+acceptance_write_artifact_stubs "${FIX_DIR}/owner-b"
 cat >"${FIX_DIR}/owner-a/manifest.json" <<'EOF'
 { "intent": "run", "source": "internal" }
 EOF
