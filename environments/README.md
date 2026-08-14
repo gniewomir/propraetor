@@ -1,6 +1,6 @@
 # Environment declarations
 
-Committed, Environment-scoped intent ([ADR-0033](../docs/adr/0033-environment-first-repo-layout.md); Domains: [ADR-0021](../docs/adr/0021-environment-domain-config.md); Environment Configuration: [ADR-0035](../docs/adr/0035-environment-configuration-injection.md)).
+Committed, Environment-scoped intent ([ADR-0033](../docs/adr/0033-environment-first-repo-layout.md); Domains: [ADR-0021](../docs/adr/0021-environment-domain-config.md); Environment Configuration: [ADR-0035](../docs/adr/0035-environment-configuration-injection.md); Binding × Provides / Requires: [ADR-0053](../docs/adr/0053-workload-provides-requires-binding.md)).
 
 ```text
 environments/<cloud-slug>/domains.json
@@ -13,9 +13,9 @@ environments/<cloud-slug>/.ssh/known_hosts        # Host-session TOFU; gitignore
 environments/<cloud-slug>/<workload-name>/          # directory = Workload (ADR-0033)
 ```
 
-**Rule:** under `environments/<slug>/`, files are configuration or documentation; immediate non-hidden directories are Workload definition trees (identity = basename). Dotdirs are ignored. Workload directory internals are out of scope for ADR-0033.
+**Rule:** under `environments/<slug>/`, files are configuration or documentation; immediate non-hidden directories are Workload definition trees (identity = basename). Dotdirs are ignored. Discovery for Mirror / Orphan Reap / batch Workload Setup is that directory set — not gated on `manifest.json` ([ADR-0047](../docs/adr/0047-opaque-workload-mirror-bag.md)). Workload directory internals are out of scope for ADR-0033 (see **Workload trees** below).
 
-**Workload Setup:** `./internals/ensure-workload.sh <workload-name> [--env <slug>]` — name only; resolves under this tree (fail closed). Batch: `./internals/ensure-workloads.sh [--env <slug>]` discovers by `manifest.json` and Setups each. Stack Apply does not run Workload Setup.
+**Workload Setup:** `./internals/ensure-workload.sh <workload-name> [--env <slug>]` — name only; resolves under this tree (fail closed). Batch: `./internals/ensure-workloads.sh [--env <slug>]` discovers those directories and Setups each. Stack Apply does not run Workload Setup.
 
 - **Cloud slug** — `test` (not Terraform workspace `default`), `prod`, `example`, … Same slug as Host naming (`propraetor-test-…`).
 - **Missing `domains.json`** — that Environment has zero Domains.
@@ -26,13 +26,25 @@ JSON shape for Domains: map of apex FQDN → `{ "names": ["@", "www", …] }` (a
 
 JSON shape for ACME: `{ "directory": "production"|"staging" }` (no other keys).
 
+## Workload trees
+
+Each Workload directory holds Propraetor-internal **Manifest** + **Binding** plus the portable **Artifact** (**Provides**, **Requires**, content). For `source: internal` the Artifact is inline in that directory; for a zip URI it lives at zip root ([ADR-0053](../docs/adr/0053-workload-provides-requires-binding.md)).
+
+| File | Role |
+|----------|------|
+| `manifest.json` | Required `intent` and `source` (`internal` or a public zip URI); optional human-only `description`. No `environment`, `database`, or `name`. |
+| `binding.json` | Remap of want-list FQDNs → ordered Provides route paths, and Environment Configuration bag keys → Requires environment names. Omit a map or `{}` ⇒ that channel is empty. Full fulfill only. Values never live in Binding. |
+| `provides.json` / `requires.json` | Artifact contracts (directories and route fragment paths; process env names and `database`). |
+
+**Routes:** location-context fragments listed under Provides `routes`, attached only via Binding `domains`. Edge Setup gathers Intent-**run** bound Routes into Edge-owned storage — not Workload-tree `routes/<FQDN>.conf` as authored SoT. Teaching fragments under `environments/example/` use logical names (`routes/site.conf.example`); live Binding attachment is `environments/prod/panel`.
+
 ## Environment Configuration
 
 Non-committed key/value pairs for Workload containers ([ADR-0035](../docs/adr/0035-environment-configuration-injection.md); glossary: **Environment Configuration**).
 
 | Artifact | Role |
 |----------|------|
-| `.env` | Local bag for this Environment. Optional — if absent, listed keys must come from the shell or `.env.override`. Never commit any `**/.env*` except basename `.env.example` ([ADR-0048](../docs/adr/0048-env-star-commit-and-agent-ignore.md)). |
+| `.env` | Local bag for this Environment. Optional — if absent, remapped keys must come from the shell or `.env.override`. Never commit any `**/.env*` except basename `.env.example` ([ADR-0048](../docs/adr/0048-env-star-commit-and-agent-ignore.md)). |
 | `.env.override` | Optional overlay on `.env` (wins on key collision). Same strict dotenv subset and ignore rules. Acceptance fixtures write here — not `.env`. |
 | `.env.example` | Committed teaching of expected key names. **Workload Setup never reads it.** |
 | Binding `environment` | Remap of Environment Configuration bag keys onto Requires environment names. Omit or `{}` ⇒ that Workload consumes none. Values never live in Binding. |
