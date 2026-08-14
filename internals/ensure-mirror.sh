@@ -85,7 +85,7 @@ mirrored=0
 while IFS= read -r wl_name; do
   [[ -n "${wl_name}" ]] || continue
   src="${ENV_DIR}/${wl_name}"
-  artifact_source_environment_tree_gate "${src}" || exit 1
+  artifact_source_tree_gate "${src}" || exit 1
   dest="${STAGE}/workloads/${wl_name}"
   mkdir -p "${dest}"
   cp -a "${src}/." "${dest}/"

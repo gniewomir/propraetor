@@ -239,6 +239,26 @@ assert str(m.get("source", "")).endswith(".zip")
 PY
 [[ -f "${HV}/internals/workloads/zippy/binding.json" ]] \
   || fail "zip Environment Binding must remain on Host"
-pass "Mirror materializes zip Source via Provides directories"
+pass "Mirror materializes zip URI Source via Provides directories"
+
+# --- path zip Source: same Artifact, local file, zip remains on Host ---
+rm -rf "${STAGE}/workloads"
+mkdir -p "${STAGE}/workloads/zippath"
+printf '{}\n' >"${STAGE}/workloads/zippath/binding.json"
+cp "${ZIP_DIR}/artifact.zip" "${STAGE}/workloads/zippath/artifact.zip"
+cat >"${STAGE}/workloads/zippath/manifest.json" <<'EOF'
+{
+  "intent": "run",
+  "source": "artifact.zip"
+}
+EOF
+cp "${TMP}/mirror-run.sh" "${STAGE}/ensure-mirror-host.sh"
+bash "${STAGE}/ensure-mirror-host.sh" "${USER_NAME}" \
+  || fail "ensure-mirror-host failed for path zip Source"
+grep -Fxq 'from-zip-www' "${HV}/internals/workloads/zippath/www/index.html" \
+  || fail "path zip Provides directories must materialize www"
+[[ -f "${HV}/internals/workloads/zippath/artifact.zip" ]] \
+  || fail "path zip must remain on Host as Environment bag"
+pass "Mirror materializes path zip Source via Provides directories"
 
 echo "All ensure-mirror-host offline tests passed."

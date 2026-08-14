@@ -24,7 +24,7 @@ EOF
 # Zip Environment must not already hold Artifact contracts (fail before fetch).
 printf '{ "database": false }\n' >"${TREE}/requires.json"
 if err="$(workload_materialize_tree "${TREE}" "${OUT}" 2>&1)"; then
-  fail "zip Environment requires.json must fail closed before zip fetch"
+  fail "zip Environment requires.json must fail closed before zip obtain"
 fi
 printf '%s\n' "${err}" | grep -q 'requires.json' \
   || fail "zip dest collision must name requires.json, got: ${err}"
@@ -35,10 +35,60 @@ pass "zip Environment requires.json fails closed before fetch"
 rm -f "${TREE}/requires.json"
 printf '{}\n' >"${TREE}/provides.json"
 if err="$(workload_materialize_tree "${TREE}" "${OUT}" 2>&1)"; then
-  fail "zip Environment provides.json must fail closed before zip fetch"
+  fail "zip Environment provides.json must fail closed before zip obtain"
 fi
 printf '%s\n' "${err}" | grep -q 'provides.json' \
   || fail "zip dest collision must name provides.json, got: ${err}"
 pass "zip Environment provides.json fails closed before fetch"
+
+# --- path zip Source: extract + keep .zip on Host tree ---
+PATH_TREE="${TMP}/path-wl"
+PATH_ART="${TMP}/path-art"
+mkdir -p "${PATH_ART}/www" "${PATH_TREE}"
+printf '{ "directories": { "www": "static" } }\n' >"${PATH_ART}/provides.json"
+printf '{ "database": false }\n' >"${PATH_ART}/requires.json"
+printf 'from-path-zip\n' >"${PATH_ART}/www/index.html"
+(cd "${PATH_ART}" && zip -qr "${PATH_TREE}/artifact.zip" .)
+printf '{}\n' >"${PATH_TREE}/binding.json"
+cat >"${PATH_TREE}/manifest.json" <<'EOF'
+{ "intent": "run", "source": "artifact.zip" }
+EOF
+rm -rf "${OUT}"
+workload_materialize_tree "${PATH_TREE}" "${OUT}" \
+  || fail "path zip materialize must succeed"
+grep -Fxq 'from-path-zip' "${OUT}/www/index.html" \
+  || fail "path zip Provides directories must materialize"
+grep -Fq 'static' "${OUT}/provides.json" \
+  || fail "path zip Artifact Provides must land on Host"
+[[ -f "${OUT}/artifact.zip" ]] \
+  || fail "path zip must remain on Host as Environment bag"
+pass "path zip materialize keeps zip and applies Provides"
+
+# --- path zip peel ---
+WRAP_TREE="${TMP}/wrap-wl"
+WRAP_ART="${TMP}/wrap-art"
+mkdir -p "${WRAP_ART}/bundle/www" "${WRAP_TREE}"
+printf '{ "directories": { "www": "static" } }\n' >"${WRAP_ART}/bundle/provides.json"
+printf '{ "database": false }\n' >"${WRAP_ART}/bundle/requires.json"
+printf 'from-peel\n' >"${WRAP_ART}/bundle/www/index.html"
+(cd "${WRAP_ART}" && zip -qr "${WRAP_TREE}/wrapped.zip" bundle)
+printf '{}\n' >"${WRAP_TREE}/binding.json"
+cat >"${WRAP_TREE}/manifest.json" <<'EOF'
+{ "intent": "run", "source": "wrapped.zip" }
+EOF
+rm -rf "${OUT}"
+workload_materialize_tree "${WRAP_TREE}" "${OUT}" \
+  || fail "wrapped path zip materialize must succeed"
+grep -Fxq 'from-peel' "${OUT}/www/index.html" \
+  || fail "peeled zip Provides directories must materialize"
+pass "path zip materialize peels sole wrapper with Provides"
+
+# --- outbound symlink fail-closed ---
+ln -s /tmp "${PATH_TREE}/escape"
+if workload_materialize_tree "${PATH_TREE}" "${OUT}" >/dev/null 2>&1; then
+  fail "outbound Workload symlink must fail materialize"
+fi
+rm -f "${PATH_TREE}/escape"
+pass "materialize refuses outbound Workload symlink"
 
 echo "All workload-materialize-host offline tests passed."

@@ -35,8 +35,14 @@ zip_uri='https://example.com/artifact.zip'
 cat >"${MANIFEST}" <<EOF
 { "intent": "run", "source": "${zip_uri}" }
 EOF
-artifact_manifest_validate "${MANIFEST}" || fail "public zip Source must pass"
-pass "public zip Source"
+artifact_manifest_validate "${MANIFEST}" || fail "zip URI Source must pass"
+pass "zip URI Source"
+
+cat >"${MANIFEST}" <<'EOF'
+{ "intent": "run", "source": "vendor/app.zip" }
+EOF
+artifact_manifest_validate "${MANIFEST}" || fail "zip path Source must pass"
+pass "zip path Source"
 
 # --- Source required ---
 cat >"${MANIFEST}" <<'EOF'

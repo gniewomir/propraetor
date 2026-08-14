@@ -83,7 +83,7 @@ MANIFEST_ABS="${MANIFEST_DIR}/manifest.json"
   exit 1
 }
 artifact_manifest_validate "${MANIFEST_ABS}" || exit 1
-artifact_source_environment_tree_gate "${MANIFEST_DIR}" || exit 1
+artifact_source_tree_gate "${MANIFEST_DIR}" || exit 1
 [[ -f "${HOST_SCRIPT}" ]] || {
   echo "missing ${HOST_SCRIPT}" >&2
   exit 1
