@@ -10,6 +10,4 @@ Propraetor’s Host-side ladder is **Substrate** → **Fabric** → **Component*
 
 **Amended by ADR-0043:** **Deploy** runs Component Setup in two slots (`pre-workloads` then, after Workloads + Purge, `post-workloads`); Declaration fulfillment that depends on Workload identity is the post slot.
 
-**Amended by ADR-0053:** Declaration inputs are Provides/Requires (+ Binding resolution) and Domain assignment — not Manifest `database` or Workload-tree `routes/` FQDN filenames.
-
 **Cutover:** glossary updated; Host cutover tracks implementation of ADR-0053.

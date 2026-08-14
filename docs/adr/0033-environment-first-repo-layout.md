@@ -17,9 +17,7 @@ Committed Environment intent lives under root `environments/<slug>/`, not under 
 
 **Host Volume:** Mirrored Workload SoT under `internals/workloads/<name>/`; durable runtime under `data/workloads/<name>/` (ADR-0041). Setup identity remains the definition-tree basename.
 
-**Amended by ADR-0041:** Environment absence is **Orphan Reap** (not deferred operator risk); Host Volume splits Mirrored SoT from durable `data/`.
-
-**Amended by ADR-0047 / ADR-0053:** discovery is directory-based; Mirror materializes Workloads onto the Host Volume regardless of Source (not Environment-bag upsert alone).
+**Amended by ADR-0053:** Mirror materializes Workloads onto the Host Volume regardless of Source (not Environment-bag upsert alone).
 
 **Amended by ADR-0051:** repo `environments/` remains the default Environments root; optional Operator Configuration may relocate that root (full replace when set).
 

@@ -1,7 +1,5 @@
 # Edge, Service Network, and Workload Routes
 
-**Amended by ADR-0040:** Service Network is **Fabric** (Fabric Setup); Edge is a **Component** that fulfills Route **Declarations**; Workload Setup does not install Routes into Edge.
-
 Public Hosts get a mandatory **Edge** (Propraetor Component — HTTP/HTTPS front door) and a Propraetor-owned **Service Network** (**Fabric**, applied by Fabric Setup — not a Component peer of Edge). Optional **Workloads** join that network and author **Route Declarations** (Edge Component Setup gathers and fulfills). Unit names follow the role (`service-network`, `edge`, `edge-nginx`); trees live under `internals/fabric/` + `internals/components/edge/`, with authored units under `quadlets/` + `systemd/` by consumer (ADR-0034 / ADR-0010). TLS terminates at the Edge (ACME is Edge-owned and on-demand — ADR-0015); the first drop is HTTP :80 only, with Host bind mounts reserved for Routes and future certs. Empty Edge (no fulfilled Routes) answers with a default 404/444 — not a holding page and not “don’t run.”
 
 **Edge over peer Workloads on 80/443:** sole entrypoint is a Propraetor invariant, not an accident of one container. Peer publishers would fight the Firewall/Reserved-IP story and ADR-0006’s rootless edge bind.

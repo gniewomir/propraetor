@@ -9,5 +9,3 @@ The Workload Manifest carries a **Workload Intent** (naming: ADR-0017; thin Mani
 **Intent trash + Purge over immediate delete on Manifest edit:** makes removal explicit and batchable.
 
 **Amended by ADR-0041:** **Purge** remains Intent-**trash** only (names still in the Environment). Host Workloads absent from the Environment are removed by **Orphan Reap**, not Purge. **Mirror** materializes Environment Workloads and leaves orphans alone.
-
-**Amended by ADR-0053:** Route offer/fulfill is Binding × Provides into Edge-owned storage; Mirror materializes regardless of Source; Purge wording no longer assumes Workload-tree `routes/` SoT.

@@ -8,10 +8,6 @@ Propraetor gains **Deploy** — root `deploy.sh` takes a **Substrate** Host to *
 
 **Amended by ADR-0043:** Deploy runs Component Setup twice — `pre-workloads` after Orphan Reap, `post-workloads` after Purge; every Component ships both scripts; no single-shot `full` mode.
 
-**Amended by ADR-0047:** Workload discovery is directory-based (no `manifest.json` Mirror gate).
-
-**Amended by ADR-0053:** Mirror resolves Source and materializes Provides directories (not Environment-bag upsert alone); Route SoT is Provides + Binding → Edge-owned storage, not `internals/workloads/<name>/routes/` with FQDN-as-filename.
-
 **Amends:** ADR-0010 (retires `components/` + `components_data/` Host Volume layout and combined ensure-components-as-Fabric+Component ship story); ADR-0014 (Purge stays trash-only; Orphan Reap is the Environment-absence destroy path); ADR-0032 (`deploy.sh` is the root composition entrypoint foreshadowed there; internals cogs renamed/split as above; `host-scripts` vs operator `lib/`); ADR-0033 (Environment absence is Orphan Reap, not deferred operator risk; Host Volume SoT vs `data/` split); ADR-0034 (Workload owns `internals/` + `data/` trees under the basename); ADR-0040 (Deploy places Mirror before Component Setup so gather sees Environment SoT in one Component pass).
 
 **Rejected:** Expanding Fabric to include Environment mirror; repo-as-SoT for Edge gather; Mirror wipe-and-refill of all `internals/` (breaks live bind mounts); Mirror drop-cleanup conflated with Purge; Purge overloaded to mean orphan reap; Deploy that runs Apply; `ensure-workloads` without a singular `ensure-workload`; garbage-collector as the domain name for Purge.

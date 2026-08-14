@@ -11,5 +11,3 @@ After operator-owned Routes (ADR-0022) and Domain-driven ACME (ADR-0023), the Ma
 **Requires + Binding over Manifest `environment` / `database`:** Artifact stays free of Propraetor bag keys and FQDNs; selection/remap is Environment-local (ADR-0053).
 
 **Authored unit basenames (no `<workload>--` prefix) over Route-style renaming:** units stay graduation-friendly; uniqueness is enforced by refusing foreign basenames in the unit directory.
-
-**Amended by ADR-0049 / ADR-0053:** Database need is Requires `database` (not Manifest); ADR-0049’s Manifest allowlist thicken is retired in favour of Requires.

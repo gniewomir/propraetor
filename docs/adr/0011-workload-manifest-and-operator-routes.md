@@ -7,5 +7,3 @@ A **Workload Manifest** is the source of truth for that Workload’s **Workload 
 **Operator-authored full Routes over generate-shell + optional interior:** Propraetor stops owning Edge HTTP behaviour for Workloads; native Edge config stays the Workload HTTP language.
 
 **Enumerated Domain FQDNs + HTTP-01 over wildcards / DNS-01:** matches multiple domains and subdomains without DNS provider credentials on the Host (ADR-0023).
-
-**Amended by ADR-0053:** Provides / Requires / Binding replace Workload-tree `routes/` FQDN-as-filename SoT and Manifest-owned env/db selection.
