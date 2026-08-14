@@ -8,10 +8,11 @@
 #   directories (fail closed on reserved collisions). Manifest-less ENV_TREE
 #   is bag upsert only. OUT is replaced.
 #
-# Internal Source paths are relative to ENV_TREE; zip paths to zip root.
-# After resolve, Artifact provides.json + requires.json are placed on OUT
-# so Host shape matches (external ⊂ internal). Zip Environment trees must not
-# already contain those contracts (fail closed before fetch).
+# Internal Source paths are relative to ENV_TREE; zip paths to zip root
+# (after optional sole-wrapper peel). After resolve, Artifact provides.json +
+# requires.json are placed on OUT so Host shape matches (external ⊂ internal).
+# Zip Environment trees must not already contain those contracts (fail closed
+# before obtain). Path obtain keeps the `.zip` on OUT as Environment bag.
 
 _MAT_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # Host Volume / stage ships copies of internals/lib/artifact/{source,provides}.sh
@@ -78,17 +79,13 @@ _workload_materialize_apply_directory() {
   cp -a "${src}" "${dest}" || return 1
 }
 
-_workload_materialize_fetch_zip() {
+_workload_materialize_fetch_uri() {
   local uri="${1:?}"
   local extract_root="${2:?}"
   local zip_path
 
   command -v curl >/dev/null || {
     echo "workload_materialize_tree: curl required to fetch zip Source" >&2
-    return 1
-  }
-  command -v unzip >/dev/null || {
-    echo "workload_materialize_tree: unzip required to extract zip Source" >&2
     return 1
   }
 
@@ -98,13 +95,8 @@ _workload_materialize_fetch_zip() {
     echo "workload_materialize_tree: failed to fetch Source zip: ${uri}" >&2
     return 1
   fi
-  mkdir -p "${extract_root}" || {
+  if ! artifact_source_zip_extract "${zip_path}" "${extract_root}"; then
     rm -f "${zip_path}"
-    return 1
-  }
-  if ! unzip -q "${zip_path}" -d "${extract_root}"; then
-    rm -f "${zip_path}"
-    echo "workload_materialize_tree: failed to unzip Source: ${uri}" >&2
     return 1
   fi
   rm -f "${zip_path}"
@@ -114,12 +106,14 @@ _workload_materialize_fetch_zip() {
 workload_materialize_tree() {
   local env_tree="${1:?workload_materialize_tree: Environment Workload tree required}"
   local out="${2:?workload_materialize_tree: output tree required}"
-  local manifest wl_source artifact_root extract_tmp provides requires dir_key
+  local manifest wl_source wl_kind artifact_root extract_tmp provides requires dir_key
 
   [[ -d "${env_tree}" ]] || {
     echo "workload_materialize_tree: Environment tree missing: ${env_tree}" >&2
     return 1
   }
+
+  artifact_source_tree_gate "${env_tree}" || return 1
 
   rm -rf "${out}"
   mkdir -p "${out}" || return 1
@@ -134,16 +128,23 @@ workload_materialize_tree() {
     echo "workload_materialize_tree: Source resolution failed for ${env_tree}" >&2
     return 1
   }
+  wl_kind="$(artifact_source_kind "${wl_source}")" || return 1
 
   extract_tmp=""
-  if [[ "${wl_source}" == "internal" ]]; then
+  if [[ "${wl_kind}" == "internal" ]]; then
     artifact_root="${env_tree}"
   else
-    artifact_source_environment_tree_gate "${env_tree}" || return 1
     extract_tmp="$(umask 077; mktemp -d "${TMPDIR:-/tmp}/platform-wl-zip.XXXXXX")" || return 1
-    if ! _workload_materialize_fetch_zip "${wl_source}" "${extract_tmp}"; then
-      rm -rf "${extract_tmp}"
-      return 1
+    if [[ "${wl_kind}" == "path" ]]; then
+      if ! artifact_source_zip_extract "${env_tree}/${wl_source}" "${extract_tmp}"; then
+        rm -rf "${extract_tmp}"
+        return 1
+      fi
+    else
+      if ! _workload_materialize_fetch_uri "${wl_source}" "${extract_tmp}"; then
+        rm -rf "${extract_tmp}"
+        return 1
+      fi
     fi
     artifact_root="${extract_tmp}"
   fi

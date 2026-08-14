@@ -28,11 +28,11 @@ JSON shape for ACME: `{ "directory": "production"|"staging" }` (no other keys).
 
 ## Workload trees
 
-Each Workload directory holds Propraetor-internal **Manifest** + **Binding** plus the portable **Artifact** (**Provides**, **Requires**, content). For `source: internal` the Artifact is inline in that directory; for a zip URI it lives at zip root ([ADR-0053](../docs/adr/0053-workload-provides-requires-binding.md)).
+Each Workload directory holds Propraetor-internal **Manifest** + **Binding** plus the portable **Artifact** (**Provides**, **Requires**, content). For `source: internal` the Artifact is inline in that directory; for zip it lives at zip root after obtain (optional single-directory peel when that directory alone holds the archive root and contains Provides) — obtain is a relative `.zip` path under that directory, or an unauthenticated http(s) zip URI ([ADR-0053](../docs/adr/0053-workload-provides-requires-binding.md)).
 
 | File | Role |
 |----------|------|
-| `manifest.json` | Required `intent` and `source` (`internal` or a public zip URI); optional human-only `description`. No `environment`, `database`, or `name`. |
+| `manifest.json` | Required `intent` and `source` (`internal`, a relative `.zip` path under this directory, or an unauthenticated http(s) zip URI); optional human-only `description`. No `environment`, `database`, or `name`. |
 | `binding.json` | Remap of want-list FQDNs → ordered Provides route paths, and Environment Configuration bag keys → Requires environment names. Omit a map or `{}` ⇒ that channel is empty. Full fulfill only. Values never live in Binding. |
 | `provides.json` / `requires.json` | Artifact contracts (directories and route fragment paths; process env names and `database`). |
 
