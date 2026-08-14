@@ -9,6 +9,10 @@
 #   exactly one remap RHS; Binding remap RHS ⊆ Requires names). Print
 #   bag_key=Requires_name one per line, sorted by Requires name.
 #
+# artifact_binding_environment_select BINDING
+#   Binding.environment only (no Requires). Print bag_key=Requires_name one
+#   per line, sorted by Requires name. Duplicate remap RHS fails closed.
+#
 # artifact_binding_fulfill BINDING PROVIDES REQUIRES [WANTLIST]
 #   Enforce full fulfill: every Provides route in ≥1 FQDN array; every
 #   Requires environment name exactly one remap RHS; Binding route paths ⊆
@@ -111,6 +115,35 @@ for name in sorted(requires_env):
             f"Requires environment name {name!r} must appear exactly once as a "
             f"Binding remap RHS (found {count})"
         )
+    print(f"{rev[name]}={name}")
+PY
+}
+
+artifact_binding_environment_select() {
+  local binding="${1:?artifact_binding_environment_select: Binding path required}"
+
+  artifact_binding_validate "${binding}" || return 1
+
+  python3 - "${binding}" <<'PY'
+import json, sys
+
+binding_path = sys.argv[1]
+with open(binding_path, encoding="utf-8") as f:
+    binding = json.load(f)
+
+remap = binding.get("environment") or {}
+rhs_counts = {}
+rev = {}
+for bag_key, req_name in remap.items():
+    rhs_counts[req_name] = rhs_counts.get(req_name, 0) + 1
+    if rhs_counts[req_name] > 1:
+        raise SystemExit(
+            f"Requires environment name {req_name!r} must appear exactly once as a "
+            f"Binding remap RHS (found {rhs_counts[req_name]})"
+        )
+    rev[req_name] = bag_key
+
+for name in sorted(rev):
     print(f"{rev[name]}={name}")
 PY
 }

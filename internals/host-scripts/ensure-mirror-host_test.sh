@@ -211,9 +211,6 @@ ZIP_URI="http://127.0.0.1:${HTTP_PORT}/artifact.zip"
 
 mkdir -p "${STAGE}/workloads/zippy"
 printf '{}\n' >"${STAGE}/workloads/zippy/binding.json"
-# Environment stubs must not be the Artifact SoT after materialize
-printf '{}\n' >"${STAGE}/workloads/zippy/provides.json"
-printf '{ "database": false }\n' >"${STAGE}/workloads/zippy/requires.json"
 cat >"${STAGE}/workloads/zippy/manifest.json" <<EOF
 {
   "intent": "run",
@@ -231,7 +228,9 @@ grep -Fxq 'from-zip-unit' \
 grep -Fxq 'from-zip-www' "${HV}/internals/workloads/zippy/www/index.html" \
   || fail "zip Provides directories must materialize www"
 grep -Fq 'units' "${HV}/internals/workloads/zippy/provides.json" \
-  || fail "zip Artifact Provides must replace Environment stub on Host"
+  || fail "zip Artifact Provides must land on Host"
+grep -Fq 'database' "${HV}/internals/workloads/zippy/requires.json" \
+  || fail "zip Artifact Requires must land on Host"
 python3 - "${HV}/internals/workloads/zippy/manifest.json" <<'PY' || fail "zip Manifest must remain Environment SoT"
 import json, sys
 m = json.load(open(sys.argv[1], encoding="utf-8"))

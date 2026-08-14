@@ -24,6 +24,8 @@ MANIFEST_LIB="${REPO_ROOT}/internals/host-scripts/lib/workload-manifest-host.sh"
 ARTIFACT_SOURCE_LIB="${REPO_ROOT}/internals/lib/artifact/source.sh"
 ARTIFACT_MANIFEST_LIB="${REPO_ROOT}/internals/lib/artifact/manifest.sh"
 ARTIFACT_PROVIDES_LIB="${REPO_ROOT}/internals/lib/artifact/provides.sh"
+ARTIFACT_BINDING_LIB="${REPO_ROOT}/internals/lib/artifact/binding.sh"
+ARTIFACT_REQUIRES_LIB="${REPO_ROOT}/internals/lib/artifact/requires.sh"
 MATERIALIZE_LIB="${REPO_ROOT}/internals/host-scripts/lib/workload-materialize-host.sh"
 QUADLET_SESSION_LIB="${REPO_ROOT}/internals/host-scripts/lib/quadlet-user-session.sh"
 SYNC_LIB="${REPO_ROOT}/internals/host-scripts/lib/sync-tree-host.sh"
@@ -81,6 +83,7 @@ MANIFEST_ABS="${MANIFEST_DIR}/manifest.json"
   exit 1
 }
 artifact_manifest_validate "${MANIFEST_ABS}" || exit 1
+artifact_source_environment_tree_gate "${MANIFEST_DIR}" || exit 1
 [[ -f "${HOST_SCRIPT}" ]] || {
   echo "missing ${HOST_SCRIPT}" >&2
   exit 1
@@ -117,6 +120,14 @@ artifact_manifest_validate "${MANIFEST_ABS}" || exit 1
   echo "missing ${ARTIFACT_PROVIDES_LIB}" >&2
   exit 1
 }
+[[ -f "${ARTIFACT_BINDING_LIB}" ]] || {
+  echo "missing ${ARTIFACT_BINDING_LIB}" >&2
+  exit 1
+}
+[[ -f "${ARTIFACT_REQUIRES_LIB}" ]] || {
+  echo "missing ${ARTIFACT_REQUIRES_LIB}" >&2
+  exit 1
+}
 [[ -f "${MATERIALIZE_LIB}" ]] || {
   echo "missing ${MATERIALIZE_LIB}" >&2
   exit 1
@@ -143,14 +154,19 @@ trap 'rm -rf "${STAGE}"' EXIT
 RESOLVED_REMOTE_ROOT="/tmp/platform-ensure-workload"
 BINDING_ABS="${MANIFEST_DIR}/binding.json"
 REQUIRES_ABS="${MANIFEST_DIR}/requires.json"
+WL_SOURCE="$(artifact_source_from_manifest "${MANIFEST_ABS}")" || exit 1
 [[ -f "${BINDING_ABS}" ]] || {
   echo "binding.json missing in ${MANIFEST_DIR}/" >&2
   exit 1
 }
-[[ -f "${REQUIRES_ABS}" ]] || {
-  echo "requires.json missing in ${MANIFEST_DIR}/" >&2
-  exit 1
-}
+if [[ "${WL_SOURCE}" == "internal" ]]; then
+  [[ -f "${REQUIRES_ABS}" ]] || {
+    echo "requires.json missing in ${MANIFEST_DIR}/" >&2
+    exit 1
+  }
+else
+  REQUIRES_ABS=""
+fi
 environment_configuration_stage_for_setup \
   "${STAGE}" "${BINDING_ABS}" "${REQUIRES_ABS}" "${ENV_DIR}" "${MANIFEST_DIR}" \
   "${RESOLVED_REMOTE_ROOT}" || exit 1
@@ -164,6 +180,8 @@ cp "${MANIFEST_LIB}" "${STAGE}/workload-manifest-host.sh"
 cp "${ARTIFACT_SOURCE_LIB}" "${STAGE}/source.sh"
 cp "${ARTIFACT_MANIFEST_LIB}" "${STAGE}/manifest.sh"
 cp "${ARTIFACT_PROVIDES_LIB}" "${STAGE}/provides.sh"
+cp "${ARTIFACT_BINDING_LIB}" "${STAGE}/binding.sh"
+cp "${ARTIFACT_REQUIRES_LIB}" "${STAGE}/requires.sh"
 cp "${MATERIALIZE_LIB}" "${STAGE}/workload-materialize-host.sh"
 cp "${QUADLET_SESSION_LIB}" "${STAGE}/quadlet-user-session.sh"
 cp "${SYNC_LIB}" "${STAGE}/sync-tree-host.sh"

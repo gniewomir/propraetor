@@ -110,6 +110,22 @@ if environment_configuration_remap "${BINDING}" "${REQUIRES}" >/dev/null 2>&1; t
 fi
 pass "incomplete Binding remap fails closed"
 
+# Binding-only remap (zip): no Requires file; ROOT_DB still fail closed.
+write_remap
+pairs="$(environment_configuration_remap "${BINDING}")" \
+  || fail "Binding-only remap should parse"
+[[ "${pairs}" == $'BAG_A=PROC_A\nBAG_B=PROC_B' ]] \
+  || fail "expected BAG_A=PROC_A then BAG_B=PROC_B without Requires, got: ${pairs}"
+pass "declaration Binding-only remap (no Requires)"
+
+cat >"${BINDING}" <<'EOF'
+{ "environment": { "ROOT_DB_USER": "PROC_A" } }
+EOF
+if environment_configuration_remap "${BINDING}" >/dev/null 2>&1; then
+  fail "ROOT_DB_USER remapped Binding-only must fail closed"
+fi
+pass "Binding-only ROOT_DB_USER remap fails closed"
+
 # --- bag resolve (operator-side; Binding bag keys → Requires names) ---
 
 write_empty_contract
@@ -287,6 +303,22 @@ if environment_configuration_stage_for_setup \
   fail "stage_for_setup must fail closed on invalid Binding remap"
 fi
 pass "module stage_for_setup invalid Binding fails closed"
+
+# zip Setup: no Environment Requires; Binding-only stage; skip Environment-tree containers gate
+write_remap
+printf 'BAG_A=zip-a\nBAG_B=zip-b\n' >"${ENV_DIR}/.env"
+unset BAG_A BAG_B || true
+ZIP_TREE="${TMP}/zip-stage-wl"
+mkdir -p "${ZIP_TREE}"
+rm -rf "${ZIP_TREE}/quadlets"
+environment_configuration_stage_for_setup \
+  "${STAGE_DIR}" "${BINDING}" "" "${ENV_DIR}" "${ZIP_TREE}" \
+  "/tmp/platform-ensure-workload" \
+  || fail "zip Binding-only stage should succeed without Environment Requires or quadlets"
+[[ "${WL_ENV_ACTIVE}" == "1" ]] || fail "zip Binding-only stage should be active"
+grep -Fx 'PROC_A=zip-a' "${STAGE_DIR}/environment.resolved" >/dev/null \
+  || fail "zip stage should write Requires names into STAGE"
+pass "module stage_for_setup zip Binding-only skips Environment Requires and quadlets"
 
 # no dual-read of retired Manifest environment[]
 if grep -E 'm\["environment"\]|m\.get\("environment"\)|manifest\.environment' \

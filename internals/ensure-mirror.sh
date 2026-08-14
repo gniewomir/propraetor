@@ -32,6 +32,8 @@ source "${REPO_ROOT}/internals/lib/host-delivery.sh"
 source "${REPO_ROOT}/internals/lib/operator/operator-dotenv.sh"
 # shellcheck source=lib/operator/operator-configuration.sh
 source "${REPO_ROOT}/internals/lib/operator/operator-configuration.sh"
+# shellcheck source=lib/artifact/source.sh
+source "${REPO_ROOT}/internals/lib/artifact/source.sh"
 
 operator_dotenv_load "${REPO_ROOT}" || exit 1
 operator_configuration_require private || exit 1
@@ -83,6 +85,7 @@ mirrored=0
 while IFS= read -r wl_name; do
   [[ -n "${wl_name}" ]] || continue
   src="${ENV_DIR}/${wl_name}"
+  artifact_source_environment_tree_gate "${src}" || exit 1
   dest="${STAGE}/workloads/${wl_name}"
   mkdir -p "${dest}"
   cp -a "${src}/." "${dest}/"

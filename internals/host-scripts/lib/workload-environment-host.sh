@@ -12,8 +12,12 @@
 #   environment_configuration_clear WL_NAME
 #     Purge / omit clear path.
 #
-# Path helpers (install layout; not the Setup/Purge contract surface):
-#   workload_environment_path / workload_environment_dropin_path
+# environment_configuration_require_containers TREE ACTIVE
+#   When ACTIVE=1, fail closed unless TREE/quadlets/*.container exists.
+#
+# environment_configuration_fulfill_materialized TREE
+#   After Source resolve: full-fulfill Binding vs Artifact Requires on TREE.
+#   Non-empty Requires environment also requires quadlets/*.container.
 
 workload_environment_path() {
   local wl_name="${1:?workload name required}"
@@ -99,4 +103,46 @@ environment_configuration_apply_resolved() {
   else
     environment_configuration_clear "${wl_name}"
   fi
+}
+
+# Fail closed when Requires environment is non-empty but the Workload tree
+# has no quadlets/*.container.
+environment_configuration_require_containers() {
+  local tree="${1:?workload tree required}"
+  local active="${2:?WL_ENV_ACTIVE required}"
+  [[ "${active}" == "1" ]] || return 0
+  local found=0
+  local f
+  if [[ -d "${tree}/quadlets" ]]; then
+    for f in "${tree}/quadlets"/*.container; do
+      [[ -f "${f}" ]] || continue
+      found=1
+      break
+    done
+  fi
+  if [[ "${found}" -ne 1 ]]; then
+    echo "Environment Configuration requires quadlets/*.container when Requires environment is non-empty" >&2
+    return 1
+  fi
+  return 0
+}
+
+environment_configuration_fulfill_materialized() {
+  local tree="${1:?environment_configuration_fulfill_materialized: materialized tree required}"
+  local pairs
+
+  [[ -f "${tree}/binding.json" ]] || {
+    echo "Binding missing: ${tree}/binding.json" >&2
+    return 1
+  }
+  [[ -f "${tree}/requires.json" ]] || {
+    echo "Requires missing: ${tree}/requires.json" >&2
+    return 1
+  }
+  pairs="$(artifact_binding_environment_remap "${tree}/binding.json" "${tree}/requires.json")" \
+    || return 1
+  if [[ -n "${pairs}" ]]; then
+    environment_configuration_require_containers "${tree}" 1 || return 1
+  fi
+  return 0
 }

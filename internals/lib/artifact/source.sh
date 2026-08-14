@@ -8,6 +8,11 @@
 #
 # artifact_source_from_manifest MANIFEST
 #   Read Manifest `source` and validate via artifact_source_validate.
+#
+# artifact_source_environment_tree_gate TREE
+#   Fail closed when Source is not internal and the Environment Workload tree
+#   already contains Artifact contracts (provides.json / requires.json).
+#   Manifest-less TREE is a no-op (Mirror bag upsert).
 
 artifact_source_validate() {
   local value="${1-}"
@@ -60,4 +65,30 @@ print(src)
 PY
   )" || return 1
   artifact_source_validate "${source}"
+}
+
+artifact_source_environment_tree_gate() {
+  local tree="${1:?artifact_source_environment_tree_gate: Workload tree required}"
+  local manifest source
+
+  [[ -d "${tree}" ]] || {
+    echo "artifact_source_environment_tree_gate: tree missing: ${tree}" >&2
+    return 1
+  }
+  manifest="${tree}/manifest.json"
+  if [[ ! -f "${manifest}" ]]; then
+    return 0
+  fi
+  source="$(artifact_source_from_manifest "${manifest}")" || return 1
+  [[ "${source}" != "internal" ]] || return 0
+
+  if [[ -e "${tree}/provides.json" || -L "${tree}/provides.json" ]]; then
+    echo "zip Source Environment tree must not contain provides.json: ${tree}" >&2
+    return 1
+  fi
+  if [[ -e "${tree}/requires.json" || -L "${tree}/requires.json" ]]; then
+    echo "zip Source Environment tree must not contain requires.json: ${tree}" >&2
+    return 1
+  fi
+  return 0
 }

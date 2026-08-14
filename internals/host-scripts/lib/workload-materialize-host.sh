@@ -10,7 +10,8 @@
 #
 # Internal Source paths are relative to ENV_TREE; zip paths to zip root.
 # After resolve, Artifact provides.json + requires.json are placed on OUT
-# so Host shape matches (external ⊂ internal).
+# so Host shape matches (external ⊂ internal). Zip Environment trees must not
+# already contain those contracts (fail closed before fetch).
 
 _MAT_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # Host Volume / stage ships copies of internals/lib/artifact/{source,provides}.sh
@@ -138,6 +139,7 @@ workload_materialize_tree() {
   if [[ "${wl_source}" == "internal" ]]; then
     artifact_root="${env_tree}"
   else
+    artifact_source_environment_tree_gate "${env_tree}" || return 1
     extract_tmp="$(umask 077; mktemp -d "${TMPDIR:-/tmp}/platform-wl-zip.XXXXXX")" || return 1
     if ! _workload_materialize_fetch_zip "${wl_source}" "${extract_tmp}"; then
       rm -rf "${extract_tmp}"
