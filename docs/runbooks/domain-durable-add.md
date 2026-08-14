@@ -74,5 +74,5 @@ A answers should match the Environment Reserved IP (`terraform output -raw reser
 
 ## Scope notes
 
-- A Domain does not assign names to Workloads (operator Routes + Domain-scoped ACME — ADR-0022 / ADR-0023).
+- A Domain does not assign names to Workloads (Binding × Provides Routes + Domain-scoped ACME — ADR-0022 / ADR-0023 / ADR-0053).
 - Unmanaged records you add in the same zone by hand are invisible to Terraform until Teardown deletes the zone (and everything under it).

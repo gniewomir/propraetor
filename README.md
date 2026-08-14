@@ -57,7 +57,7 @@ Every operator script takes an optional `--env <slug>`.
 
 Safe by default: nothing touches a non-test Environment unless you pass `--env` explicitly. Details: [ADR-0019](docs/adr/0019-environments.md).
 
-Layout, Domains, and **Environment Configuration** (`.env` load path, committed `.env.example`, Binding remap × Requires): [`environments/README.md`](environments/README.md), [ADR-0035](docs/adr/0035-environment-configuration-injection.md), [ADR-0053](docs/adr/0053-workload-provides-requires-binding.md); never-commit rule: [ADR-0048](docs/adr/0048-env-star-commit-and-agent-ignore.md).
+Layout, Workload trees (Manifest + Binding + Artifact), Domains, and **Environment Configuration** (`.env` load path, committed `.env.example`, Binding remap × Requires): [`environments/README.md`](environments/README.md), [ADR-0035](docs/adr/0035-environment-configuration-injection.md), [ADR-0053](docs/adr/0053-workload-provides-requires-binding.md); never-commit rule: [ADR-0048](docs/adr/0048-env-star-commit-and-agent-ignore.md).
 
 ## Durables
 
