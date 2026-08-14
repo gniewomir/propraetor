@@ -101,7 +101,7 @@ domains_acme_fqdns_for "${PLATFORM_ENV}" >"${STAGE}/platform-acme-want-list"
 acme_config_dotenv_for "${PLATFORM_ENV}" >"${STAGE}/platform-acme.env"
 
 # Database admin credentials (ADR-0049 / #188): Environment .env + shell → Postgres EnvironmentFile.
-# Not Environment Configuration — never selected by Manifest environment.
+# Not Environment Configuration — never remapped by Binding into Workloads.
 database_admin_credentials_dotenv_for \
   "$(environments_dir_for "${PLATFORM_ENV}")" \
   "${STAGE}/platform-database-admin.env"

@@ -16,6 +16,7 @@ acceptance_wl_track "${WL}" reclaim-intent
 trap 'acceptance_wl_cleanup' EXIT
 
 mkdir -p "${FIX_DIR}/${WL}/quadlets"
+acceptance_write_artifact_stubs "${FIX_DIR}/${WL}"
 if [[ -n "${HOST}" ]]; then
   mkdir -p "${FIX_DIR}/${WL}/routes"
 fi
@@ -124,6 +125,7 @@ want_after="$(host_ssh \
 pass "Intent trash drops Edge fulfillment via Edge Setup; stops Quadlets; data retained until Purge; want-list unchanged"
 
 mkdir -p "${FIX_DIR}/reclaim-intent"
+acceptance_write_artifact_stubs "${FIX_DIR}/reclaim-intent"
 cat >"${FIX_DIR}/reclaim-intent/manifest.json" <<EOF
 {
   "intent": "run",

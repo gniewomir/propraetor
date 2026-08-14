@@ -22,6 +22,7 @@ acceptance_wl_track "${WL}"
 trap 'acceptance_wl_cleanup' EXIT
 
 mkdir -p "${FIX_DIR}/${WL}/routes"
+acceptance_write_artifact_stubs "${FIX_DIR}/${WL}"
 cat >"${FIX_DIR}/${WL}/manifest.json" <<EOF
 {
   "intent": "run",

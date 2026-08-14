@@ -18,6 +18,7 @@ ROUTE_FQDN="$(acceptance_route_fqdn)"
 stage_wl() {
   local name="$1" intent="$2"
   mkdir -p "${FIX_DIR}/${name}/quadlets"
+  acceptance_write_artifact_stubs "${FIX_DIR}/${name}"
   cat >"${FIX_DIR}/${name}/manifest.json" <<EOF
 {
   "intent": "${intent}",

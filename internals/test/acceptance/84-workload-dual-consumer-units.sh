@@ -15,6 +15,7 @@ trap 'acceptance_wl_cleanup' EXIT
 
 # --- dual-ok: both consumers present ---
 mkdir -p "${FIX_DIR}/dual-ok/quadlets" "${FIX_DIR}/dual-ok/systemd"
+acceptance_write_artifact_stubs "${FIX_DIR}/dual-ok"
 cat >"${FIX_DIR}/dual-ok/manifest.json" <<'EOF'
 { "intent": "run", "source": "internal" }
 EOF
@@ -58,12 +59,14 @@ EOF
 
 # --- dual-empty: missing both consumer dirs (valid) ---
 mkdir -p "${FIX_DIR}/dual-empty"
+acceptance_write_artifact_stubs "${FIX_DIR}/dual-empty"
 cat >"${FIX_DIR}/dual-empty/manifest.json" <<'EOF'
 { "intent": "run", "source": "internal" }
 EOF
 
 # --- wrong-q: native unit under quadlets/ ---
 mkdir -p "${FIX_DIR}/wrong-q/quadlets"
+acceptance_write_artifact_stubs "${FIX_DIR}/wrong-q"
 cat >"${FIX_DIR}/wrong-q/manifest.json" <<'EOF'
 { "intent": "run", "source": "internal" }
 EOF
@@ -80,6 +83,7 @@ EOF
 
 # --- wrong-s: Quadlet under systemd/ ---
 mkdir -p "${FIX_DIR}/wrong-s/systemd"
+acceptance_write_artifact_stubs "${FIX_DIR}/wrong-s"
 cat >"${FIX_DIR}/wrong-s/manifest.json" <<'EOF'
 { "intent": "run", "source": "internal" }
 EOF
@@ -100,6 +104,7 @@ EOF
 
 # --- clash-sys: claim Component native systemd basename ---
 mkdir -p "${FIX_DIR}/clash-sys/systemd"
+acceptance_write_artifact_stubs "${FIX_DIR}/clash-sys"
 cat >"${FIX_DIR}/clash-sys/manifest.json" <<'EOF'
 { "intent": "run", "source": "internal" }
 EOF

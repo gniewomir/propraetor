@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Acceptance Test: environments/example env-config teaching Workload
-# (#124 / ADR-0035 / ADR-0053 / #200).
-# Materializes the committed example; Source + Requires/Binding stubs are
-# structurally valid. Container env via Binding remap is #201.
+# (#124 / ADR-0035 / ADR-0053 / #201).
+# Materializes the committed example; Binding remaps bag keys onto Requires
+# names in the container process environment.
 set -euo pipefail
 # shellcheck source=lib.sh
 source "$(cd "$(dirname "$0")" && pwd)/lib.sh"
@@ -35,7 +35,7 @@ trap 'rm -f "${ENV_FILE}"; acceptance_wl_cleanup' EXIT
 [[ -f "${EXAMPLE_DOTENV}" ]] || fail "missing environments/example/.env.example"
 
 python3 - "${EXAMPLE_SRC}/manifest.json" "${EXAMPLE_SRC}/requires.json" \
-  "${EXAMPLE_SRC}/binding.json" <<'PY' || fail "example must declare Source internal + Requires/Binding env stubs"
+  "${EXAMPLE_SRC}/binding.json" <<'PY' || fail "example must declare Source internal + Binding remap × Requires"
 import json, sys
 
 manifest, requires_path, binding_path = sys.argv[1:4]
@@ -51,9 +51,10 @@ if set(env) != need:
     raise SystemExit(f"expected Requires environment {sorted(need)}, got {list(env)!r}")
 bind = json.load(open(binding_path, encoding="utf-8"))
 remap = bind.get("environment") or {}
-rhs = set(remap.values())
-if rhs != need:
-    raise SystemExit(f"expected Binding remap RHS {sorted(need)}, got {sorted(rhs)!r}")
+if set(remap) != need or set(remap.values()) != need:
+    raise SystemExit(
+        f"expected identity Binding remap of {sorted(need)}, got {remap!r}"
+    )
 PY
 grep -qE '^EXAMPLE_GREETING=' "${EXAMPLE_DOTENV}" \
   || fail ".env.example must document EXAMPLE_GREETING="
@@ -102,7 +103,10 @@ acceptance_wait_user_unit_active "${WL}-${ROLE}.service" \
   || fail "Intent run should start Always-on ${WL}-${ROLE}.service"
 pass "Always-on pod and member container are active"
 
-# Binding×Requires Environment Configuration injection is #201.
+acceptance_assert_container_env "${WL}-${ROLE}" EXAMPLE_GREETING "${GREETING}"
+acceptance_assert_container_env "${WL}-${ROLE}" EXAMPLE_MODE "${MODE}"
+pass "container process environment exposes EXAMPLE_GREETING and EXAMPLE_MODE"
+
 sot_grep="$(host_ssh "grep -R -F '${GREETING}' /var/lib/host-volume/internals/workloads/${WL} 2>/dev/null || true")"
 [[ -z "${sot_grep}" ]] || fail "secret must not appear in Host Volume SoT (got: ${sot_grep})"
 pass "bag values absent from Host Volume SoT"
@@ -110,7 +114,7 @@ pass "bag values absent from Host Volume SoT"
 cat >"${FIX_DIR}/${WL}/manifest.json" <<'EOF'
 { "intent": "trash", "source": "internal" }
 EOF
-rm -f "${ENV_FILE}"
 "${REPO_ROOT}/internals/ensure-workload.sh" "${WL}" --env "${ENV_SLUG}"
+rm -f "${ENV_FILE}"
 
 pass "example env-config Environment Configuration teaching contract"

@@ -37,7 +37,7 @@ Non-committed key/value pairs for Workload containers ([ADR-0035](../docs/adr/00
 | `.env.example` | Committed teaching of expected key names. **Workload Setup never reads it.** |
 | Binding `environment` | Remap of Environment Configuration bag keys onto Requires environment names. Omit or `{}` ⇒ that Workload consumes none. Values never live in Binding. |
 
-**Resolution (Workload Setup / Database admin staging):** baseline from `.env` when present; `.env.override` overlays on collision; current shell overrides any key; surplus bag keys not remapped for that Workload are ignored; missing remapped keys fail closed. Until Binding remap is wired, Workload Setup treats a thin Manifest as consuming no bag keys.
+**Resolution (Workload Setup / Database admin staging):** baseline from `.env` when present; `.env.override` overlays on collision; current shell overrides any key; surplus bag keys not remapped for that Workload are ignored; missing remapped keys fail closed. Workload Setup materializes remapped Requires names into the EnvironmentFile.
 
 **`.env` dialect:** strict dotenv subset — `KEY=value`, `#` comments and blanks, optional double quotes. No `export`, interpolation, or multiline. Same dialect for `.env.override`.
 

@@ -435,6 +435,16 @@ acceptance_assert_container_env_absent() {
   fail "container ${cname} process env: expected ${key} absent, got '${got}'"
 }
 
+# Minimal Artifact + Binding stubs so Workload Setup can resolve Environment
+# Configuration (empty Requires environment → no bag injection).
+acceptance_write_artifact_stubs() {
+  local tree="${1:?acceptance_write_artifact_stubs: Workload tree required}"
+  mkdir -p "${tree}"
+  printf '{}\n' >"${tree}/provides.json"
+  printf '{}\n' >"${tree}/binding.json"
+  printf '{ "database": false }\n' >"${tree}/requires.json"
+}
+
 # Re-run Component Setup post-workloads so Edge gathers Route Declarations (ADR-0043).
 # Workload Setup / Purge sync SoT only; fulfillment refreshes on Edge Component Setup.
 ensure_edge_route_fulfillment() {

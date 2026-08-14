@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# Acceptance Test: Manifest environment retired; Source required (ADR-0035 / ADR-0053 / #200).
-# Binding×Requires injection is #201.
+# Acceptance Test: Environment Configuration via Binding × Requires (ADR-0035 / ADR-0053 / #201).
+# Outcomes: remapped Requires names in container process env; surplus absent;
+# fail-closed paths; Manifest environment[] stays retired; SoT stays secret-free.
 set -euo pipefail
 # shellcheck source=lib.sh
 source "$(cd "$(dirname "$0")" && pwd)/lib.sh"
@@ -13,12 +14,15 @@ ENV_SLUG="${PLATFORM_ENV:-test}"
 FIX_DIR="$(acceptance_env_dir)"
 mkdir -p "${FIX_DIR}"
 WL=envcfg
+WL2=envcfg-multi
 WL_NC=envcfg-nocontainer
-acceptance_wl_track "${WL}" "${WL_NC}"
+acceptance_wl_track "${WL}" "${WL2}" "${WL_NC}"
 ENV_FILE="${FIX_DIR}/.env.override"
 trap 'rm -f "${ENV_FILE}"; acceptance_wl_cleanup' EXIT
 
+SECRET_BASE='envcfg-secret-base-value'
 SECRET_OVERRIDE='envcfg-secret-override-value'
+SECRET_UNUSED='envcfg-surplus-should-not-appear'
 
 host_cleanup_wl() {
   local name="$1"
@@ -31,6 +35,7 @@ host_cleanup_wl() {
 }
 
 host_cleanup_wl "${WL}"
+host_cleanup_wl "${WL2}"
 host_cleanup_wl "${WL_NC}"
 
 write_container() {
@@ -53,6 +58,43 @@ Restart=on-failure
 [Install]
 WantedBy=default.target
 EOF
+}
+
+write_thin_manifest() {
+  local dir="$1"
+  cat >"${dir}/manifest.json" <<'EOF'
+{
+  "intent": "run",
+  "source": "internal"
+}
+EOF
+}
+
+write_env_remap() {
+  local dir="$1"
+  cat >"${dir}/requires.json" <<'EOF'
+{
+  "environment": {
+    "APP_TOKEN": "process token",
+    "APP_MODE": "process mode"
+  },
+  "database": false
+}
+EOF
+  cat >"${dir}/binding.json" <<'EOF'
+{
+  "environment": {
+    "ENVCFG_TOKEN": "APP_TOKEN",
+    "ENVCFG_MODE": "APP_MODE"
+  }
+}
+EOF
+  printf '{}\n' >"${dir}/provides.json"
+}
+
+write_empty_env_contract() {
+  local dir="$1"
+  acceptance_write_artifact_stubs "${dir}"
 }
 
 # --- allowlist: Source required; environment is retired; unknown keys still rejected ---
@@ -80,119 +122,124 @@ cat >"${FIX_DIR}/${WL}/manifest.json" <<'EOF'
 }
 EOF
 if "${REPO_ROOT}/internals/ensure-workload.sh" "${WL}" --env "${ENV_SLUG}" >/dev/null 2>&1; then
-  fail "Manifest environment must fail closed (retired; Binding remap is #201)"
+  fail "Manifest environment must fail closed (retired)"
 fi
 pass "retired Manifest environment fails closed"
 
-cat >"${FIX_DIR}/${WL}/manifest.json" <<'EOF'
-{
-  "intent": "run",
-  "source": "internal",
-  "environment": "ENVCFG_TOKEN"
-}
-EOF
-if "${REPO_ROOT}/internals/ensure-workload.sh" "${WL}" --env "${ENV_SLUG}" >/dev/null 2>&1; then
-  fail "non-array environment must fail closed"
-fi
-pass "non-array environment fails closed"
-
-cat >"${FIX_DIR}/${WL}/manifest.json" <<'EOF'
-{
-  "intent": "run",
-  "source": "internal",
-  "environment": ["ENVCFG_TOKEN", ""]
-}
-EOF
-if "${REPO_ROOT}/internals/ensure-workload.sh" "${WL}" --env "${ENV_SLUG}" >/dev/null 2>&1; then
-  fail "empty-string environment key must fail closed"
-fi
-pass "empty-string environment key fails closed"
-
-# --- non-empty environment without .container fails ---
+# --- non-empty Requires environment without .container fails ---
 mkdir -p "${FIX_DIR}/${WL_NC}"
-cat >"${FIX_DIR}/${WL_NC}/manifest.json" <<'EOF'
+write_thin_manifest "${FIX_DIR}/${WL_NC}"
+write_env_remap "${FIX_DIR}/${WL_NC}"
+printf 'ENVCFG_TOKEN=x\nENVCFG_MODE=y\n' >"${ENV_FILE}"
+if "${REPO_ROOT}/internals/ensure-workload.sh" "${WL_NC}" --env "${ENV_SLUG}" >/dev/null 2>&1; then
+  fail "non-empty Requires environment without quadlets/*.container must fail closed"
+fi
+pass "non-empty Requires environment without .container fails closed"
+
+# empty Requires environment with no containers is fine
+write_thin_manifest "${FIX_DIR}/${WL_NC}"
+write_empty_env_contract "${FIX_DIR}/${WL_NC}"
+"${REPO_ROOT}/internals/ensure-workload.sh" "${WL_NC}" --env "${ENV_SLUG}"
+pass "empty Requires environment with no containers succeeds"
+
+# --- ROOT_DB_* remapped into a Workload fails closed ---
+write_thin_manifest "${FIX_DIR}/${WL}"
+cat >"${FIX_DIR}/${WL}/requires.json" <<'EOF'
 {
-  "intent": "run",
-  "source": "internal",
-  "environment": ["ENVCFG_TOKEN"]
+  "environment": { "APP_TOKEN": "process token" },
+  "database": false
 }
 EOF
-printf 'ENVCFG_TOKEN=x\n' >"${ENV_FILE}"
-if "${REPO_ROOT}/internals/ensure-workload.sh" "${WL_NC}" --env "${ENV_SLUG}" >/dev/null 2>&1; then
-  fail "non-empty environment without quadlets/*.container must fail closed"
-fi
-pass "non-empty environment without .container fails closed"
-
-# omit/[] with no containers is fine
-cat >"${FIX_DIR}/${WL_NC}/manifest.json" <<'EOF'
-{ "intent": "run", "source": "internal" }
+cat >"${FIX_DIR}/${WL}/binding.json" <<'EOF'
+{ "environment": { "ROOT_DB_USER": "APP_TOKEN" } }
 EOF
-"${REPO_ROOT}/internals/ensure-workload.sh" "${WL_NC}" --env "${ENV_SLUG}"
-pass "omit environment with no containers succeeds"
-
-cat >"${FIX_DIR}/${WL_NC}/manifest.json" <<'EOF'
-{ "intent": "run", "source": "internal", "environment": [] }
-EOF
-if "${REPO_ROOT}/internals/ensure-workload.sh" "${WL_NC}" --env "${ENV_SLUG}" >/dev/null 2>&1; then
-  fail "[] Manifest environment must fail closed (retired key)"
+printf '{}\n' >"${FIX_DIR}/${WL}/provides.json"
+printf 'ROOT_DB_USER=admin\n' >"${ENV_FILE}"
+if "${REPO_ROOT}/internals/ensure-workload.sh" "${WL}" --env "${ENV_SLUG}" >/dev/null 2>&1; then
+  fail "ROOT_DB_USER remapped into a Workload must fail closed"
 fi
-pass "[] Manifest environment fails closed"
+pass "ROOT_DB_USER remapped into a Workload fails closed"
 
 # --- invalid dotenv fails ---
-cat >"${FIX_DIR}/${WL}/manifest.json" <<'EOF'
-{
-  "intent": "run",
-  "source": "internal",
-  "environment": ["ENVCFG_TOKEN"]
-}
-EOF
-printf 'export ENVCFG_TOKEN=nope\n' >"${ENV_FILE}"
+write_thin_manifest "${FIX_DIR}/${WL}"
+write_env_remap "${FIX_DIR}/${WL}"
+printf 'export ENVCFG_TOKEN=nope\nENVCFG_MODE=y\n' >"${ENV_FILE}"
 if "${REPO_ROOT}/internals/ensure-workload.sh" "${WL}" --env "${ENV_SLUG}" >/dev/null 2>&1; then
   fail "invalid dotenv (export) must fail closed"
 fi
 pass "invalid dotenv fails closed"
 
-# --- missing listed key fails ---
+# --- missing remapped bag key fails ---
 printf 'ENVCFG_MODE=dev\n' >"${ENV_FILE}"
 unset ENVCFG_TOKEN ENVCFG_MODE || true
 if ENVCFG_MODE=dev "${REPO_ROOT}/internals/ensure-workload.sh" "${WL}" --env "${ENV_SLUG}" >/dev/null 2>&1; then
-  fail "missing listed key must fail closed"
+  fail "missing remapped bag key must fail closed"
 fi
-# restore manifest keys both required
-cat >"${FIX_DIR}/${WL}/manifest.json" <<'EOF'
-{
-  "intent": "run",
-  "source": "internal",
-  "environment": ["ENVCFG_TOKEN", "ENVCFG_MODE"]
-}
-EOF
-if "${REPO_ROOT}/internals/ensure-workload.sh" "${WL}" --env "${ENV_SLUG}" >/dev/null 2>&1; then
-  fail "missing ENVCFG_TOKEN must fail closed"
-fi
-pass "missing listed key fails closed"
+pass "missing remapped bag key fails closed"
 
-# Binding×Requires injection is #201. Thin Manifest Setup must still succeed.
-cat >"${FIX_DIR}/${WL}/manifest.json" <<'EOF'
-{
-  "intent": "run",
-  "source": "internal",
-  "description": "thin Manifest — no Manifest environment"
-}
+# --- happy path: Binding remap × Requires names in container process env ---
+cat >"${ENV_FILE}" <<EOF
+ENVCFG_TOKEN=${SECRET_BASE}
+ENVCFG_MODE=baseline
+ENVCFG_SURPLUS=${SECRET_UNUSED}
 EOF
-printf 'ENVCFG_TOKEN=%s\nENVCFG_MODE=baseline\n' "${SECRET_OVERRIDE}" >"${ENV_FILE}"
-unset ENVCFG_TOKEN ENVCFG_MODE ENVCFG_SURPLUS || true
+unset ENVCFG_TOKEN ENVCFG_MODE ENVCFG_SURPLUS APP_TOKEN APP_MODE || true
 export ENVCFG_TOKEN="${SECRET_OVERRIDE}"
 
 "${REPO_ROOT}/internals/ensure-workload.sh" "${WL}" --env "${ENV_SLUG}"
 
 acceptance_wait_user_unit_active "${WL}.service" \
   || fail "Intent run should start ${WL}.service"
-pass "thin Manifest Setup succeeds without Manifest environment"
+acceptance_assert_container_env "${WL}" APP_TOKEN "${SECRET_OVERRIDE}"
+acceptance_assert_container_env "${WL}" APP_MODE baseline
+acceptance_assert_container_env_absent "${WL}" ENVCFG_SURPLUS
+acceptance_assert_container_env_absent "${WL}" ENVCFG_TOKEN
+got_token="$(acceptance_container_printenv "${WL}" APP_TOKEN)"
+[[ "${got_token}" != *"${SECRET_BASE}"* ]] \
+  || fail "overridden baseline value must not remain in container process env"
+pass "container process env has Requires names only (.env.override + shell override)"
 
 SOT="/var/lib/host-volume/internals/workloads/${WL}"
 sot_grep="$(host_ssh "grep -R -F '${SECRET_OVERRIDE}' ${SOT} 2>/dev/null || true")"
 [[ -z "${sot_grep}" ]] || fail "secret must not appear in Host Volume SoT (got: ${sot_grep})"
 pass "bag values absent from Host Volume SoT"
 
-unset ENVCFG_TOKEN ENVCFG_MODE ENVCFG_SURPLUS || true
-pass "Manifest environment retired; thin Manifest Setup contract"
+# --- SoT noop must still refresh Environment Configuration ---
+printf 'ENVCFG_TOKEN=%s\nENVCFG_MODE=rotated\n' "${SECRET_OVERRIDE}" >"${ENV_FILE}"
+unset ENVCFG_TOKEN || true
+export ENVCFG_TOKEN="${SECRET_OVERRIDE}"
+"${REPO_ROOT}/internals/ensure-workload.sh" "${WL}" --env "${ENV_SLUG}"
+acceptance_wait_user_unit_active "${WL}.service" \
+  || fail "SoT noop re-Setup should keep ${WL}.service active"
+acceptance_assert_container_env "${WL}" APP_MODE rotated
+pass "SoT noop refreshes Environment Configuration in container process env"
+
+# --- multiple .container units share one Environment Configuration ---
+mkdir -p "${FIX_DIR}/${WL2}/quadlets"
+write_thin_manifest "${FIX_DIR}/${WL2}"
+cat >"${FIX_DIR}/${WL2}/requires.json" <<'EOF'
+{
+  "environment": { "APP_TOKEN": "process token" },
+  "database": false
+}
+EOF
+cat >"${FIX_DIR}/${WL2}/binding.json" <<'EOF'
+{ "environment": { "ENVCFG_TOKEN": "APP_TOKEN" } }
+EOF
+printf '{}\n' >"${FIX_DIR}/${WL2}/provides.json"
+write_container "${FIX_DIR}/${WL2}" "${WL2}-a" "${WL2}-a"
+write_container "${FIX_DIR}/${WL2}" "${WL2}-b" "${WL2}-b"
+printf 'ENVCFG_TOKEN=%s\n' "${SECRET_OVERRIDE}" >"${ENV_FILE}"
+export ENVCFG_TOKEN="${SECRET_OVERRIDE}"
+"${REPO_ROOT}/internals/ensure-workload.sh" "${WL2}" --env "${ENV_SLUG}"
+
+acceptance_wait_user_unit_active "${WL2}-a.service" \
+  || fail "multi-container Setup should start ${WL2}-a.service"
+acceptance_wait_user_unit_active "${WL2}-b.service" \
+  || fail "multi-container Setup should start ${WL2}-b.service"
+acceptance_assert_container_env "${WL2}-a" APP_TOKEN "${SECRET_OVERRIDE}"
+acceptance_assert_container_env "${WL2}-b" APP_TOKEN "${SECRET_OVERRIDE}"
+pass "multiple .container units share Environment Configuration in process env"
+
+unset ENVCFG_TOKEN ENVCFG_MODE ENVCFG_SURPLUS APP_TOKEN APP_MODE || true
+pass "Environment Configuration Binding×Requires injection contract"
