@@ -72,7 +72,7 @@ Day-to-day operator surface (Environment lifecycle):
 | Script | What it does |
 |--------|----------------|
 | `./apply.sh [--yes] [--env <slug>]` | Bring the Stack up (or converge it). Interactive plan by default; `--yes` for automation. |
-| `./deploy.sh [--env <slug>]` | Take a Substrate Host to **Deployed** (Fabric → Mirror → Orphan Reap → Components → Workloads → Purge). Does not run Apply. |
+| `./deploy.sh [--env <slug>]` | Take a Substrate Host to **Deployed** (Fabric → Mirror → Orphan Reap → Components `pre-workloads` → Workloads → Purge → Components `post-workloads`). Does not run Apply. |
 | `./park.sh [--env <slug>]` | Tear down the Host and other non-durables; keep Durables. For development and other non-production Environments — so you are not billed for a Host you are not using. Confirm by typing `park`. |
 | `./teardown.sh [--env <slug>]` | Full wipe, including Durables. Stops Durable billing. Confirm by typing `teardown`. |
 | `./ssh.sh [--env <slug>] [ssh args…]` | SSH to the Host (root @ Reserved IP; Stack SSH port from `internals/lib/ssh.sh` — not raw `:22` after ADR-0030 cutover). |

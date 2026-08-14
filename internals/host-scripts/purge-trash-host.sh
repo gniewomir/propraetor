@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # Host-local Purge. Invoked by internals/purge-trash.sh.
 # Removes every Workload whose Intent is trash and Workload-associated data
-# (SoT-named units from both Host unit directories, Host Volume tree including routes/
-# Declarations, Platform User EnvironmentFile tree and Setup-owned Environment
+# (SoT-named units from both Host unit directories, Host Volume Artifact/Manifest/Binding
+# tree, Platform User EnvironmentFile tree and Setup-owned Environment
 # Configuration drop-ins). Does not write Edge Route interior — Edge Component Setup
-# gather drops fulfillment after SoT is gone (ADR-0040).
+# gather drops fulfillment after SoT is gone (ADR-0040 / ADR-0053).
 # Does not delete Domains or Domain-scoped certificate material (ADR-0022 / #54).
 # Does not rebuild ACME want-list (ADR-0023). Thin Manifest / authored units: ADR-0024.
 # Environment Configuration cleanup: ADR-0035.
