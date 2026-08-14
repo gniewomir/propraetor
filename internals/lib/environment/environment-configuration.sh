@@ -6,6 +6,8 @@
 #   environment_configuration_stage_for_setup STAGE BINDING REQUIRES ENV_DIR TREE REMOTE_ROOT
 #     Resolve+gate into STAGE/environment.resolved; sets WL_ENV_ACTIVE and
 #     WL_ENV_RESOLVED_REMOTE (under REMOTE_ROOT when active; empty when inactive).
+#     REQUIRES may be empty (zip Setup: Binding-only remap; skip Environment-tree
+#     containers gate — Host full-fulfills after materialize).
 #   environment_configuration_apply_resolved WL_NAME RESOLVED_SRC
 #     Host half: empty/unset → clear EnvironmentFile/drop-ins; else install from RESOLVED_SRC.
 #   environment_configuration_clear WL_NAME
@@ -29,7 +31,7 @@ source "${_ENVCFG_LIB_DIR}/../../host-scripts/lib/workload-environment-host.sh"
 # Prints WL_ENV_ACTIVE=0|1 on stdout for the caller to eval.
 environment_configuration_resolve() {
   local binding="${1:?Binding path required}"
-  local requires="${2:?Requires path required}"
+  local requires="${2-}"
   local env_dir="${3:?env dir required}"
   local outfile="${4:?outfile required}"
   local pairs_file bag_file
@@ -113,7 +115,7 @@ PY
 # Prints WL_ENV_ACTIVE=0|1 on stdout for eval.
 environment_configuration_prepare() {
   local binding="${1:?Binding path required}"
-  local requires="${2:?Requires path required}"
+  local requires="${2-}"
   local env_dir="${3:?env dir required}"
   local tree="${4:?workload tree required}"
   local outfile="${5:?outfile required}"
@@ -122,7 +124,10 @@ environment_configuration_prepare() {
   resolve_out="$(environment_configuration_resolve \
     "${binding}" "${requires}" "${env_dir}" "${outfile}")" || return 1
   eval "${resolve_out}"
-  environment_configuration_require_containers "${tree}" "${WL_ENV_ACTIVE}" || return 1
+  # Zip Environment trees have no Artifact quadlets; Host gates after materialize.
+  if [[ -n "${requires}" ]]; then
+    environment_configuration_require_containers "${tree}" "${WL_ENV_ACTIVE}" || return 1
+  fi
   printf '%s\n' "${resolve_out}"
 }
 
@@ -132,7 +137,7 @@ environment_configuration_prepare() {
 environment_configuration_stage_for_setup() {
   local stage="${1:?stage dir required}"
   local binding="${2:?Binding path required}"
-  local requires="${3:?Requires path required}"
+  local requires="${3-}"
   local env_dir="${4:?env dir required}"
   local tree="${5:?workload tree required}"
   local remote_root="${6:?remote stage root required}"

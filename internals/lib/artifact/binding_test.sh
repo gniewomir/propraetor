@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Unit tests: Binding parse + full-fulfill + environment remap (ADR-0053 / #199 / #201).
 # Seam: artifact_binding_validate / artifact_binding_fulfill /
-# artifact_binding_environment_remap.
+# artifact_binding_environment_remap / artifact_binding_environment_select.
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"
@@ -243,6 +243,37 @@ if artifact_binding_environment_remap "${BINDING}" "${REQUIRES}" >/dev/null 2>&1
   fail "missing Requires remap RHS must fail closed"
 fi
 pass "incomplete environment remap fails closed"
+
+# --- Binding-only environment select (zip Setup; full-fulfill on Host) ---
+cat >"${BINDING}" <<'EOF'
+{
+  "environment": {
+    "SECRET_BAG": "API_KEY",
+    "PUBLIC_URL": "APP_URL"
+  }
+}
+EOF
+got="$(artifact_binding_environment_select "${BINDING}")" \
+  || fail "Binding-only select happy path must pass"
+[[ "${got}" == $'SECRET_BAG=API_KEY\nPUBLIC_URL=APP_URL' ]] \
+  || fail "expected BAG=Requires pairs in Requires-name order, got: ${got}"
+pass "environment select prints bag=Requires pairs without Requires"
+
+cat >"${BINDING}" <<'EOF'
+{ "environment": {} }
+EOF
+got="$(artifact_binding_environment_select "${BINDING}")" \
+  || fail "empty Binding.environment must select"
+[[ -z "${got}" ]] || fail "empty Binding.environment should print no pairs"
+pass "empty Binding.environment selects to no pairs"
+
+cat >"${BINDING}" <<'EOF'
+{ "environment": { "BAG_A": "API_KEY", "BAG_B": "API_KEY" } }
+EOF
+if artifact_binding_environment_select "${BINDING}" >/dev/null 2>&1; then
+  fail "duplicate Binding remap RHS must fail closed"
+fi
+pass "duplicate environment select RHS fails closed"
 
 # --- no FQDN-as-filename Route SoT dual-read in contract libs ---
 if grep -E 'routes/\$\{|basename.*\.conf|/\$\{fqdn\}' \

@@ -1,9 +1,14 @@
 #!/usr/bin/env bash
-# Offline tests: Host Environment Configuration install / clear (ADR-0035 / #128 / #132).
+# Offline tests: Host Environment Configuration install / clear / post-materialize
+# fulfill (ADR-0035 / ADR-0053 / #128 / #132 / #201).
+# Seam: environment_configuration_install_host / apply_resolved /
+# environment_configuration_fulfill_materialized.
 # Ambient HOME_DIR, UNIT_DIR, USER_NAME, WORKLOADS_ROOT → temp dirs (no SSH / live Host).
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"
+# shellcheck source=../../lib/artifact/binding.sh
+source "${REPO_ROOT}/internals/lib/artifact/binding.sh"
 # shellcheck source=workload-environment-host.sh
 source "${REPO_ROOT}/internals/host-scripts/lib/workload-environment-host.sh"
 
@@ -84,5 +89,37 @@ environment_configuration_clear "${WL_NAME}" \
 [[ ! -f "$(workload_environment_dropin_path "app.container")" ]] \
   || fail "Purge clear should remove Setup drop-in"
 pass "Purge-style clear"
+
+# --- post-materialize Binding × Artifact Requires full-fulfill ---
+MAT="${TMP}/mat-wl"
+mkdir -p "${MAT}"
+printf '{}\n' >"${MAT}/binding.json"
+printf '{ "database": false }\n' >"${MAT}/requires.json"
+environment_configuration_fulfill_materialized "${MAT}" \
+  || fail "empty Binding and Requires environment must fulfill"
+pass "fulfill empty Binding/Requires"
+
+cat >"${MAT}/binding.json" <<'EOF'
+{ "environment": { "BAG_A": "PROC_A" } }
+EOF
+cat >"${MAT}/requires.json" <<'EOF'
+{ "environment": { "PROC_A": "a" }, "database": false }
+EOF
+if environment_configuration_fulfill_materialized "${MAT}" >/dev/null 2>&1; then
+  fail "non-empty Requires environment without .container must fail closed"
+fi
+mkdir -p "${MAT}/quadlets"
+touch "${MAT}/quadlets/app.container"
+environment_configuration_fulfill_materialized "${MAT}" \
+  || fail "full-fulfill with .container must pass"
+pass "fulfill non-empty Requires requires materialized quadlets"
+
+cat >"${MAT}/binding.json" <<'EOF'
+{ "environment": {} }
+EOF
+if environment_configuration_fulfill_materialized "${MAT}" >/dev/null 2>&1; then
+  fail "Binding that does not full-fulfill Artifact Requires must fail closed"
+fi
+pass "fulfill Binding/Requires mismatch fails closed"
 
 echo "All workload-environment-host offline tests passed."

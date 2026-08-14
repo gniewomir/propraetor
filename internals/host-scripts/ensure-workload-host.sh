@@ -29,6 +29,8 @@ source "${HERE}/sync-tree-host.sh"
 source "${HERE}/workload-manifest-host.sh"
 # shellcheck source=../lib/artifact/manifest.sh
 source "${HERE}/manifest.sh"
+# shellcheck source=../lib/artifact/binding.sh
+source "${HERE}/binding.sh"
 # shellcheck source=workload-materialize-host.sh
 source "${HERE}/workload-materialize-host.sh"
 
@@ -65,9 +67,10 @@ artifact_manifest_validate "${MANIFEST}" || exit 1
 
 WL_INTENT="$(workload_manifest_intent "${MANIFEST}")" || exit 1
 
-# Environment Configuration: operator stage_for_setup is the single authority.
-# Active iff a resolved file was staged (SSH adapter); Host does not re-parse
-# Binding/Requires or re-run the containers gate.
+# Environment Configuration: operator stage_for_setup remaps the bag (Binding;
+# Requires full-fulfill is Host-side after materialize). Active iff a resolved
+# file was staged (SSH adapter). Host full-fulfills Binding vs Artifact Requires
+# on the materialized tree and re-runs the containers gate there.
 WL_ENV_RESOLVED="${WL_ENV_RESOLVED:-}"
 if [[ -n "${WL_ENV_RESOLVED}" ]]; then
   [[ -f "${WL_ENV_RESOLVED}" ]] || {
@@ -84,6 +87,7 @@ trap 'rm -f "${STAGE_UNITS}"; rm -rf "${MAT_TREE}"' EXIT
 
 # Same Host projection as Mirror (ADR-0053 / #204).
 workload_materialize_tree "${TREE}" "${MAT_TREE}" || exit 1
+environment_configuration_fulfill_materialized "${MAT_TREE}" || exit 1
 
 QUADLETS_STAGE="${MAT_TREE}/quadlets"
 SYSTEMD_STAGE="${MAT_TREE}/systemd"
