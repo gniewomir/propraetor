@@ -1,0 +1,6 @@
+{
+  "environment": {
+    "EXAMPLE_GREETING": "EXAMPLE_GREETING",
+    "EXAMPLE_MODE": "EXAMPLE_MODE"
+  }
+}

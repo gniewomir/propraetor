@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# Acceptance Test: environments/example env-config teaching Workload (#124 / ADR-0035 / #133).
-# Materializes the committed example into the active Environment with a local
-# .env.override, Setups it, and asserts listed keys appear in the container
-# process environment.
+# Acceptance Test: environments/example env-config teaching Workload
+# (#124 / ADR-0035 / ADR-0053 / #200).
+# Materializes the committed example; Source + Requires/Binding stubs are
+# structurally valid. Container env via Binding remap is #201.
 set -euo pipefail
 # shellcheck source=lib.sh
 source "$(cd "$(dirname "$0")" && pwd)/lib.sh"
@@ -26,20 +26,34 @@ trap 'rm -f "${ENV_FILE}"; acceptance_wl_cleanup' EXIT
 
 [[ -d "${EXAMPLE_SRC}" ]] || fail "missing teaching example at environments/example/${WL}"
 [[ -f "${EXAMPLE_SRC}/manifest.json" ]] || fail "example missing manifest.json"
+[[ -f "${EXAMPLE_SRC}/provides.json" ]] || fail "example missing Provides"
+[[ -f "${EXAMPLE_SRC}/requires.json" ]] || fail "example missing Requires"
+[[ -f "${EXAMPLE_SRC}/binding.json" ]] || fail "example missing Binding"
 [[ -f "${EXAMPLE_SRC}/quadlets/${WL}.pod" ]] || fail "example missing soft-default pod ${WL}.pod"
 [[ -f "${EXAMPLE_SRC}/quadlets/${WL}-${ROLE}.container" ]] \
   || fail "example missing member container ${WL}-${ROLE}.container"
 [[ -f "${EXAMPLE_DOTENV}" ]] || fail "missing environments/example/.env.example"
 
-python3 - "${EXAMPLE_SRC}/manifest.json" <<'PY' || fail "example Manifest must list EXAMPLE_GREETING and EXAMPLE_MODE"
+python3 - "${EXAMPLE_SRC}/manifest.json" "${EXAMPLE_SRC}/requires.json" \
+  "${EXAMPLE_SRC}/binding.json" <<'PY' || fail "example must declare Source internal + Requires/Binding env stubs"
 import json, sys
-m = json.load(open(sys.argv[1], encoding="utf-8"))
-env = m.get("environment")
-if not isinstance(env, list):
-    raise SystemExit("environment missing or not a list")
+
+manifest, requires_path, binding_path = sys.argv[1:4]
+m = json.load(open(manifest, encoding="utf-8"))
+if m.get("source") != "internal":
+    raise SystemExit(f"expected source internal, got {m.get('source')!r}")
+if "environment" in m or "database" in m:
+    raise SystemExit("Manifest must not carry retired environment/database")
 need = {"EXAMPLE_GREETING", "EXAMPLE_MODE"}
+req = json.load(open(requires_path, encoding="utf-8"))
+env = req.get("environment") or {}
 if set(env) != need:
-    raise SystemExit(f"expected environment {sorted(need)}, got {env!r}")
+    raise SystemExit(f"expected Requires environment {sorted(need)}, got {list(env)!r}")
+bind = json.load(open(binding_path, encoding="utf-8"))
+remap = bind.get("environment") or {}
+rhs = set(remap.values())
+if rhs != need:
+    raise SystemExit(f"expected Binding remap RHS {sorted(need)}, got {sorted(rhs)!r}")
 PY
 grep -qE '^EXAMPLE_GREETING=' "${EXAMPLE_DOTENV}" \
   || fail ".env.example must document EXAMPLE_GREETING="
@@ -88,16 +102,13 @@ acceptance_wait_user_unit_active "${WL}-${ROLE}.service" \
   || fail "Intent run should start Always-on ${WL}-${ROLE}.service"
 pass "Always-on pod and member container are active"
 
-acceptance_assert_container_env "${WL}-${ROLE}" EXAMPLE_GREETING "${GREETING}"
-acceptance_assert_container_env "${WL}-${ROLE}" EXAMPLE_MODE "${MODE}"
-pass "container process environment exposes EXAMPLE_GREETING and EXAMPLE_MODE"
-
+# Binding×Requires Environment Configuration injection is #201.
 sot_grep="$(host_ssh "grep -R -F '${GREETING}' /var/lib/host-volume/internals/workloads/${WL} 2>/dev/null || true")"
 [[ -z "${sot_grep}" ]] || fail "secret must not appear in Host Volume SoT (got: ${sot_grep})"
 pass "bag values absent from Host Volume SoT"
 
 cat >"${FIX_DIR}/${WL}/manifest.json" <<'EOF'
-{ "intent": "trash" }
+{ "intent": "trash", "source": "internal" }
 EOF
 rm -f "${ENV_FILE}"
 "${REPO_ROOT}/internals/ensure-workload.sh" "${WL}" --env "${ENV_SLUG}"

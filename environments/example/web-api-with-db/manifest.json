@@ -1,4 +1,5 @@
 {
   "intent": "run",
-  "description": "App + private DB in one pod; Edge Route to the app only (ADR-0034 soft conventions)."
+  "description": "App + private DB in one pod; Edge Route to the app only (ADR-0034 soft conventions).",
+  "source": "internal"
 }

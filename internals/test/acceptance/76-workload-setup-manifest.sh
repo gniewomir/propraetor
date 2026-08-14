@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Acceptance Test: thin Manifest + operator Routes/Quadlets (ADR-0024 / #57 / ADR-0028)
+# Acceptance Test: thin Manifest (intent + Source) + operator Routes/Quadlets
+# (ADR-0024 / ADR-0053 / #57 / ADR-0028 / #200)
 set -euo pipefail
 # shellcheck source=lib.sh
 source "$(cd "$(dirname "$0")" && pwd)/lib.sh"
@@ -10,7 +11,7 @@ acceptance_host_session
 
 FIX_DIR="$(acceptance_env_dir)"
 mkdir -p "${FIX_DIR}"
-acceptance_wl_track alpha legacy named upstreamed sourced zero clash owner-a owner-b
+acceptance_wl_track alpha legacy named upstreamed nosource sourced retired-env retired-db zero clash owner-a owner-b
 trap 'acceptance_wl_cleanup' EXIT
 
 ROUTE_FQDN="$(acceptance_route_fqdn)"
@@ -19,7 +20,8 @@ mkdir -p "${FIX_DIR}/alpha/quadlets"
 cat >"${FIX_DIR}/alpha/manifest.json" <<'EOF'
 {
   "intent": "run",
-  "description": "alpha probe — ignored by automation"
+  "description": "alpha probe — ignored by automation",
+  "source": "internal"
 }
 EOF
 if [[ -n "${ROUTE_FQDN}" ]]; then
@@ -57,6 +59,13 @@ cat >"${FIX_DIR}/upstreamed/manifest.json" <<'EOF'
 }
 EOF
 
+mkdir -p "${FIX_DIR}/nosource"
+cat >"${FIX_DIR}/nosource/manifest.json" <<'EOF'
+{
+  "intent": "run"
+}
+EOF
+
 mkdir -p "${FIX_DIR}/sourced"
 cat >"${FIX_DIR}/sourced/manifest.json" <<'EOF'
 {
@@ -65,17 +74,37 @@ cat >"${FIX_DIR}/sourced/manifest.json" <<'EOF'
 }
 EOF
 
+mkdir -p "${FIX_DIR}/retired-env"
+cat >"${FIX_DIR}/retired-env/manifest.json" <<'EOF'
+{
+  "intent": "run",
+  "source": "internal",
+  "environment": ["ENV_KEY"]
+}
+EOF
+
+mkdir -p "${FIX_DIR}/retired-db"
+cat >"${FIX_DIR}/retired-db/manifest.json" <<'EOF'
+{
+  "intent": "run",
+  "source": "internal",
+  "database": true
+}
+EOF
+
 mkdir -p "${FIX_DIR}/zero"
 cat >"${FIX_DIR}/zero/manifest.json" <<'EOF'
 {
-  "intent": "run"
+  "intent": "run",
+  "source": "internal"
 }
 EOF
 
 mkdir -p "${FIX_DIR}/clash/quadlets"
 cat >"${FIX_DIR}/clash/manifest.json" <<'EOF'
 {
-  "intent": "run"
+  "intent": "run",
+  "source": "internal"
 }
 EOF
 # Collide with Component unit basename already on the Host.
@@ -97,10 +126,10 @@ EOF
 
 mkdir -p "${FIX_DIR}/owner-a/quadlets" "${FIX_DIR}/owner-b/quadlets"
 cat >"${FIX_DIR}/owner-a/manifest.json" <<'EOF'
-{ "intent": "run" }
+{ "intent": "run", "source": "internal" }
 EOF
 cat >"${FIX_DIR}/owner-b/manifest.json" <<'EOF'
-{ "intent": "run" }
+{ "intent": "run", "source": "internal" }
 EOF
 cat >"${FIX_DIR}/owner-a/quadlets/shared-name.container" <<'EOF'
 [Unit]
@@ -129,7 +158,10 @@ host_ssh \
           /var/lib/host-volume/internals/workloads/legacy \
           /var/lib/host-volume/internals/workloads/named \
           /var/lib/host-volume/internals/workloads/upstreamed \
+          /var/lib/host-volume/internals/workloads/nosource \
           /var/lib/host-volume/internals/workloads/sourced \
+          /var/lib/host-volume/internals/workloads/retired-env \
+          /var/lib/host-volume/internals/workloads/retired-db \
           /var/lib/host-volume/internals/workloads/zero \
           /var/lib/host-volume/internals/workloads/clash \
           /var/lib/host-volume/internals/workloads/owner-a \
@@ -193,8 +225,11 @@ reject_thick() {
 reject_thick "public_hostnames" "legacy" "public_hostnames\|unknown keys\|allowlist"
 reject_thick "name" "named" "name\|unknown keys\|allowlist"
 reject_thick "upstream" "upstreamed" "upstream\|unknown keys\|allowlist"
-reject_thick "source" "sourced" "source\|unknown keys\|allowlist"
-pass "Workload Setup rejects thick Manifest keys (ADR-0024 allowlist)"
+reject_thick "missing Source" "nosource" "source is required\|manifest.source"
+reject_thick "invalid Source" "sourced" "source\|zip"
+reject_thick "retired environment" "retired-env" "environment\|unknown keys\|allowlist"
+reject_thick "retired database" "retired-db" "database\|unknown keys\|allowlist"
+pass "Workload Setup requires Source and rejects retired Manifest keys (ADR-0024 / ADR-0053)"
 
 "${REPO_ROOT}/internals/ensure-workload.sh" "zero" --env "${PLATFORM_ENV:-test}"
 zero_installed="$(host_ssh \

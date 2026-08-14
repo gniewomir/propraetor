@@ -27,6 +27,7 @@ mkdir -p "${FIX_DIR}/${WL}/quadlets"
 cat >"${FIX_DIR}/${WL}/manifest.json" <<'EOF'
 {
   "intent": "run",
+  "source": "internal",
   "database": true,
   "description": "passwordless mTLS Database probe"
 }

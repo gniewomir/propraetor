@@ -35,6 +35,7 @@ write_probe_workload() {
   cat >"${FIX_DIR}/${name}/manifest.json" <<EOF
 {
   "intent": "run",
+  "source": "internal",
   "database": true,
   "description": "cross-Workload Database isolation probe (${name})"
 }

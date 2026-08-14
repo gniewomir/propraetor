@@ -20,7 +20,8 @@ stage_wl() {
   mkdir -p "${FIX_DIR}/${name}/quadlets"
   cat >"${FIX_DIR}/${name}/manifest.json" <<EOF
 {
-  "intent": "${intent}"
+  "intent": "${intent}",
+  "source": "internal"
 }
 EOF
   cat >"${FIX_DIR}/${name}/quadlets/${name}.container" <<EOF

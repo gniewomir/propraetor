@@ -23,7 +23,8 @@ write_manifest() {
   local intent="$1"
   cat >"${FIX_DIR}/${WL}/manifest.json" <<EOF
 {
-  "intent": "${intent}"
+  "intent": "${intent}",
+  "source": "internal"
 }
 EOF
 }
@@ -125,7 +126,8 @@ pass "Intent trash drops Edge fulfillment via Edge Setup; stops Quadlets; data r
 mkdir -p "${FIX_DIR}/reclaim-intent"
 cat >"${FIX_DIR}/reclaim-intent/manifest.json" <<EOF
 {
-  "intent": "run"
+  "intent": "run",
+  "source": "internal"
 }
 EOF
 "${REPO_ROOT}/internals/ensure-workload.sh" "reclaim-intent" --env "${PLATFORM_ENV:-test}"

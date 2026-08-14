@@ -20,10 +20,14 @@ QUADLETS_LIB="${REPO_ROOT}/internals/host-scripts/lib/workload-quadlets-host.sh"
 UNIT_CONSUMERS_LIB="${REPO_ROOT}/internals/host-scripts/lib/unit-consumers-host.sh"
 ENV_HOST_LIB="${REPO_ROOT}/internals/host-scripts/lib/workload-environment-host.sh"
 MANIFEST_LIB="${REPO_ROOT}/internals/host-scripts/lib/workload-manifest-host.sh"
+ARTIFACT_SOURCE_LIB="${REPO_ROOT}/internals/lib/artifact/source.sh"
+ARTIFACT_MANIFEST_LIB="${REPO_ROOT}/internals/lib/artifact/manifest.sh"
 QUADLET_SESSION_LIB="${REPO_ROOT}/internals/host-scripts/lib/quadlet-user-session.sh"
 SYNC_LIB="${REPO_ROOT}/internals/host-scripts/lib/sync-tree-host.sh"
 # shellcheck source=lib/cli.sh
 source "${REPO_ROOT}/internals/lib/cli.sh"
+# shellcheck source=lib/artifact/manifest.sh
+source "${REPO_ROOT}/internals/lib/artifact/manifest.sh"
 # shellcheck source=lib/environment/environment.sh
 source "${REPO_ROOT}/internals/lib/environment/environment.sh"
 # shellcheck source=lib/environment/environment-configuration.sh
@@ -73,6 +77,7 @@ MANIFEST_ABS="${MANIFEST_DIR}/manifest.json"
   echo "manifest.json missing in ${MANIFEST_DIR}/" >&2
   exit 1
 }
+artifact_manifest_validate "${MANIFEST_ABS}" || exit 1
 [[ -f "${HOST_SCRIPT}" ]] || {
   echo "missing ${HOST_SCRIPT}" >&2
   exit 1
@@ -95,6 +100,14 @@ MANIFEST_ABS="${MANIFEST_DIR}/manifest.json"
 }
 [[ -f "${MANIFEST_LIB}" ]] || {
   echo "missing ${MANIFEST_LIB}" >&2
+  exit 1
+}
+[[ -f "${ARTIFACT_SOURCE_LIB}" ]] || {
+  echo "missing ${ARTIFACT_SOURCE_LIB}" >&2
+  exit 1
+}
+[[ -f "${ARTIFACT_MANIFEST_LIB}" ]] || {
+  echo "missing ${ARTIFACT_MANIFEST_LIB}" >&2
   exit 1
 }
 [[ -f "${QUADLET_SESSION_LIB}" ]] || {
@@ -126,6 +139,8 @@ cp "${QUADLETS_LIB}" "${STAGE}/workload-quadlets-host.sh"
 cp "${UNIT_CONSUMERS_LIB}" "${STAGE}/unit-consumers-host.sh"
 cp "${ENV_HOST_LIB}" "${STAGE}/workload-environment-host.sh"
 cp "${MANIFEST_LIB}" "${STAGE}/workload-manifest-host.sh"
+cp "${ARTIFACT_SOURCE_LIB}" "${STAGE}/source.sh"
+cp "${ARTIFACT_MANIFEST_LIB}" "${STAGE}/manifest.sh"
 cp "${QUADLET_SESSION_LIB}" "${STAGE}/quadlet-user-session.sh"
 cp "${SYNC_LIB}" "${STAGE}/sync-tree-host.sh"
 mkdir -p "${STAGE}/${WL_NAME}"

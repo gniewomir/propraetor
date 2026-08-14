@@ -1,4 +1,5 @@
 {
   "intent": "run",
-  "description": "Static content behind an Edge Route (ADR-0034 soft conventions)."
+  "description": "Static content behind an Edge Route (ADR-0034 soft conventions).",
+  "source": "internal"
 }

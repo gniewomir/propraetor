@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Acceptance Test: Manifest database allowlist + ROOT_DB_* fail-closed (ADR-0049 / #189).
-# Workload Setup accepts boolean database; does not fulfill Database bindings.
+# Acceptance Test: Manifest database is retired; Setup does not fulfill Database
+# (ADR-0049 / ADR-0053 / #189 / #200). Requires `database` gather is #202.
 set -euo pipefail
 # shellcheck source=lib.sh
 source "$(cd "$(dirname "$0")" && pwd)/lib.sh"
@@ -40,10 +40,11 @@ Restart=on-failure
 WantedBy=default.target
 EOF
 
-# --- allowlist: database accepted; unknown keys still rejected ---
+# --- allowlist: database is retired; unknown keys still rejected ---
 cat >"${FIX_DIR}/${WL}/manifest.json" <<'EOF'
 {
   "intent": "run",
+  "source": "internal",
   "database": true,
   "public_hostnames": ["nope.example.test"]
 }
@@ -56,18 +57,20 @@ pass "allowlist still rejects unknown keys alongside database"
 cat >"${FIX_DIR}/${WL}/manifest.json" <<'EOF'
 {
   "intent": "run",
+  "source": "internal",
   "database": "true"
 }
 EOF
 if "${REPO_ROOT}/internals/ensure-workload.sh" "${WL}" --env "${ENV_SLUG}" >/dev/null 2>&1; then
-  fail "non-boolean database must fail closed"
+  fail "Manifest database must fail closed (retired key)"
 fi
-pass "non-boolean database fails closed"
+pass "retired Manifest database fails closed"
 
-# ROOT_DB_* on Manifest environment fail closed (#189) — parse-time, no bag needed.
+# ROOT_DB_* on Manifest environment fail closed — environment is retired (#200).
 cat >"${FIX_DIR}/${WL}/manifest.json" <<'EOF'
 {
   "intent": "run",
+  "source": "internal",
   "environment": ["ROOT_DB_USER"]
 }
 EOF
@@ -76,11 +79,11 @@ if "${REPO_ROOT}/internals/ensure-workload.sh" "${WL}" --env "${ENV_SLUG}" >/dev
   rm -f "${err}"
   fail "ROOT_DB_USER on Manifest environment must fail closed"
 fi
-grep -Eqi 'ROOT_DB_USER|Database admin|fail closed|must not list' "${err}" \
+grep -Eqi 'environment|unknown keys|allowlist|ROOT_DB_USER|Database admin|must not list' "${err}" \
   || {
     cat "${err}" >&2
     rm -f "${err}"
-    fail "error should mention ROOT_DB_USER / Database admin"
+    fail "error should mention retired environment / allowlist"
   }
 rm -f "${err}"
 pass "ROOT_DB_USER on Manifest environment fails closed"
@@ -88,6 +91,7 @@ pass "ROOT_DB_USER on Manifest environment fails closed"
 cat >"${FIX_DIR}/${WL}/manifest.json" <<'EOF'
 {
   "intent": "run",
+  "source": "internal",
   "environment": ["ROOT_DB_PASSWORD"]
 }
 EOF
@@ -96,16 +100,16 @@ if "${REPO_ROOT}/internals/ensure-workload.sh" "${WL}" --env "${ENV_SLUG}" >/dev
 fi
 pass "ROOT_DB_PASSWORD on Manifest environment fails closed"
 
-# Valid database:true Setup succeeds but does not fulfill Database (Component owns that).
+# Thin Manifest Setup succeeds and does not fulfill Database (Component owns that).
 cat >"${FIX_DIR}/${WL}/manifest.json" <<'EOF'
 {
   "intent": "run",
-  "database": true,
+  "source": "internal",
   "description": "allowlist probe — Setup must not fulfill Database"
 }
 EOF
 "${REPO_ROOT}/internals/ensure-workload.sh" "${WL}" --env "${ENV_SLUG}"
-pass "Manifest database:true is allowlisted by Workload Setup"
+pass "thin Manifest Setup succeeds without Manifest database"
 
 # Binding / client material must not appear from Workload Setup alone.
 if host_ssh "test -d /home/platform/.config/platform/workloads/${WL}/database"; then

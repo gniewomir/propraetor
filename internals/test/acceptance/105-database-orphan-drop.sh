@@ -33,7 +33,8 @@ stage_wl() {
   mkdir -p "${FIX_DIR}/${name}/quadlets"
   cat >"${FIX_DIR}/${name}/manifest.json" <<EOF
 {
-  "intent": "run"${database_json},
+  "intent": "run",
+  "source": "internal"${database_json},
   "description": "Database Orphan Reap drop probe"
 }
 EOF

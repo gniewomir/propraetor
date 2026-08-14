@@ -22,7 +22,8 @@ write_manifest() {
   local intent="$1"
   cat >"${FIX_DIR}/${WL}/manifest.json" <<EOF
 {
-  "intent": "${intent}"
+  "intent": "${intent}",
+  "source": "internal"
 }
 EOF
 }

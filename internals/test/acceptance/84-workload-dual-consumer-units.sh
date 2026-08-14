@@ -16,7 +16,7 @@ trap 'acceptance_wl_cleanup' EXIT
 # --- dual-ok: both consumers present ---
 mkdir -p "${FIX_DIR}/dual-ok/quadlets" "${FIX_DIR}/dual-ok/systemd"
 cat >"${FIX_DIR}/dual-ok/manifest.json" <<'EOF'
-{ "intent": "run" }
+{ "intent": "run", "source": "internal" }
 EOF
 cat >"${FIX_DIR}/dual-ok/quadlets/dual-ok.container" <<'EOF'
 [Unit]
@@ -59,13 +59,13 @@ EOF
 # --- dual-empty: missing both consumer dirs (valid) ---
 mkdir -p "${FIX_DIR}/dual-empty"
 cat >"${FIX_DIR}/dual-empty/manifest.json" <<'EOF'
-{ "intent": "run" }
+{ "intent": "run", "source": "internal" }
 EOF
 
 # --- wrong-q: native unit under quadlets/ ---
 mkdir -p "${FIX_DIR}/wrong-q/quadlets"
 cat >"${FIX_DIR}/wrong-q/manifest.json" <<'EOF'
-{ "intent": "run" }
+{ "intent": "run", "source": "internal" }
 EOF
 cat >"${FIX_DIR}/wrong-q/quadlets/misplaced.timer" <<'EOF'
 [Unit]
@@ -81,7 +81,7 @@ EOF
 # --- wrong-s: Quadlet under systemd/ ---
 mkdir -p "${FIX_DIR}/wrong-s/systemd"
 cat >"${FIX_DIR}/wrong-s/manifest.json" <<'EOF'
-{ "intent": "run" }
+{ "intent": "run", "source": "internal" }
 EOF
 cat >"${FIX_DIR}/wrong-s/systemd/misplaced.container" <<'EOF'
 [Unit]
@@ -101,7 +101,7 @@ EOF
 # --- clash-sys: claim Component native systemd basename ---
 mkdir -p "${FIX_DIR}/clash-sys/systemd"
 cat >"${FIX_DIR}/clash-sys/manifest.json" <<'EOF'
-{ "intent": "run" }
+{ "intent": "run", "source": "internal" }
 EOF
 cat >"${FIX_DIR}/clash-sys/systemd/edge-acme.timer" <<'EOF'
 [Unit]
@@ -175,7 +175,7 @@ pass "Workload Setup refuses basename spanning Host unit directories (clash with
 
 # Purge both consumers for Intent trash.
 cat >"${FIX_DIR}/dual-ok/manifest.json" <<'EOF'
-{ "intent": "trash" }
+{ "intent": "trash", "source": "internal" }
 EOF
 "${REPO_ROOT}/internals/ensure-workload.sh" "dual-ok" --env "${PLATFORM_ENV:-test}"
 "${REPO_ROOT}/internals/purge-trash.sh" --env "${PLATFORM_ENV:-test}"

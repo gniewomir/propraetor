@@ -35,16 +35,16 @@ Non-committed key/value pairs for Workload containers ([ADR-0035](../docs/adr/00
 | `.env` | Local bag for this Environment. Optional — if absent, listed keys must come from the shell or `.env.override`. Never commit any `**/.env*` except basename `.env.example` ([ADR-0048](../docs/adr/0048-env-star-commit-and-agent-ignore.md)). |
 | `.env.override` | Optional overlay on `.env` (wins on key collision). Same strict dotenv subset and ignore rules. Acceptance fixtures write here — not `.env`. |
 | `.env.example` | Committed teaching of expected key names. **Workload Setup never reads it.** |
-| Manifest `environment` | Optional JSON array of key names on a Workload Manifest. Omit or `[]` ⇒ that Workload consumes none. Values never live in the Manifest. |
+| Binding `environment` | Remap of Environment Configuration bag keys onto Requires environment names. Omit or `{}` ⇒ that Workload consumes none. Values never live in Binding. |
 
-**Resolution (Workload Setup / Database admin staging):** baseline from `.env` when present; `.env.override` overlays on collision; current shell overrides any key; surplus bag keys not listed on that Workload are ignored; missing listed keys fail closed.
+**Resolution (Workload Setup / Database admin staging):** baseline from `.env` when present; `.env.override` overlays on collision; current shell overrides any key; surplus bag keys not remapped for that Workload are ignored; missing remapped keys fail closed. Until Binding remap is wired, Workload Setup treats a thin Manifest as consuming no bag keys.
 
 **`.env` dialect:** strict dotenv subset — `KEY=value`, `#` comments and blanks, optional double quotes. No `export`, interpolation, or multiline. Same dialect for `.env.override`.
 
-**Key names:** operator-owned for the Workload bag. Prefer not to use `PLATFORM_*`, Credential names (today `DIGITALOCEAN_TOKEN`), or Database admin credentials (`ROOT_DB_USER`, `ROOT_DB_PASSWORD`) in Manifest `environment` lists. Workload Setup does not reserve or reject other names; listing `ROOT_DB_*` on a Manifest fails closed.
+**Key names:** operator-owned for the Workload bag. Prefer not to use `PLATFORM_*`, Credential names (today `DIGITALOCEAN_TOKEN`), or Database admin credentials (`ROOT_DB_USER`, `ROOT_DB_PASSWORD`) as Binding remaps. Workload Setup does not reserve or reject other names; remapping `ROOT_DB_*` into a Workload fails closed.
 
 **Database admin credentials** (`ROOT_DB_USER`, `ROOT_DB_PASSWORD`): may live in the same `.env` file; staged to the Database Component (ADR-0049) — not Environment Configuration, not injectable into Workloads. Mandatory for Database Setup. Documented in `.env.example`.
 
 Provider **Credential** stays orthogonal — not part of this bag. Components do not consume the Workload Environment Configuration bag.
 
-**Teaching example:** `environments/example/env-config` — Manifest `environment` lists `EXAMPLE_GREETING` / `EXAMPLE_MODE` (also named in `example/.env.example`); after Workload Setup with a local `.env` or shell exports, the Always-on container process environment exposes those keys via Setup-owned EnvironmentFile wiring.
+**Teaching example:** `environments/example/env-config` — Requires names `EXAMPLE_GREETING` / `EXAMPLE_MODE` with Binding remaps of the same bag keys (also named in `example/.env.example`). Manifest is Intent + Source only.
