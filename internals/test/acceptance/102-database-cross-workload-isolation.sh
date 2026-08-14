@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Acceptance Test: cross-Workload Database isolation (ADR-0049 / #190).
-# Two Intent-run Workloads with database:true — A connects with A's cert;
+# Acceptance Test: cross-Workload Database isolation (ADR-0049 / ADR-0053 / #190 / #202).
+# Two Intent-run Workloads with Requires database:true — A connects with A's cert;
 # B cannot access A's database.
 set -euo pipefail
 # shellcheck source=lib.sh
@@ -36,10 +36,10 @@ write_probe_workload() {
 {
   "intent": "run",
   "source": "internal",
-  "database": true,
   "description": "cross-Workload Database isolation probe (${name})"
 }
 EOF
+  acceptance_write_database_claim "${FIX_DIR}/${name}"
   cat >"${FIX_DIR}/${name}/quadlets/${name}.container" <<EOF
 [Unit]
 Description=Propraetor Database isolation probe ${name}

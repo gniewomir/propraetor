@@ -107,6 +107,8 @@ database_admin_credentials_dotenv_for \
   "${STAGE}/platform-database-admin.env"
 
 cp -a "${REPO_ROOT}/internals/host-scripts/lib" "${STAGE}/lib"
+# Database gather on Host reuses the operator Requires lib (ADR-0053 / #202).
+cp "${REPO_ROOT}/internals/lib/artifact/requires.sh" "${STAGE}/lib/requires.sh"
 cp "${HOST_SCRIPT}" "${STAGE}/ensure-components-host.sh"
 for name in "${COMPONENTS[@]}"; do
   cp -a "${REPO_ROOT}/internals/components/${name}" "${STAGE}/${name}"

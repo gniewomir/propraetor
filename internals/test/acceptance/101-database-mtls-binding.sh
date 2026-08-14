@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Acceptance Test: one Workload passwordless mTLS Database binding (ADR-0049 / #189).
-# Intent-run + database:true → role/db/client cert + published binding; connect verify-full.
+# Acceptance Test: one Workload passwordless mTLS Database binding (ADR-0049 / ADR-0053 / #189 / #202).
+# Intent-run + Requires database:true → role/db/client cert + published binding; connect verify-full.
 set -euo pipefail
 # shellcheck source=lib.sh
 source "$(cd "$(dirname "$0")" && pwd)/lib.sh"
@@ -28,10 +28,10 @@ cat >"${FIX_DIR}/${WL}/manifest.json" <<'EOF'
 {
   "intent": "run",
   "source": "internal",
-  "database": true,
   "description": "passwordless mTLS Database probe"
 }
 EOF
+acceptance_write_database_claim "${FIX_DIR}/${WL}"
 cat >"${FIX_DIR}/${WL}/quadlets/${WL}.container" <<EOF
 [Unit]
 Description=Propraetor Database mTLS probe

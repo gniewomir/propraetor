@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Acceptance Test: Intent trash + Purge → post-workloads drops Database fulfillment (ADR-0049 / #191).
+# Acceptance Test: Intent trash + Purge → post-workloads drops Database fulfillment (ADR-0049 / ADR-0053 / #191 / #202).
 # Purge alone must not invoke Component Setup; Deploy/caller composes post-workloads.
 set -euo pipefail
 # shellcheck source=lib.sh
@@ -29,7 +29,6 @@ write_manifest() {
 {
   "intent": "${intent}",
   "source": "internal",
-  "database": true,
   "description": "Database Purge drop probe"
 }
 EOF
@@ -37,6 +36,7 @@ EOF
 
 mkdir -p "${FIX_DIR}/${WL}/quadlets"
 write_manifest run
+acceptance_write_database_claim "${FIX_DIR}/${WL}"
 cat >"${FIX_DIR}/${WL}/quadlets/${WL}.container" <<EOF
 [Unit]
 Description=Propraetor Database Purge drop probe

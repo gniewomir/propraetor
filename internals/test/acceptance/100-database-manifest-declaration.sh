@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Acceptance Test: Manifest database is retired; Setup does not fulfill Database
-# (ADR-0049 / ADR-0053 / #189 / #200). Requires `database` gather is #202.
+# Acceptance Test: Manifest database is retired; Database gather reads Requires
+# (ADR-0049 / ADR-0053 / #189 / #200 / #202). Workload Setup still does not fulfill.
 set -euo pipefail
 # shellcheck source=lib.sh
 source "$(cd "$(dirname "$0")" && pwd)/lib.sh"
@@ -105,12 +105,12 @@ cat >"${FIX_DIR}/${WL}/manifest.json" <<'EOF'
 {
   "intent": "run",
   "source": "internal",
-  "description": "allowlist probe — Setup must not fulfill Database"
+  "description": "Requires database claimant — Setup must not fulfill Database"
 }
 EOF
-acceptance_write_artifact_stubs "${FIX_DIR}/${WL}"
+acceptance_write_database_claim "${FIX_DIR}/${WL}"
 "${REPO_ROOT}/internals/ensure-workload.sh" "${WL}" --env "${ENV_SLUG}"
-pass "thin Manifest Setup succeeds without Manifest database"
+pass "thin Manifest Setup succeeds with Requires database:true"
 
 # Binding / client material must not appear from Workload Setup alone.
 if host_ssh "test -d /home/platform/.config/platform/workloads/${WL}/database"; then
