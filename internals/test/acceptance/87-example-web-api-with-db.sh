@@ -18,7 +18,13 @@ acceptance_wl_track "${WL}"
 trap 'acceptance_wl_cleanup' EXIT
 
 [[ -d "${EXAMPLE_SRC}" ]] || fail "missing teaching example at environments/example/${WL}"
-[[ -f "${EXAMPLE_SRC}/manifest.json" ]] || fail "example missing manifest.json"
+acceptance_assert_artifact_tree "${EXAMPLE_SRC}" "example ${WL}"
+python3 - "${EXAMPLE_SRC}/requires.json" <<'PY' || fail "example must Requires database:false (sidecar, not Database Component)"
+import json, sys
+req = json.load(open(sys.argv[1], encoding="utf-8"))
+if req.get("database") is not False:
+    raise SystemExit(f"expected Requires database false, got {req.get('database')!r}")
+PY
 [[ -f "${EXAMPLE_SRC}/quadlets/${WL}.pod" ]] || fail "example missing soft-default pod ${WL}.pod"
 [[ -f "${EXAMPLE_SRC}/quadlets/${WL}-api.container" ]] \
   || fail "example missing app container ${WL}-api.container"

@@ -452,6 +452,37 @@ acceptance_write_database_claim() {
   printf '{ "database": true }\n' >"${tree}/requires.json"
 }
 
+# Fail closed unless TREE is a thin Manifest + Provides + Requires + Binding (ADR-0053).
+# Does not require Domain want-list (teaching examples bind FQDNs per Environment).
+# Args: tree [label]
+acceptance_assert_artifact_tree() {
+  local tree="${1:?acceptance_assert_artifact_tree: Workload tree required}"
+  local label="${2:-${tree}}"
+
+  [[ -d "${tree}" ]] || fail "${label}: missing Workload tree"
+  [[ -f "${tree}/manifest.json" ]] || fail "${label}: missing manifest.json"
+  [[ -f "${tree}/provides.json" ]] || fail "${label}: missing provides.json"
+  [[ -f "${tree}/requires.json" ]] || fail "${label}: missing requires.json"
+  [[ -f "${tree}/binding.json" ]] || fail "${label}: missing binding.json"
+
+  # shellcheck source=../../lib/artifact/manifest.sh
+  source "${REPO_ROOT}/internals/lib/artifact/manifest.sh"
+  # shellcheck source=../../lib/artifact/binding.sh
+  source "${REPO_ROOT}/internals/lib/artifact/binding.sh"
+
+  artifact_manifest_validate "${tree}/manifest.json" \
+    || fail "${label}: Manifest is not thin Intent + Source (ADR-0053)"
+  artifact_provides_validate "${tree}/provides.json" \
+    || fail "${label}: Provides is invalid"
+  artifact_requires_validate "${tree}/requires.json" \
+    || fail "${label}: Requires is invalid"
+  artifact_binding_validate "${tree}/binding.json" \
+    || fail "${label}: Binding is invalid"
+  artifact_binding_fulfill \
+    "${tree}/binding.json" "${tree}/provides.json" "${tree}/requires.json" \
+    || fail "${label}: Binding does not fully fulfill Provides/Requires"
+}
+
 # Attach an existing Provides route fragment to a Domain FQDN via Binding (ADR-0053 / #203).
 # Never uses FQDN-as-filename. TREE should already have artifact stubs.
 # Args: tree fragment_relpath fqdn [description]

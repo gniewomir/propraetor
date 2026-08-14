@@ -73,6 +73,12 @@ printf '{"intent":"stop","source":"internal","description":"mirrored"}\n' >"${FI
 
 host_ssh "grep -Fq mirrored /var/lib/host-volume/internals/workloads/keep-alive/manifest.json" \
   || fail "Mirror must upsert keep-alive Manifest on Host"
+host_ssh "test -f /var/lib/host-volume/internals/workloads/keep-alive/provides.json" \
+  || fail "Mirror must materialize Provides regardless of Source"
+host_ssh "test -f /var/lib/host-volume/internals/workloads/keep-alive/requires.json" \
+  || fail "Mirror must materialize Requires regardless of Source"
+host_ssh "test -f /var/lib/host-volume/internals/workloads/keep-alive/binding.json" \
+  || fail "Mirror must materialize Binding regardless of Source"
 host_ssh "test -f /var/lib/host-volume/internals/workloads/gone-soon/manifest.json" \
   || fail "Mirror must leave orphan definition tree alone"
 host_ssh "grep -Fxq durable-orphan /var/lib/host-volume/data/workloads/gone-soon/state.bin" \
