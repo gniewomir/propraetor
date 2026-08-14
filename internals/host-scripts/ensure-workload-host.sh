@@ -58,8 +58,8 @@ command -v python3 >/dev/null || {
 }
 
 # Allowlist {intent, description, source} + required Source (ADR-0053 / #200).
-# Intent uses the Host Manifest module. Database gather still reads Manifest
-# until #202; Setup must not dual-read retired keys (ADR-0018).
+# Intent uses the Host Manifest module. Database gather reads Requires (#202).
+# Setup must not dual-read retired Manifest keys (ADR-0018).
 artifact_manifest_validate "${MANIFEST}" || exit 1
 
 WL_INTENT="$(workload_manifest_intent "${MANIFEST}")" || exit 1

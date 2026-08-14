@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Unit tests: Host Workload Manifest Intent + database Declaration readers.
-# Seam: workload_manifest_intent / workload_manifest_database_claimed.
+# Unit tests: Host Workload Manifest Intent reader.
+# Seam: workload_manifest_intent.
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"
@@ -43,44 +43,18 @@ if workload_manifest_intent "${MANIFEST}" >/dev/null 2>&1; then
 fi
 pass "intent fails closed on bad/missing"
 
-# --- database Declaration claim ---
-cat >"${MANIFEST}" <<'EOF'
-{ "intent": "run" }
-EOF
-[[ "$(workload_manifest_database_claimed "${MANIFEST}")" == "0" ]] \
-  || fail "omit should be unclaimed"
-cat >"${MANIFEST}" <<'EOF'
-{ "intent": "run", "database": false }
-EOF
-[[ "$(workload_manifest_database_claimed "${MANIFEST}")" == "0" ]] \
-  || fail "false should be unclaimed"
-cat >"${MANIFEST}" <<'EOF'
-{ "intent": "run", "database": true }
-EOF
-[[ "$(workload_manifest_database_claimed "${MANIFEST}")" == "1" ]] \
-  || fail "true should be claimed"
-pass "database omit/false/true"
-
-cat >"${MANIFEST}" <<'EOF'
-{ "intent": "run", "database": "true" }
-EOF
-if workload_manifest_database_claimed "${MANIFEST}" >/dev/null 2>&1; then
-  fail "string database must fail closed"
+# --- Manifest database claim reader is retired (#202) ---
+if grep -F 'workload_manifest_database_claimed' \
+  "${REPO_ROOT}/internals/host-scripts/lib/workload-manifest-host.sh" \
+  "${REPO_ROOT}/internals/host-scripts/lib/database-fulfill-host.sh" \
+  2>/dev/null; then
+  fail "Manifest database claim reader must be deleted (Requires owns claim)"
 fi
-cat >"${MANIFEST}" <<'EOF'
-{ "intent": "run", "database": 1 }
-EOF
-if workload_manifest_database_claimed "${MANIFEST}" >/dev/null 2>&1; then
-  fail "numeric database must fail closed"
-fi
-pass "database non-boolean fails closed"
-
-# --- no private Edge/Database reader copies remain ---
 if grep -E '^_edge_read_workload_intent\(\)|^_database_read_workload_intent\(\)|^_database_manifest_claims\(\)' \
   "${REPO_ROOT}/internals/host-scripts/lib/edge-routes-host.sh" \
   "${REPO_ROOT}/internals/host-scripts/lib/database-fulfill-host.sh" \
   2>/dev/null; then
-  fail "private Intent/claim readers must be removed from Edge/Database libs"
+  fail "private Intent readers must be removed from Edge/Database libs"
 fi
 [[ ! -e "${REPO_ROOT}/internals/lib/database/database-declaration.sh" ]] \
   || fail "operator database-declaration.sh must be deleted"

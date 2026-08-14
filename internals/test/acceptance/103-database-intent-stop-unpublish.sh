@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Acceptance Test: Intent stop unpublishes Database binding; role/db retained (ADR-0049 / #190).
+# Acceptance Test: Intent stop unpublishes Database binding; role/db retained (ADR-0049 / ADR-0053 / #190 / #202).
 # Workload Setup alone must not unpublish; Component Setup clears published material;
 # Host Volume client cert + Postgres role/database remain until Purge.
 set -euo pipefail
@@ -30,7 +30,6 @@ write_manifest() {
 {
   "intent": "${intent}",
   "source": "internal",
-  "database": true,
   "description": "Database Intent stop unpublish probe"
 }
 EOF
@@ -38,6 +37,7 @@ EOF
 
 mkdir -p "${FIX_DIR}/${WL}/quadlets"
 write_manifest run
+acceptance_write_database_claim "${FIX_DIR}/${WL}"
 cat >"${FIX_DIR}/${WL}/quadlets/${WL}.container" <<EOF
 [Unit]
 Description=Propraetor Database Intent stop probe

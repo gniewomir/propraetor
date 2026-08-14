@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
-# Offline tests: Database publish binding paths + drop-in shape (ADR-0049 / #189).
+# Offline tests: Database publish binding paths + Requires-based claim (ADR-0049 / ADR-0053 / #202).
 # Does not talk to Postgres; stubs ambient dirs and TLS material.
+# Seam: database_publish_binding / database_unpublish_binding /
+#       database_absent_client_basenames / database_workload_is_run_claimant.
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"
@@ -87,11 +89,46 @@ database_unpublish_binding gone || fail "unpublish without SoT should succeed"
   || fail "conventional drop-in must clear without SoT"
 pass "unpublish without SoT clears binding and conventional drop-in"
 
-# Manifest claim helper
-printf '%s\n' '{"intent":"run","database":true}' >"${TMP}/m.json"
-[[ "$(workload_manifest_database_claimed "${TMP}/m.json")" == "1" ]] || fail "true should claim"
-printf '%s\n' '{"intent":"run"}' >"${TMP}/m.json"
-[[ "$(workload_manifest_database_claimed "${TMP}/m.json")" == "0" ]] || fail "omit should not claim"
-pass "manifest claim helper"
+# Requires-based claim: Intent-run × Requires database:true (ADR-0053 / #202).
+# Manifest does not participate.
+write_claim_tree() {
+  local dir="$1"
+  local intent="$2"
+  local database_json="$3"
+  mkdir -p "${dir}"
+  printf '%s\n' "{\"intent\":\"${intent}\",\"source\":\"internal\"}" >"${dir}/manifest.json"
+  printf '%s\n' "${database_json}" >"${dir}/requires.json"
+}
+
+CLAIM="${TMP}/claim-wl"
+write_claim_tree "${CLAIM}" run '{ "database": true }'
+[[ "$(database_workload_is_run_claimant "${CLAIM}")" == "1" ]] \
+  || fail "Intent run + Requires database true must claim"
+write_claim_tree "${CLAIM}" run '{ "database": false }'
+[[ "$(database_workload_is_run_claimant "${CLAIM}")" == "0" ]] \
+  || fail "Intent run + Requires database false must not claim"
+write_claim_tree "${CLAIM}" stop '{ "database": true }'
+[[ "$(database_workload_is_run_claimant "${CLAIM}")" == "0" ]] \
+  || fail "Intent stop + Requires database true must not claim"
+write_claim_tree "${CLAIM}" trash '{ "database": true }'
+[[ "$(database_workload_is_run_claimant "${CLAIM}")" == "0" ]] \
+  || fail "Intent trash + Requires database true must not claim"
+pass "Requires database claim is gated on Intent run"
+
+# Manifest database must not claim (clean break; retired key).
+mkdir -p "${CLAIM}"
+printf '%s\n' '{"intent":"run","source":"internal","database":true}' \
+  >"${CLAIM}/manifest.json"
+printf '%s\n' '{ "database": false }' >"${CLAIM}/requires.json"
+[[ "$(database_workload_is_run_claimant "${CLAIM}")" == "0" ]] \
+  || fail "Manifest database:true must not claim when Requires is false"
+pass "Manifest database does not participate in claim"
+
+write_claim_tree "${CLAIM}" run '{ "database": true }'
+rm -f "${CLAIM}/requires.json"
+if database_workload_is_run_claimant "${CLAIM}" >/dev/null 2>&1; then
+  fail "missing Requires must fail closed for Intent-run"
+fi
+pass "missing Requires fails closed for Intent-run"
 
 echo "All database-fulfill-host offline tests passed."

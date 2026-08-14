@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Acceptance Test: Orphan Reap → post-workloads drops Database fulfillment (ADR-0049 / #191).
+# Acceptance Test: Orphan Reap → post-workloads drops Database fulfillment (ADR-0049 / ADR-0053 / #191 / #202).
 # Orphan Reap removes Host SoT; Database drop runs on the next Component Setup post-workloads.
 set -euo pipefail
 # shellcheck source=lib.sh
@@ -29,12 +29,11 @@ REMOTE
 
 stage_wl() {
   local name="$1"
-  local database_json="$2"
   mkdir -p "${FIX_DIR}/${name}/quadlets"
   cat >"${FIX_DIR}/${name}/manifest.json" <<EOF
 {
   "intent": "run",
-  "source": "internal"${database_json},
+  "source": "internal",
   "description": "Database Orphan Reap drop probe"
 }
 EOF
@@ -57,8 +56,10 @@ WantedBy=default.target
 EOF
 }
 
-stage_wl "${WL}" $',\n  "database": true'
-stage_wl "${KEEP}" ""
+stage_wl "${WL}"
+acceptance_write_database_claim "${FIX_DIR}/${WL}"
+stage_wl "${KEEP}"
+acceptance_write_artifact_stubs "${FIX_DIR}/${KEEP}"
 
 "${REPO_ROOT}/internals/ensure-mirror.sh" --env "${ENV_SLUG}"
 ensure_database_fulfillment

@@ -1,17 +1,29 @@
 #!/usr/bin/env bash
-# Database Declaration gather + fulfill (ADR-0049 / #189 / #190 / #191).
-# Intent-run + Manifest database:true → role/db/client cert + published binding.
+# Database Declaration gather + fulfill (ADR-0049 / ADR-0053 / #189 / #190 / #191 / #202).
+# Intent-run + Requires database:true → role/db/client cert + published binding.
 # Intent stop/trash (non-claimants) → unpublish binding; retain role/db/clients until Purge.
 # Purge / Orphan Reap (SoT gone) → drop role/db/clients + clear projection in post-workloads.
 # Sourced by Database Setup. Expects ambient after database_setup begin:
 #   DATA_ROOT, CLIENTS_DIR, ADMIN_ENV, HOME_DIR, UNIT_DIR, USER_NAME, WORKLOADS_ROOT
 # Requires: quadlet_user, database_tls_ensure_client, database_write_pg_ident_file,
 #           database_admin_user_from_env, workload_manifest_intent,
-#           workload_manifest_database_claimed.
+#           artifact_requires_database.
 
 _database_fulfill_lib_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=workload-manifest-host.sh
 source "${_database_fulfill_lib_dir}/workload-manifest-host.sh"
+# Host Volume ships a copy of internals/lib/artifact/requires.sh beside this file
+# (ensure-fabric / ensure-components). Unit Tests source this file in-tree.
+_requires_lib="${_database_fulfill_lib_dir}/requires.sh"
+if [[ ! -f "${_requires_lib}" ]]; then
+  _requires_lib="${_database_fulfill_lib_dir}/../../lib/artifact/requires.sh"
+fi
+if [[ ! -f "${_requires_lib}" ]]; then
+  echo "database-fulfill-host: Requires library missing" >&2
+  return 1
+fi
+# shellcheck source=../../lib/artifact/requires.sh
+source "${_requires_lib}"
 
 # Platform User path for one Workload's published Database binding directory.
 workload_database_binding_dir() {
@@ -269,12 +281,27 @@ _database_is_claimant() {
   grep -Fxq "${wl_name}" "${claimants_file}" 2>/dev/null
 }
 
-# Gather Intent-run database:true claimants from Workload SoT; fulfill create/publish.
-# Non-claimants (Intent stop/trash or database false/omit): unpublish binding only;
+# Print 1 when the Workload tree is Intent-run and Requires database: true, else 0.
+# Fail closed on invalid Manifest Intent or Requires (missing/invalid requires.json).
+# Manifest does not participate (ADR-0018 / ADR-0053 / #202).
+database_workload_is_run_claimant() {
+  local wl_dir="${1:?database_workload_is_run_claimant: workload tree required}"
+  local intent claims
+  intent="$(workload_manifest_intent "${wl_dir}/manifest.json")" || return 1
+  [[ "${intent}" == "run" ]] || {
+    printf '0\n'
+    return 0
+  }
+  claims="$(artifact_requires_database "${wl_dir}/requires.json")" || return 1
+  printf '%s\n' "${claims}"
+}
+
+# Gather Intent-run Requires database:true claimants from Workload SoT; fulfill create/publish.
+# Non-claimants (Intent stop/trash or Requires database false): unpublish binding only;
 # role/database/client material retained until Purge (#190 / #191).
 database_fulfill_declarations() {
   local workloads_root="${1:-${WORKLOADS_ROOT-}}"
-  local wl_dir wl_name intent claims
+  local wl_dir wl_name claims
   local claimants_file sorted_file
   local had_binding
   local IFS
@@ -302,12 +329,7 @@ database_fulfill_declarations() {
         echo "Database gather: Workload basename 'database' is reserved" >&2
         return 1
       fi
-      intent="$(workload_manifest_intent "${wl_dir}/manifest.json")" || {
-        rm -f "${claimants_file}" "${sorted_file}"
-        return 1
-      }
-      [[ "${intent}" == "run" ]] || continue
-      claims="$(workload_manifest_database_claimed "${wl_dir}/manifest.json")" || {
+      claims="$(database_workload_is_run_claimant "${wl_dir}")" || {
         rm -f "${claimants_file}" "${sorted_file}"
         return 1
       }

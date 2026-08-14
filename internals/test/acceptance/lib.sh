@@ -445,6 +445,13 @@ acceptance_write_artifact_stubs() {
   printf '{ "database": false }\n' >"${tree}/requires.json"
 }
 
+# Artifact stubs with Requires database: true (Database Component claimant).
+acceptance_write_database_claim() {
+  local tree="${1:?acceptance_write_database_claim: Workload tree required}"
+  acceptance_write_artifact_stubs "${tree}"
+  printf '{ "database": true }\n' >"${tree}/requires.json"
+}
+
 # Re-run Component Setup post-workloads so Edge gathers Route Declarations (ADR-0043).
 # Workload Setup / Purge sync SoT only; fulfillment refreshes on Edge Component Setup.
 ensure_edge_route_fulfillment() {

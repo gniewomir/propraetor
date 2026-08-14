@@ -3,7 +3,7 @@
 # Sourced by Database pre-workloads.sh / post-workloads.sh.
 # Standing Component: TLS interior, admin EnvironmentFile, Postgres on Service Network
 # dial name `database`, idle allowed with zero Workload claimants.
-# pre-workloads also gathers Intent-run Manifest database:true Declarations and
+# pre-workloads also gathers Intent-run Requires database:true Declarations and
 # publishes passwordless mTLS bindings (#189); non-claimants are unpublished (#190).
 # post-workloads drops role/db/client material for Purge/Orphan-absent basenames (#191).
 #

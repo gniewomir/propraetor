@@ -16,15 +16,15 @@ INTERNALS=/var/lib/host-volume/internals/components/database
 ENV_SLUG="${PLATFORM_ENV:-test}"
 ENV_DIR="${REPO_ROOT}/environments/${ENV_SLUG}"
 
-# Standing idle: no Environment Workload Declares Manifest database: true.
+# Standing idle: no Environment Workload Declares Requires database: true.
 claimants="$(
-  find "${ENV_DIR}" -mindepth 2 -maxdepth 2 -name manifest.json -print0 2>/dev/null \
+  find "${ENV_DIR}" -mindepth 2 -maxdepth 2 -name requires.json -print0 2>/dev/null \
     | xargs -0 grep -l '"database"[[:space:]]*:[[:space:]]*true' 2>/dev/null \
     || true
 )"
 [[ -z "${claimants}" ]] \
-  || fail "expected zero Manifest database:true claimants, found: ${claimants}"
-pass "no Manifest database:true claimants in Environment ${ENV_SLUG}"
+  || fail "expected zero Requires database:true claimants, found: ${claimants}"
+pass "no Requires database:true claimants in Environment ${ENV_SLUG}"
 
 must_be_dir() {
   local path="$1"
