@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
-# Offline tests: Environment Configuration Binding×Requires resolve and
-# module interface stage→apply_resolved|clear (ADR-0035 / ADR-0053 / #201).
-# Seam: environment_configuration_remap / resolve / stage_for_setup.
+# Offline tests: Environment Configuration three outcomes
+# (ADR-0035 / ADR-0053 / #230).
+# Seam: stage_for_setup / fulfill_after_materialize / apply_or_clear.
+# Binding remap vs select, bag/install, ROOT_*, and containers gate stay inside.
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"
@@ -16,9 +17,16 @@ trap 'rm -rf "${TMP}"' EXIT
 BINDING="${TMP}/binding.json"
 REQUIRES="${TMP}/requires.json"
 ENV_DIR="${TMP}/env"
-OUT="${TMP}/out.env"
 TREE="${TMP}/wl"
-mkdir -p "${ENV_DIR}" "${TREE}"
+HOME_DIR="${TMP}/home"
+UNIT_DIR="${TMP}/units"
+WORKLOADS_ROOT="${TMP}/workloads"
+USER_NAME="offline-test-user"
+WL_NAME="demo"
+WL_TREE="${WORKLOADS_ROOT}/${WL_NAME}"
+STAGE_DIR="${TMP}/stage"
+mkdir -p "${ENV_DIR}" "${TREE}" "${HOME_DIR}" "${UNIT_DIR}" \
+  "${WL_TREE}/systemd" "${STAGE_DIR}"
 
 write_empty_contract() {
   printf '{}\n' >"${BINDING}"
@@ -46,177 +54,18 @@ EOF
 EOF
 }
 
-# --- declaration surface: Binding×Requires remap + container gate ---
-
-write_empty_contract
-pairs="$(environment_configuration_remap "${BINDING}" "${REQUIRES}")" \
-  || fail "empty Requires environment should parse"
-[[ -z "${pairs}" ]] || fail "empty Requires environment should yield no pairs"
-environment_configuration_require_containers "${TREE}" 0 \
-  || fail "inactive empty remap should skip gate"
-pass "declaration empty Requires environment → no pairs, gate skipped"
-
-write_remap
-pairs="$(environment_configuration_remap "${BINDING}" "${REQUIRES}")" \
-  || fail "non-empty remap should parse"
-[[ "${pairs}" == $'BAG_A=PROC_A\nBAG_B=PROC_B' ]] \
-  || fail "expected BAG_A=PROC_A then BAG_B=PROC_B, got: ${pairs}"
-if environment_configuration_require_containers "${TREE}" 1 >/dev/null 2>&1; then
-  fail "non-empty Requires environment without .container should fail closed"
-fi
-mkdir -p "${TREE}/systemd"
-touch "${TREE}/systemd/x.container"
-environment_configuration_require_containers "${TREE}" 1 \
-  || fail "should accept .container"
-pass "declaration non-empty remap + containers gate"
-
-# Reserved Database admin credentials must not be Binding-remapped (ADR-0049 / #201).
-cat >"${BINDING}" <<'EOF'
-{ "environment": { "ROOT_DB_USER": "PROC_A", "BAG_B": "PROC_B" } }
-EOF
-if environment_configuration_remap "${BINDING}" "${REQUIRES}" >/dev/null 2>&1; then
-  fail "ROOT_DB_USER remapped into a Workload must fail closed"
-fi
-pass "ROOT_DB_USER remapped into a Workload fails closed"
-
-# Reserved Cache admin credentials must not be Binding-remapped (ADR-0055 / #221).
-cat >"${BINDING}" <<'EOF'
-{ "environment": { "ROOT_CACHE_USER": "PROC_A", "BAG_B": "PROC_B" } }
-EOF
-if environment_configuration_remap "${BINDING}" "${REQUIRES}" >/dev/null 2>&1; then
-  fail "ROOT_CACHE_USER remapped into a Workload must fail closed"
-fi
-pass "ROOT_CACHE_USER remapped into a Workload fails closed"
-
-cat >"${BINDING}" <<'EOF'
-{ "environment": { "BAG_A": "PROC_A", "ROOT_CACHE_PASSWORD": "PROC_B" } }
-EOF
-if environment_configuration_remap "${BINDING}" "${REQUIRES}" >/dev/null 2>&1; then
-  fail "ROOT_CACHE_PASSWORD remapped into a Workload must fail closed"
-fi
-pass "ROOT_CACHE_PASSWORD remapped into a Workload fails closed"
-
-cat >"${BINDING}" <<'EOF'
-{ "environment": { "BAG_A": "PROC_A", "ROOT_DB_PASSWORD": "PROC_B" } }
-EOF
-if environment_configuration_remap "${BINDING}" "${REQUIRES}" >/dev/null 2>&1; then
-  fail "ROOT_DB_PASSWORD remapped into a Workload must fail closed"
-fi
-pass "ROOT_DB_PASSWORD remapped into a Workload fails closed"
-
-cat >"${BINDING}" <<'EOF'
-{ "environment": { "BAG_A": "ROOT_DB_USER", "BAG_B": "PROC_B" } }
-EOF
-cat >"${REQUIRES}" <<'EOF'
-{
-  "environment": { "ROOT_DB_USER": "must not inject", "PROC_B": "b" },
-  "database": false,
-  "cache": false
-}
-EOF
-if environment_configuration_remap "${BINDING}" "${REQUIRES}" >/dev/null 2>&1; then
-  fail "Requires name ROOT_DB_USER must fail closed"
-fi
-pass "Requires name ROOT_DB_USER fails closed"
-
-write_remap
-# Incomplete fulfill still fails via Binding lib
-cat >"${BINDING}" <<'EOF'
-{ "environment": { "BAG_A": "PROC_A" } }
-EOF
-if environment_configuration_remap "${BINDING}" "${REQUIRES}" >/dev/null 2>&1; then
-  fail "missing Requires remap RHS must fail closed"
-fi
-pass "incomplete Binding remap fails closed"
-
-# Binding-only remap (zip): no Requires file; ROOT_DB still fail closed.
-write_remap
-pairs="$(environment_configuration_remap "${BINDING}")" \
-  || fail "Binding-only remap should parse"
-[[ "${pairs}" == $'BAG_A=PROC_A\nBAG_B=PROC_B' ]] \
-  || fail "expected BAG_A=PROC_A then BAG_B=PROC_B without Requires, got: ${pairs}"
-pass "declaration Binding-only remap (no Requires)"
-
-cat >"${BINDING}" <<'EOF'
-{ "environment": { "ROOT_DB_USER": "PROC_A" } }
-EOF
-if environment_configuration_remap "${BINDING}" >/dev/null 2>&1; then
-  fail "ROOT_DB_USER remapped Binding-only must fail closed"
-fi
-pass "Binding-only ROOT_DB_USER remap fails closed"
-
-# --- bag resolve (operator-side; Binding bag keys → Requires names) ---
-
-write_empty_contract
-eval "$(environment_configuration_resolve "${BINDING}" "${REQUIRES}" "${ENV_DIR}" "${OUT}")"
-[[ "${WL_ENV_ACTIVE}" == "0" ]] || fail "empty Requires environment should be inactive"
-[[ ! -f "${OUT}" ]] || fail "empty remap should not write outfile"
-pass "empty Requires environment → inactive"
-
-write_remap
-printf 'BAG_A=from-file\nBAG_B=file-b\nC=surplus\n' >"${ENV_DIR}/.env"
-unset BAG_A BAG_B C PROC_A PROC_B || true
-eval "$(environment_configuration_resolve "${BINDING}" "${REQUIRES}" "${ENV_DIR}" "${OUT}")"
-[[ "${WL_ENV_ACTIVE}" == "1" ]] || fail "remapped keys should be active"
-grep -Fx 'PROC_A=from-file' "${OUT}" >/dev/null || fail "expected PROC_A from bag BAG_A"
-grep -Fx 'PROC_B=file-b' "${OUT}" >/dev/null || fail "expected PROC_B from bag BAG_B"
-grep -F 'surplus' "${OUT}" >/dev/null && fail "surplus must not appear"
-grep -F 'BAG_A=' "${OUT}" >/dev/null && fail "bag key names must not appear in EnvironmentFile"
-pass ".env baseline lists only Requires names"
-
-export BAG_A=from-shell
-eval "$(environment_configuration_resolve "${BINDING}" "${REQUIRES}" "${ENV_DIR}" "${OUT}")"
-grep -Fx 'PROC_A=from-shell' "${OUT}" >/dev/null || fail "shell should override file (bag key)"
-grep -Fx 'PROC_B=file-b' "${OUT}" >/dev/null || fail "PROC_B should remain from file"
-pass "shell overrides .env on bag keys"
-
-unset BAG_A BAG_B || true
-printf 'BAG_A=from-file\nBAG_B=file-b\n' >"${ENV_DIR}/.env"
-printf 'BAG_A=from-override\n' >"${ENV_DIR}/.env.override"
-eval "$(environment_configuration_resolve "${BINDING}" "${REQUIRES}" "${ENV_DIR}" "${OUT}")"
-grep -Fx 'PROC_A=from-override' "${OUT}" >/dev/null || fail "override should win over .env"
-grep -Fx 'PROC_B=file-b' "${OUT}" >/dev/null || fail "PROC_B from .env should remain"
-export BAG_A=from-shell
-eval "$(environment_configuration_resolve "${BINDING}" "${REQUIRES}" "${ENV_DIR}" "${OUT}")"
-grep -Fx 'PROC_A=from-shell' "${OUT}" >/dev/null || fail "shell should beat .env.override"
-unset BAG_A || true
-rm -f "${ENV_DIR}/.env.override"
-pass ".env.override overlays .env; shell still wins"
-
-unset BAG_A BAG_B || true
-printf 'BAG_A=only\n' >"${ENV_DIR}/.env"
-if environment_configuration_resolve "${BINDING}" "${REQUIRES}" "${ENV_DIR}" "${OUT}" \
-  >/dev/null 2>&1; then
-  fail "missing BAG_B should fail closed"
-fi
-pass "missing remapped bag key fails closed"
-
-printf 'export BAG_A=nope\nBAG_B=x\n' >"${ENV_DIR}/.env"
-if environment_configuration_resolve "${BINDING}" "${REQUIRES}" "${ENV_DIR}" "${OUT}" \
-  >/dev/null 2>&1; then
-  fail "export line should fail closed"
-fi
-pass "invalid dotenv export fails closed"
-
-# --- module interface: stage_for_setup → apply_resolved | clear (#140 / #201) ---
-HOME_DIR="${TMP}/home"
-UNIT_DIR="${TMP}/units"
-WORKLOADS_ROOT="${TMP}/workloads"
-USER_NAME="offline-test-user"
-WL_NAME="demo"
-WL_TREE="${WORKLOADS_ROOT}/${WL_NAME}"
-STAGE_DIR="${TMP}/stage"
-mkdir -p "${HOME_DIR}" "${UNIT_DIR}" "${WL_TREE}/systemd" "${STAGE_DIR}"
-printf '[Container]\nImage=localhost/demo\n' >"${WL_TREE}/systemd/app.container"
-
 envcfg_stage_and_apply() {
+  local requires="${1-${REQUIRES}}"
   environment_configuration_stage_for_setup \
-    "${STAGE_DIR}" "${BINDING}" "${REQUIRES}" "${ENV_DIR}" "${WL_TREE}" "${STAGE_DIR}" \
+    "${STAGE_DIR}" "${BINDING}" "${requires}" "${ENV_DIR}" "${WL_TREE}" "${STAGE_DIR}" \
     || return 1
-  environment_configuration_apply_resolved "${WL_NAME}" "${WL_ENV_RESOLVED_REMOTE}"
+  environment_configuration_apply_or_clear "${WL_NAME}" "${WL_ENV_RESOLVED_REMOTE}"
 }
 
+# --- stage → apply_or_clear: bag resolve + install ---
+
 write_remap
+printf '[Container]\nImage=localhost/demo\n' >"${WL_TREE}/systemd/app.container"
 printf 'BAG_A=from-file\nBAG_B=file-b\nC=surplus\n' >"${ENV_DIR}/.env"
 unset BAG_A BAG_B C || true
 
@@ -234,13 +83,44 @@ app_dropin="$(workload_environment_dropin_path "app.container")"
 grep -Fx "EnvironmentFile=${env_path}" "${app_dropin}" >/dev/null \
   || fail "drop-in must wire EnvironmentFile= path only"
 grep -F 'from-file' "${app_dropin}" >/dev/null && fail "values must not appear in drop-in unit text"
-pass "module stage→apply → EnvironmentFile + drop-ins (Requires names)"
+pass "stage→apply → EnvironmentFile + drop-ins (Requires names)"
 
-environment_configuration_clear "${WL_NAME}" || fail "module clear should succeed"
+# shell > .env.override > .env through stage
+unset BAG_A BAG_B || true
+printf 'BAG_A=from-file\nBAG_B=file-b\n' >"${ENV_DIR}/.env"
+printf 'BAG_A=from-override\n' >"${ENV_DIR}/.env.override"
+envcfg_stage_and_apply || fail "override stage→apply should succeed"
+grep -Fx 'PROC_A=from-override' "${env_path}" >/dev/null \
+  || fail "override should win over .env"
+export BAG_A=from-shell
+envcfg_stage_and_apply || fail "shell stage→apply should succeed"
+grep -Fx 'PROC_A=from-shell' "${env_path}" >/dev/null \
+  || fail "shell should beat .env.override"
+unset BAG_A || true
+rm -f "${ENV_DIR}/.env.override"
+pass "stage precedence: shell > .env.override > .env"
+
+# Sibling Database binding must survive clear (#189).
+mkdir -p "$(dirname "${env_path}")/database"
+printf 'keep\n' >"$(dirname "${env_path}")/database/marker"
+environment_configuration_apply_or_clear "${WL_NAME}" \
+  || fail "apply_or_clear empty should succeed"
 [[ ! -f "${env_path}" ]] || fail "clear should remove EnvironmentFile"
-[[ ! -e "$(dirname "${env_path}")" ]] || fail "clear should remove empty Workload config dir"
+[[ -f "$(dirname "${env_path}")/database/marker" ]] \
+  || fail "clear must not remove sibling database/ binding"
 [[ ! -f "${app_dropin}" ]] || fail "clear should remove Setup drop-in"
-pass "module clear removes install artifacts"
+pass "apply_or_clear empty removes install artifacts; keeps sibling database/"
+
+rm -rf "$(dirname "${env_path}")"
+printf '[Container]\nImage=localhost/demo\n' >"${WL_TREE}/systemd/app.container"
+printf '[Container]\nImage=localhost/demo-worker\n' >"${WL_TREE}/systemd/worker.container"
+printf 'BAG_A=from-file\nBAG_B=file-b\n' >"${ENV_DIR}/.env"
+envcfg_stage_and_apply || fail "multi-container stage→apply should succeed"
+[[ -f "$(workload_environment_dropin_path "app.container")" ]] \
+  || fail "expected drop-in for app.container"
+[[ -f "$(workload_environment_dropin_path "worker.container")" ]] \
+  || fail "expected drop-in for worker.container"
+pass "stage→apply drop-ins for each SoT *.container"
 
 # empty Requires environment → clear path through stage→apply
 write_remap
@@ -250,17 +130,16 @@ envcfg_stage_and_apply || fail "re-apply before empty remap should succeed"
 write_empty_contract
 envcfg_stage_and_apply || fail "empty remap stage→apply should succeed"
 [[ ! -f "${env_path}" ]] || fail "empty remap stage→apply should clear EnvironmentFile"
-[[ ! -e "$(dirname "${env_path}")" ]] || fail "empty remap stage→apply should remove empty Workload config dir"
-pass "module stage→apply empty Requires environment → clear"
+pass "stage→apply empty Requires environment → clear"
 
-# fail closed: non-empty without containers (gate once in prepare)
+# fail closed: non-empty without containers (gate in stage prepare)
 rm -f "${WL_TREE}/systemd"/*.container
 write_remap
 printf 'BAG_A=x\nBAG_B=y\n' >"${ENV_DIR}/.env"
 if envcfg_stage_and_apply >/dev/null 2>&1; then
   fail "stage→apply without *.container should fail closed"
 fi
-pass "module stage→apply fails closed without containers"
+pass "stage→apply fails closed without containers"
 
 # fail closed: missing bag key
 mkdir -p "${WL_TREE}/systemd"
@@ -270,9 +149,18 @@ printf 'BAG_A=only\n' >"${ENV_DIR}/.env"
 if envcfg_stage_and_apply >/dev/null 2>&1; then
   fail "stage→apply with missing key should fail closed"
 fi
-pass "module stage→apply fails closed on missing remapped key"
+pass "stage→apply fails closed on missing remapped key"
 
-# fail closed: ROOT_DB_* remap at stage
+# fail closed: invalid dotenv
+write_remap
+printf 'export BAG_A=nope\nBAG_B=x\n' >"${ENV_DIR}/.env"
+if envcfg_stage_and_apply >/dev/null 2>&1; then
+  fail "stage→apply with export line should fail closed"
+fi
+printf 'BAG_A=x\nBAG_B=y\n' >"${ENV_DIR}/.env"
+pass "stage→apply fails closed on invalid dotenv export"
+
+# Reserved ROOT_* fail closed at stage (ADR-0049 / ADR-0055)
 cat >"${BINDING}" <<'EOF'
 { "environment": { "ROOT_DB_USER": "PROC_A", "BAG_B": "PROC_B" } }
 EOF
@@ -287,10 +175,56 @@ printf 'ROOT_DB_USER=admin\nBAG_B=x\n' >"${ENV_DIR}/.env"
 if envcfg_stage_and_apply >/dev/null 2>&1; then
   fail "stage→apply with ROOT_DB_USER remap should fail closed"
 fi
-pass "module stage→apply fails closed on ROOT_DB_* remap"
+pass "stage fails closed on ROOT_DB_* remap"
 
-# SSH staging adapter: stage_for_setup sets WL_ENV_* globals (no stdout-eval protocol)
+cat >"${BINDING}" <<'EOF'
+{ "environment": { "ROOT_CACHE_USER": "PROC_A", "BAG_B": "PROC_B" } }
+EOF
+if envcfg_stage_and_apply >/dev/null 2>&1; then
+  fail "stage→apply with ROOT_CACHE_USER remap should fail closed"
+fi
+pass "stage fails closed on ROOT_CACHE_* remap"
+
+cat >"${BINDING}" <<'EOF'
+{ "environment": { "BAG_A": "ROOT_DB_USER", "BAG_B": "PROC_B" } }
+EOF
+cat >"${REQUIRES}" <<'EOF'
+{
+  "environment": { "ROOT_DB_USER": "must not inject", "PROC_B": "b" },
+  "database": false,
+  "cache": false
+}
+EOF
+printf 'BAG_A=x\nBAG_B=y\n' >"${ENV_DIR}/.env"
+if envcfg_stage_and_apply >/dev/null 2>&1; then
+  fail "stage with Requires name ROOT_DB_USER must fail closed"
+fi
+pass "stage fails closed when Requires name is ROOT_DB_*"
+
+# incomplete fulfill fails at stage
 write_remap
+cat >"${BINDING}" <<'EOF'
+{ "environment": { "BAG_A": "PROC_A" } }
+EOF
+printf 'BAG_A=x\n' >"${ENV_DIR}/.env"
+if envcfg_stage_and_apply >/dev/null 2>&1; then
+  fail "incomplete Binding remap must fail closed at stage"
+fi
+pass "stage incomplete Binding remap fails closed"
+
+# invalid Binding shape fails at stage
+printf '{ "environment": { "BAG": 1 } }\n' >"${BINDING}"
+printf '{ "database": false, "cache": false }\n' >"${REQUIRES}"
+if environment_configuration_stage_for_setup \
+  "${STAGE_DIR}" "${BINDING}" "${REQUIRES}" "${ENV_DIR}" "${WL_TREE}" \
+  "/tmp/platform-ensure-workload" >/dev/null 2>&1; then
+  fail "stage_for_setup must fail closed on invalid Binding remap"
+fi
+pass "stage invalid Binding fails closed"
+
+# SSH staging adapter: stage sets WL_ENV_* globals (no stdout-eval protocol)
+write_remap
+printf '[Container]\nImage=localhost/demo\n' >"${WL_TREE}/systemd/app.container"
 printf 'BAG_A=staged\nBAG_B=also\n' >"${ENV_DIR}/.env"
 unset BAG_A BAG_B || true
 environment_configuration_stage_for_setup \
@@ -302,9 +236,8 @@ grep -Fx 'PROC_A=staged' "${STAGE_DIR}/environment.resolved" >/dev/null \
   || fail "stage_for_setup should write Requires names into STAGE"
 [[ "${WL_ENV_RESOLVED_REMOTE}" == "/tmp/platform-ensure-workload/environment.resolved" ]] \
   || fail "expected remote resolved path, got: ${WL_ENV_RESOLVED_REMOTE}"
-pass "module stage_for_setup SSH staging adapter"
+pass "stage_for_setup SSH staging adapter"
 
-# inactive stage clears remote path
 write_empty_contract
 environment_configuration_stage_for_setup \
   "${STAGE_DIR}" "${BINDING}" "${REQUIRES}" "${ENV_DIR}" "${WL_TREE}" \
@@ -312,19 +245,9 @@ environment_configuration_stage_for_setup \
   || fail "empty remap stage should succeed"
 [[ "${WL_ENV_ACTIVE}" == "0" ]] || fail "empty remap stage should be inactive"
 [[ -z "${WL_ENV_RESOLVED_REMOTE}" ]] || fail "empty remap stage should clear remote path"
-pass "module stage_for_setup empty Requires environment → inactive"
+pass "stage_for_setup empty Requires environment → inactive"
 
-# fail-closed shapes must surface as non-zero from stage_for_setup
-printf '{ "environment": { "BAG": 1 } }\n' >"${BINDING}"
-printf '{ "database": false, "cache": false }\n' >"${REQUIRES}"
-if environment_configuration_stage_for_setup \
-  "${STAGE_DIR}" "${BINDING}" "${REQUIRES}" "${ENV_DIR}" "${WL_TREE}" \
-  "/tmp/platform-ensure-workload" >/dev/null 2>&1; then
-  fail "stage_for_setup must fail closed on invalid Binding remap"
-fi
-pass "module stage_for_setup invalid Binding fails closed"
-
-# zip Setup: no Environment Requires; Binding-only stage; skip Environment-tree containers gate
+# zip Setup: Binding-only select; skip Environment-tree containers gate
 write_remap
 printf 'BAG_A=zip-a\nBAG_B=zip-b\n' >"${ENV_DIR}/.env"
 unset BAG_A BAG_B || true
@@ -338,14 +261,87 @@ environment_configuration_stage_for_setup \
 [[ "${WL_ENV_ACTIVE}" == "1" ]] || fail "zip Binding-only stage should be active"
 grep -Fx 'PROC_A=zip-a' "${STAGE_DIR}/environment.resolved" >/dev/null \
   || fail "zip stage should write Requires names into STAGE"
-pass "module stage_for_setup zip Binding-only skips Environment Requires and quadlets"
+pass "stage zip Binding-only skips Environment Requires and quadlets"
+
+# Binding-only ROOT_* still fails at stage
+cat >"${BINDING}" <<'EOF'
+{ "environment": { "ROOT_DB_USER": "PROC_A" } }
+EOF
+if environment_configuration_stage_for_setup \
+  "${STAGE_DIR}" "${BINDING}" "" "${ENV_DIR}" "${ZIP_TREE}" \
+  "/tmp/platform-ensure-workload" >/dev/null 2>&1; then
+  fail "Binding-only ROOT_DB_USER remap must fail closed"
+fi
+pass "stage Binding-only ROOT_DB_* fails closed"
+
+# --- fulfill_after_materialize (Host validate-only) ---
+
+MAT="${TMP}/mat-wl"
+mkdir -p "${MAT}"
+printf '{}\n' >"${MAT}/binding.json"
+printf '{ "database": false, "cache": false }\n' >"${MAT}/requires.json"
+environment_configuration_fulfill_after_materialize "${MAT}" \
+  || fail "empty Binding and Requires environment must fulfill"
+pass "fulfill empty Binding/Requires"
+
+cat >"${MAT}/binding.json" <<'EOF'
+{ "environment": { "BAG_A": "PROC_A" } }
+EOF
+cat >"${MAT}/requires.json" <<'EOF'
+{ "environment": { "PROC_A": "a" }, "database": false, "cache": false }
+EOF
+if environment_configuration_fulfill_after_materialize "${MAT}" >/dev/null 2>&1; then
+  fail "non-empty Requires environment without .container must fail closed"
+fi
+mkdir -p "${MAT}/systemd"
+touch "${MAT}/systemd/app.container"
+environment_configuration_fulfill_after_materialize "${MAT}" \
+  || fail "full-fulfill with .container must pass"
+pass "fulfill non-empty Requires requires materialized systemd units"
+
+cat >"${MAT}/binding.json" <<'EOF'
+{ "environment": {} }
+EOF
+if environment_configuration_fulfill_after_materialize "${MAT}" >/dev/null 2>&1; then
+  fail "Binding that does not full-fulfill Artifact Requires must fail closed"
+fi
+pass "fulfill Binding/Requires mismatch fails closed"
+
+cat >"${MAT}/binding.json" <<'EOF'
+{ "environment": { "ROOT_CACHE_PASSWORD": "PROC_A" } }
+EOF
+cat >"${MAT}/requires.json" <<'EOF'
+{ "environment": { "PROC_A": "a" }, "database": false, "cache": false }
+EOF
+if environment_configuration_fulfill_after_materialize "${MAT}" >/dev/null 2>&1; then
+  fail "fulfill must refuse ROOT_CACHE_* remap"
+fi
+pass "fulfill fails closed on ROOT_CACHE_* remap"
+
+# install without SoT *.container still places EnvironmentFile (gate is stage/fulfill)
+rm -f "${WL_TREE}/systemd"/*.container
+printf 'PROC_A=x\nPROC_B=y\n' >"${STAGE_DIR}/environment.resolved"
+environment_configuration_apply_or_clear "${WL_NAME}" "${STAGE_DIR}/environment.resolved" \
+  || fail "apply without containers should still place EnvironmentFile"
+[[ -f "$(workload_environment_path "${WL_NAME}")" ]] \
+  || fail "EnvironmentFile should exist without containers"
+pass "apply_or_clear without containers places EnvironmentFile (gate elsewhere)"
 
 # no dual-read of retired Manifest environment[]
 if grep -E 'm\["environment"\]|m\.get\("environment"\)|manifest\.environment' \
     "${REPO_ROOT}/internals/lib/environment/environment-configuration.sh" \
-    "${REPO_ROOT}/internals/lib/environment/environment-configuration-declaration.sh"; then
+    "${REPO_ROOT}/internals/host-scripts/lib/workload-environment-host.sh"; then
   fail "Environment Configuration module must not dual-read Manifest environment[]"
 fi
 pass "no Manifest environment[] dual-read"
+
+# Callers must not need remap/select/install/clear as public outcomes
+if grep -E 'environment_configuration_(remap|resolve|prepare|require_containers|install_host|clear|apply_resolved|fulfill_materialized)\b' \
+    "${REPO_ROOT}/internals/ensure-workload.sh" \
+    "${REPO_ROOT}/internals/host-scripts/ensure-workload-host.sh" \
+    "${REPO_ROOT}/internals/host-scripts/purge-orphans-host.sh"; then
+  fail "Setup/Orphan Reap must call only the three outcomes"
+fi
+pass "Setup and Orphan Reap call only the three outcomes"
 
 echo "All environment-configuration offline tests passed."

@@ -27,8 +27,6 @@ source "${HERE}/workload-environment-host.sh"
 source "${HERE}/workload-manifest-host.sh"
 # shellcheck source=../lib/artifact/manifest.sh
 source "${HERE}/manifest.sh"
-# shellcheck source=../lib/artifact/binding.sh
-source "${HERE}/binding.sh"
 # shellcheck source=workload-project-host.sh
 source "${HERE}/workload-project-host.sh"
 
@@ -76,10 +74,9 @@ artifact_manifest_validate "${MANIFEST}" || exit 1
 
 WL_INTENT="$(workload_manifest_intent "${MANIFEST}")" || exit 1
 
-# Environment Configuration: operator stage_for_setup remaps the bag (Binding;
-# Requires full-fulfill is Host-side after materialize). Active iff a resolved
-# file was staged (SSH adapter). Host full-fulfills Binding vs Artifact Requires
-# on the projected tree and re-runs the containers gate there.
+# Environment Configuration: operator stage remaps the bag; Host
+# fulfill-after-materialize full-fulfills Binding vs Artifact Requires; then
+# apply-or-clear installs or clears from the staged resolved file (empty → clear).
 WL_ENV_RESOLVED="${WL_ENV_RESOLVED:-}"
 if [[ -n "${WL_ENV_RESOLVED}" ]]; then
   [[ -f "${WL_ENV_RESOLVED}" ]] || {
@@ -102,7 +99,7 @@ quadlet_user_session_begin
 # Preflight before commit refuses Component/cross-Workload collisions without
 # writing colliding systemd/ into Host Volume SoT first.
 workload_materialize_tree "${TREE}" "${MAT_TREE}" || exit 1
-environment_configuration_fulfill_materialized "${MAT_TREE}" || exit 1
+environment_configuration_fulfill_after_materialize "${MAT_TREE}" || exit 1
 export WORKLOAD_UNITS_PREV_OWNED="${PREV_OWNED}"
 workload_units_preflight "${WL_NAME}" "${MAT_TREE}/systemd" || exit 1
 workload_project_commit "${MAT_TREE}" "${SOT_TREE}" || exit 1
@@ -113,7 +110,7 @@ SYSTEMD_STAGE="${SOT_TREE}/systemd"
 # Environment Configuration must run after unit reconcile (drop-ins beside Host
 # units) and before daemon-reload / Intent. Registered as the units-module hook.
 workload_units_before_reload() {
-  environment_configuration_apply_resolved "${WL_NAME}" "${WL_ENV_RESOLVED}"
+  environment_configuration_apply_or_clear "${WL_NAME}" "${WL_ENV_RESOLVED}"
 }
 
 # Route Declarations stay in Workload SoT only (ADR-0040). Edge Component Setup gathers.

@@ -30,7 +30,7 @@ workload_units_purge() {
 }
 EOF
 cat >"${STAGE}/workload-environment-host.sh" <<EOF
-environment_configuration_clear() {
+environment_configuration_apply_or_clear() {
   printf '%s\\n' "\$1" >>"${TMP}/cleared-env"
 }
 EOF
