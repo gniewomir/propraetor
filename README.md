@@ -77,6 +77,7 @@ Day-to-day operator surface (Environment lifecycle):
 | `./teardown.sh [--env <slug>]` | Full wipe, including Durables. Stops Durable billing. Confirm by typing `teardown`. |
 | `./ssh.sh [--env <slug>] [ssh args…]` | SSH to the Host (root @ Reserved IP; Stack SSH port from `internals/lib/ssh.sh` — not raw `:22` after ADR-0030 cutover). |
 | `./database.sh [read or write] [--env <slug>]` | Interactive Postgres console as Database admin (`ROOT_DB_*`) over an SSH TCP tunnel. Default `read` sets soft `default_transaction_read_only` (bypassable); `write` omits it. |
+| `./cache.sh [--env <slug>] [-- valkey-cli args…]` | Interactive Valkey admin console as Cache admin (`ROOT_CACHE_*` + Persist admin client cert) over an SSH TCP tunnel. No read|write split in v1. |
 
 Tests: unified `./test.sh <suite>` (Acceptance, Lifecycle, Unit) — [docs/agents/testing.md](docs/agents/testing.md), [ADR-0036](docs/adr/0036-unified-test-entrypoint.md). Everything else lives under `internals/` (flat glanceable list): diagnostics, lint, `ensure.sh` (Deploy ladder), ensure-fabric, ensure-mirror, ensure-components, ensure-workload(s), purge-orphans, Stack, Fabric, Components, and helpers. Same `--env` rule for Environment-scoped entrypoints. Layout and Host-local function names: [ADR-0032](docs/adr/0032-operator-surface-internals-and-host-function-names.md).
 
