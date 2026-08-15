@@ -201,12 +201,21 @@ workload_unit_refuse_foreign_basename() {
 }
 
 # Sync staged systemd/ bag into Host Volume SoT for one Workload (replace tree).
+# When stage_dir is already the SoT bag (post-projection Setup), this is a noop.
 # Args: wl_name stage_dir
 workload_unit_sync_sot() {
   local wl_name="$1"
   local stage_dir="${2:-}"
   local dest="${WORKLOADS_ROOT}/${wl_name}/systemd"
   local src
+
+  # Shared projection already wrote SoT; same-inode stage must not rm -rf itself.
+  if [[ -n "${stage_dir}" && -d "${stage_dir}" && -d "${dest}" && "${stage_dir}" -ef "${dest}" ]]; then
+    if [[ -n "${USER_NAME:-}" ]]; then
+      chown -R "${USER_NAME}:${USER_NAME}" "${WORKLOADS_ROOT}/${wl_name}" 2>/dev/null || true
+    fi
+    return 0
+  fi
 
   rm -rf "${dest}"
   if [[ -n "${stage_dir}" && -d "${stage_dir}" ]]; then

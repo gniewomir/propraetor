@@ -27,6 +27,7 @@ ARTIFACT_PROVIDES_LIB="${REPO_ROOT}/internals/lib/artifact/provides.sh"
 ARTIFACT_BINDING_LIB="${REPO_ROOT}/internals/lib/artifact/binding.sh"
 ARTIFACT_REQUIRES_LIB="${REPO_ROOT}/internals/lib/artifact/requires.sh"
 MATERIALIZE_LIB="${REPO_ROOT}/internals/host-scripts/lib/workload-materialize-host.sh"
+PROJECT_LIB="${REPO_ROOT}/internals/host-scripts/lib/workload-project-host.sh"
 QUADLET_SESSION_LIB="${REPO_ROOT}/internals/host-scripts/lib/quadlet-user-session.sh"
 SYNC_LIB="${REPO_ROOT}/internals/host-scripts/lib/sync-tree-host.sh"
 PATHS_LIB="${REPO_ROOT}/internals/host-scripts/lib/host-volume-paths-host.sh"
@@ -138,6 +139,10 @@ artifact_source_tree_gate "${MANIFEST_DIR}" || exit 1
   echo "missing ${MATERIALIZE_LIB}" >&2
   exit 1
 }
+[[ -f "${PROJECT_LIB}" ]] || {
+  echo "missing ${PROJECT_LIB}" >&2
+  exit 1
+}
 [[ -f "${QUADLET_SESSION_LIB}" ]] || {
   echo "missing ${QUADLET_SESSION_LIB}" >&2
   exit 1
@@ -193,6 +198,7 @@ cp "${ARTIFACT_PROVIDES_LIB}" "${STAGE}/provides.sh"
 cp "${ARTIFACT_BINDING_LIB}" "${STAGE}/binding.sh"
 cp "${ARTIFACT_REQUIRES_LIB}" "${STAGE}/requires.sh"
 cp "${MATERIALIZE_LIB}" "${STAGE}/workload-materialize-host.sh"
+cp "${PROJECT_LIB}" "${STAGE}/workload-project-host.sh"
 cp "${QUADLET_SESSION_LIB}" "${STAGE}/quadlet-user-session.sh"
 cp "${SYNC_LIB}" "${STAGE}/sync-tree-host.sh"
 cp "${PATHS_LIB}" "${STAGE}/host-volume-paths-host.sh"

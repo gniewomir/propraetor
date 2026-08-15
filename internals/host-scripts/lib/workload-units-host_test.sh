@@ -132,4 +132,15 @@ workload_units_apply "${WL_NAME}" stop "${SYSTEMD_STAGE}" || fail "apply with ho
 [[ -f "${HOOK_LOG}" ]] || fail "before_reload hook must run"
 pass "before_reload hook runs"
 
+# --- sync_sot same-inode stage (post-projection Setup) must not wipe bag (#228) ---
+reset
+mkdir -p "${WORKLOADS_ROOT}/${WL_NAME}/systemd"
+printf '[Container]\nImage=localhost/proj\n' >"${WORKLOADS_ROOT}/${WL_NAME}/systemd/proj.container"
+SOT_BAG="${WORKLOADS_ROOT}/${WL_NAME}/systemd"
+workload_unit_sync_sot "${WL_NAME}" "${SOT_BAG}" \
+  || fail "same-inode sync_sot must succeed"
+[[ -f "${SOT_BAG}/proj.container" ]] \
+  || fail "same-inode sync_sot must not wipe projected systemd bag"
+pass "sync_sot same-inode stage preserves SoT bag"
+
 echo "All workload-units-host offline tests passed."
