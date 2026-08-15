@@ -11,17 +11,19 @@
 set -euo pipefail
 
 USER_NAME="${PLATFORM_USER:-platform}"
-WORKLOADS_ROOT=/var/lib/host-volume/internals/workloads
-WORKLOADS_DATA=/var/lib/host-volume/data/workloads
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Staged siblings only (Host delivery packs this payload). No Host Volume dual-read (ADR-0018).
+# shellcheck source=host-volume-paths-host.sh
+source "${HERE}/host-volume-paths-host.sh"
 # shellcheck source=workload-units-host.sh
 source "${HERE}/workload-units-host.sh"
 # shellcheck source=workload-environment-host.sh
 source "${HERE}/workload-environment-host.sh"
 # shellcheck source=quadlet-user-session.sh
 source "${HERE}/quadlet-user-session.sh"
+WORKLOADS_ROOT="$(host_volume_workloads_sot_root)"
+WORKLOADS_DATA="$(host_volume_workloads_persist_root)"
 
 command -v python3 >/dev/null || {
   echo "python3 required on Host for Purge" >&2

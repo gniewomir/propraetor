@@ -33,12 +33,14 @@ done
 }
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-HV_ROOT=/var/lib/host-volume
-INTERNALS_ROOT="${HV_ROOT}/internals"
-DATA_ROOT="${HV_ROOT}/data"
-HOST_SCRIPTS_ROOT="${INTERNALS_ROOT}/host-scripts"
+# shellcheck source=lib/host-volume-paths-host.sh
+source "${HERE}/lib/host-volume-paths-host.sh"
 # shellcheck source=lib/sync-tree-host.sh
 source "${HERE}/lib/sync-tree-host.sh"
+HV_ROOT="$(host_volume_mount_root)"
+INTERNALS_ROOT="$(host_volume_sot_root)"
+DATA_ROOT="$(host_volume_persist_root)"
+HOST_SCRIPTS_ROOT="$(host_volume_host_scripts_root)"
 
 # Hard cut (ADR-0018 / ADR-0041): retire components/ + components_data/.
 rm -rf "${HV_ROOT:?}/components" "${HV_ROOT:?}/components_data"

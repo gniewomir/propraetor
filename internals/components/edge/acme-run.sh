@@ -8,23 +8,28 @@
 # Missing EDGE_ACME_DIRECTORY defaults to staging; production is Environment acme.json opt-in.
 set -euo pipefail
 
-DATA_ROOT=/var/lib/host-volume/data/components/edge
+# Path vocabulary bootstrap (#214). Host Volume SoT segment "internals/" ≠ repo internals/.
+# shellcheck source=../../host-scripts/lib/host-volume-paths-host.sh
+source "${HV_ROOT:-/var/lib/host-volume}/internals/host-scripts/lib/host-volume-paths-host.sh"
+
+DATA_ROOT="$(host_volume_component_persist edge)"
 ROUTES_DIR="${DATA_ROOT}/routes"
 CERTS_DIR="${DATA_ROOT}/certs"
 ACME_DIR="${DATA_ROOT}/acme"
 ACME_WWW="${DATA_ROOT}/acme-www"
 WANT_LIST="${ACME_DIR}/want-list"
-LEGO_BIN="${LEGO_BIN:-/var/lib/host-volume/data/components/edge/acme/bin/lego}"
+LEGO_BIN="${LEGO_BIN:-${DATA_ROOT}/acme/bin/lego}"
 USER_NAME="${PLATFORM_USER:-platform}"
+_hv_lib="$(host_volume_host_scripts_root)/lib"
 
 # shellcheck source=../../host-scripts/lib/quadlet-user-session.sh
-source /var/lib/host-volume/internals/host-scripts/lib/quadlet-user-session.sh
+source "${_hv_lib}/quadlet-user-session.sh"
 # shellcheck source=../../host-scripts/lib/edge-want-list-host.sh
-source /var/lib/host-volume/internals/host-scripts/lib/edge-want-list-host.sh
+source "${_hv_lib}/edge-want-list-host.sh"
 # shellcheck source=../../host-scripts/lib/edge-acme-issue-host.sh
-source /var/lib/host-volume/internals/host-scripts/lib/edge-acme-issue-host.sh
+source "${_hv_lib}/edge-acme-issue-host.sh"
 # shellcheck source=../../host-scripts/lib/edge-front-door-host.sh
-source /var/lib/host-volume/internals/host-scripts/lib/edge-front-door-host.sh
+source "${_hv_lib}/edge-front-door-host.sh"
 
 mkdir -p "${ACME_DIR}" "${ACME_WWW}" "${CERTS_DIR}" "${ROUTES_DIR}"
 

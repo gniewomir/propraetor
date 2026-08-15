@@ -27,11 +27,14 @@ mkdir -p "${HV}" "${STAGE}/lib"
 cp "${REPO_ROOT}/internals/host-scripts/lib/sync-tree-host.sh" "${STAGE}/lib/sync-tree-host.sh"
 cp "${REPO_ROOT}/internals/host-scripts/lib/workload-materialize-host.sh" \
   "${STAGE}/lib/workload-materialize-host.sh"
+cp "${REPO_ROOT}/internals/host-scripts/lib/host-volume-paths-host.sh" \
+  "${STAGE}/lib/host-volume-paths-host.sh"
 cp "${REPO_ROOT}/internals/lib/artifact/source.sh" "${STAGE}/lib/source.sh"
 cp "${REPO_ROOT}/internals/lib/artifact/provides.sh" "${STAGE}/lib/provides.sh"
 
-sed -e "s|/var/lib/host-volume|${HV}|g" "${HOST_SCRIPT}" >"${TMP}/mirror-run.sh"
+cp "${HOST_SCRIPT}" "${TMP}/mirror-run.sh"
 chmod +x "${TMP}/mirror-run.sh"
+export HV_ROOT="${HV}"
 
 mkdir -p "${TMP}/bin"
 cat >"${TMP}/bin/chown" <<'EOF'

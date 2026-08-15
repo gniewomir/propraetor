@@ -3,10 +3,14 @@
 # ensure-components places operator-staged ACME / Database admin files here;
 # Edge and Database Setup read these paths — not ephemeral /tmp handoff strings.
 # Sourced by ensure-components-host and by Edge/Database Setup when resolving
-# default stage paths. Ambient: HV_ROOT (default /var/lib/host-volume).
+# default stage paths. Ambient: HV_ROOT (via host_volume_* path vocabulary).
+
+_component_handoff_lib_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=host-volume-paths-host.sh
+source "${_component_handoff_lib_dir}/host-volume-paths-host.sh"
 
 component_handoff_root() {
-  printf '%s\n' "${HV_ROOT:-/var/lib/host-volume}/data/components/handoff"
+  printf '%s\n' "$(host_volume_components_persist_root)/handoff"
 }
 
 component_handoff_acme_want_list() {

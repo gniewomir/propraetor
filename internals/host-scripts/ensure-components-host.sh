@@ -50,19 +50,21 @@ done
 }
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-HV_ROOT="${HV_ROOT:-/var/lib/host-volume}"
-INTERNALS_ROOT="${HV_ROOT}/internals"
-DATA_ROOT="${HV_ROOT}/data"
-COMPONENTS_ROOT="${INTERNALS_ROOT}/components"
-HOST_SCRIPTS_ROOT="${INTERNALS_ROOT}/host-scripts"
-WANT_STAGE="${HERE}/platform-acme-want-list"
-ACME_ENV_STAGE="${HERE}/platform-acme.env"
-DB_ADMIN_STAGE="${HERE}/platform-database-admin.env"
-SETUP_SCRIPT="${SLOT}.sh"
+# shellcheck source=lib/host-volume-paths-host.sh
+source "${HERE}/lib/host-volume-paths-host.sh"
 # shellcheck source=lib/sync-tree-host.sh
 source "${HERE}/lib/sync-tree-host.sh"
 # shellcheck source=lib/component-handoff-host.sh
 source "${HERE}/lib/component-handoff-host.sh"
+HV_ROOT="$(host_volume_mount_root)"
+INTERNALS_ROOT="$(host_volume_sot_root)"
+DATA_ROOT="$(host_volume_persist_root)"
+COMPONENTS_ROOT="$(host_volume_components_sot_root)"
+HOST_SCRIPTS_ROOT="$(host_volume_host_scripts_root)"
+WANT_STAGE="${HERE}/platform-acme-want-list"
+ACME_ENV_STAGE="${HERE}/platform-acme.env"
+DB_ADMIN_STAGE="${HERE}/platform-database-admin.env"
+SETUP_SCRIPT="${SLOT}.sh"
 
 need_database=0
 for name in "${COMPONENTS[@]}"; do

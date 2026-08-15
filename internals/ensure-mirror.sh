@@ -18,6 +18,7 @@ SYNC_LIB="${REPO_ROOT}/internals/host-scripts/lib/sync-tree-host.sh"
 MATERIALIZE_LIB="${REPO_ROOT}/internals/host-scripts/lib/workload-materialize-host.sh"
 ARTIFACT_SOURCE_LIB="${REPO_ROOT}/internals/lib/artifact/source.sh"
 ARTIFACT_PROVIDES_LIB="${REPO_ROOT}/internals/lib/artifact/provides.sh"
+PATHS_LIB="${REPO_ROOT}/internals/host-scripts/lib/host-volume-paths-host.sh"
 # shellcheck source=lib/cli.sh
 source "${REPO_ROOT}/internals/lib/cli.sh"
 # shellcheck source=lib/environment/environment.sh
@@ -62,6 +63,10 @@ environment_activate "${STACK_DIR}" "${CLI_env}" || exit 1
   echo "missing ${ARTIFACT_PROVIDES_LIB}" >&2
   exit 1
 }
+[[ -f "${PATHS_LIB}" ]] || {
+  echo "missing ${PATHS_LIB}" >&2
+  exit 1
+}
 
 command -v terraform >/dev/null || { echo "terraform not found" >&2; exit 1; }
 command -v ssh >/dev/null || { echo "ssh not found" >&2; exit 1; }
@@ -79,6 +84,7 @@ cp "${SYNC_LIB}" "${STAGE}/lib/sync-tree-host.sh"
 cp "${MATERIALIZE_LIB}" "${STAGE}/lib/workload-materialize-host.sh"
 cp "${ARTIFACT_SOURCE_LIB}" "${STAGE}/lib/source.sh"
 cp "${ARTIFACT_PROVIDES_LIB}" "${STAGE}/lib/provides.sh"
+cp "${PATHS_LIB}" "${STAGE}/lib/host-volume-paths-host.sh"
 cp "${HOST_SCRIPT}" "${STAGE}/ensure-mirror-host.sh"
 
 mirrored=0

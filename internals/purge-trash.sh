@@ -20,6 +20,7 @@ QUADLETS_LIB="${REPO_ROOT}/internals/host-scripts/lib/workload-quadlets-host.sh"
 UNIT_CONSUMERS_LIB="${REPO_ROOT}/internals/host-scripts/lib/unit-consumers-host.sh"
 ENV_HOST_LIB="${REPO_ROOT}/internals/host-scripts/lib/workload-environment-host.sh"
 QUADLET_SESSION_LIB="${REPO_ROOT}/internals/host-scripts/lib/quadlet-user-session.sh"
+PATHS_LIB="${REPO_ROOT}/internals/host-scripts/lib/host-volume-paths-host.sh"
 # shellcheck source=lib/cli.sh
 source "${REPO_ROOT}/internals/lib/cli.sh"
 # shellcheck source=lib/environment/environment.sh
@@ -64,6 +65,10 @@ environment_activate "${STACK_DIR}" "${CLI_env}" || exit 1
   echo "missing ${QUADLET_SESSION_LIB}" >&2
   exit 1
 }
+[[ -f "${PATHS_LIB}" ]] || {
+  echo "missing ${PATHS_LIB}" >&2
+  exit 1
+}
 
 command -v terraform >/dev/null || { echo "terraform not found" >&2; exit 1; }
 command -v ssh >/dev/null || { echo "ssh not found" >&2; exit 1; }
@@ -79,6 +84,7 @@ cp "${QUADLETS_LIB}" "${STAGE}/workload-quadlets-host.sh"
 cp "${UNIT_CONSUMERS_LIB}" "${STAGE}/unit-consumers-host.sh"
 cp "${ENV_HOST_LIB}" "${STAGE}/workload-environment-host.sh"
 cp "${QUADLET_SESSION_LIB}" "${STAGE}/quadlet-user-session.sh"
+cp "${PATHS_LIB}" "${STAGE}/host-volume-paths-host.sh"
 
 host_delivery_run "${STAGE}" "/tmp/platform-purge-trash" \
   "PLATFORM_USER=${USER_NAME} bash /tmp/platform-purge-trash/purge-trash-host.sh"

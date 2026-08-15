@@ -9,14 +9,15 @@ set -euo pipefail
 
 USER_NAME="${1:?ensure-mirror-host requires Platform User}"
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-HV_ROOT=/var/lib/host-volume
-WORKLOADS_ROOT="${HV_ROOT}/internals/workloads"
 STAGE_WORKLOADS="${HERE}/workloads"
 
+# shellcheck source=lib/host-volume-paths-host.sh
+source "${HERE}/lib/host-volume-paths-host.sh"
 # shellcheck source=lib/sync-tree-host.sh
 source "${HERE}/lib/sync-tree-host.sh"
 # shellcheck source=lib/workload-materialize-host.sh
 source "${HERE}/lib/workload-materialize-host.sh"
+WORKLOADS_ROOT="$(host_volume_workloads_sot_root)"
 
 [[ -d "${STAGE_WORKLOADS}" ]] || {
   echo "ensure-mirror-host: staged workloads/ missing" >&2

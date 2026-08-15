@@ -19,6 +19,7 @@ UNIT_CONSUMERS_LIB="${REPO_ROOT}/internals/host-scripts/lib/unit-consumers-host.
 ENV_HOST_LIB="${REPO_ROOT}/internals/host-scripts/lib/workload-environment-host.sh"
 QUADLET_SESSION_LIB="${REPO_ROOT}/internals/host-scripts/lib/quadlet-user-session.sh"
 ORPHAN_LIB="${REPO_ROOT}/internals/host-scripts/lib/orphan-reap-host.sh"
+PATHS_LIB="${REPO_ROOT}/internals/host-scripts/lib/host-volume-paths-host.sh"
 # shellcheck source=lib/cli.sh
 source "${REPO_ROOT}/internals/lib/cli.sh"
 # shellcheck source=lib/environment/environment.sh
@@ -42,7 +43,7 @@ cli_operator_parse CLI -- "$@" || exit 1
 environment_activate "${STACK_DIR}" "${CLI_env}" || exit 1
 
 for f in "${HOST_SCRIPT}" "${UNITS_LIB}" "${QUADLETS_LIB}" "${UNIT_CONSUMERS_LIB}" \
-  "${ENV_HOST_LIB}" "${QUADLET_SESSION_LIB}" "${ORPHAN_LIB}"; do
+  "${ENV_HOST_LIB}" "${QUADLET_SESSION_LIB}" "${ORPHAN_LIB}" "${PATHS_LIB}"; do
   [[ -f "${f}" ]] || {
     echo "missing ${f}" >&2
     exit 1
@@ -67,6 +68,7 @@ cp "${UNIT_CONSUMERS_LIB}" "${STAGE}/unit-consumers-host.sh"
 cp "${ENV_HOST_LIB}" "${STAGE}/workload-environment-host.sh"
 cp "${QUADLET_SESSION_LIB}" "${STAGE}/quadlet-user-session.sh"
 cp "${ORPHAN_LIB}" "${STAGE}/orphan-reap-host.sh"
+cp "${PATHS_LIB}" "${STAGE}/host-volume-paths-host.sh"
 
 : >"${STAGE}/keep.txt"
 while IFS= read -r wl_name; do

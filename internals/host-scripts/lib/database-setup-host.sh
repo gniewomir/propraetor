@@ -15,6 +15,8 @@
 # Omitted stage path resolves from the Component Setup handoff root.
 
 _database_setup_lib_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=host-volume-paths-host.sh
+source "${_database_setup_lib_dir}/host-volume-paths-host.sh"
 # shellcheck source=quadlet-user-session.sh
 source "${_database_setup_lib_dir}/quadlet-user-session.sh"
 # shellcheck source=component-units-host.sh
@@ -86,8 +88,8 @@ database_setup() {
   [[ -n "${staged_admin_env}" ]] || staged_admin_env="$(component_handoff_database_admin_env)"
 
   USER_NAME="${USER_NAME:-platform}"
-  DATA_ROOT="${DATA_ROOT:-/var/lib/host-volume/data/components/database}"
-  WORKLOADS_ROOT="${WORKLOADS_ROOT:-/var/lib/host-volume/internals/workloads}"
+  DATA_ROOT="${DATA_ROOT:-$(host_volume_component_persist database)}"
+  WORKLOADS_ROOT="${WORKLOADS_ROOT:-$(host_volume_workloads_sot_root)}"
   ADMIN_ENV="${DATA_ROOT}/admin/environment"
   PGDATA_DIR="${DATA_ROOT}/pgdata"
   CLIENTS_DIR="${DATA_ROOT}/clients"

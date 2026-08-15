@@ -13,8 +13,12 @@
 set -euo pipefail
 
 USER_NAME="${PLATFORM_USER:-platform}"
+_ihp_here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=lib/host-volume-paths-host.sh
+source "${_ihp_here}/lib/host-volume-paths-host.sh"
 JOURNALD_DROPIN="${IHP_JOURNALD_DROPIN:-/etc/systemd/journald.conf.d/99-platform-journal.conf}"
 CONTAINERS_CONF="${IHP_CONTAINERS_CONF:-/home/${USER_NAME}/.config/containers/containers.conf}"
+HV_MOUNT="$(host_volume_mount_root)"
 
 echo "Waiting for Initial Host Provisioning..." >&2
 # cloud-init ≥23.4: 0 = clean success; non-zero includes 2 = finished with
@@ -77,9 +81,9 @@ WAIT_SECONDS="${HOST_VOLUME_MOUNT_WAIT_SECONDS:-300}"
 POLL_SECONDS="${HOST_VOLUME_MOUNT_POLL_SECONDS:-2}"
 deadline=$((SECONDS + WAIT_SECONDS))
 # findmnt MOUNTPOINT (not -T): -T follows the path and can match / if unmounted.
-while ! findmnt --mountpoint /var/lib/host-volume >/dev/null 2>&1; do
+while ! findmnt --mountpoint "${HV_MOUNT}" >/dev/null 2>&1; do
   if ((SECONDS >= deadline)); then
-    echo "Host Volume mount /var/lib/host-volume missing after ${WAIT_SECONDS}s (see host-volume.service)" >&2
+    echo "Host Volume mount ${HV_MOUNT} missing after ${WAIT_SECONDS}s (see host-volume.service)" >&2
     exit 1
   fi
   sleep "${POLL_SECONDS}"

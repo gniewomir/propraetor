@@ -23,17 +23,18 @@ trap 'rm -rf "${TMP}"' EXIT
 HV="${TMP}/host-volume"
 mkdir -p "${HV}" "${TMP}/lib"
 cp "${REPO_ROOT}/internals/host-scripts/lib/sync-tree-host.sh" "${TMP}/lib/sync-tree-host.sh"
+cp "${REPO_ROOT}/internals/host-scripts/lib/host-volume-paths-host.sh" \
+  "${TMP}/lib/host-volume-paths-host.sh"
 cp "${REPO_ROOT}/internals/host-scripts/lib/component-handoff-host.sh" \
   "${TMP}/lib/component-handoff-host.sh"
 printf '# ensure unit stub lib\n' >"${TMP}/lib/stub.sh"
 printf '%s\n' 'alpha.example.test' >"${TMP}/platform-acme-want-list"
 printf '%s\n' 'EDGE_ACME_DIRECTORY=staging' >"${TMP}/platform-acme.env"
 
-# Runnable copy with Host Volume redirected into TMP (handoff lives under HV_ROOT).
-sed \
-  -e "s|/var/lib/host-volume|${HV}|g" \
-  "${HOST_SCRIPT}" >"${TMP}/ensure-run.sh"
+# Runnable copy; Host Volume via ambient HV_ROOT (#214 path vocabulary).
+cp "${HOST_SCRIPT}" "${TMP}/ensure-run.sh"
 chmod +x "${TMP}/ensure-run.sh"
+export HV_ROOT="${HV}"
 
 mkdir -p "${TMP}/edge" "${TMP}/fabric"
 cat >"${TMP}/edge/pre-workloads.sh" <<EOF
@@ -239,10 +240,11 @@ pass "ensure-components updates Edge tree without replacing directory/file inode
 
 # --- both cogs in order: Fabric then Components leave both installed ---
 FABRIC_SCRIPT="${REPO_ROOT}/internals/host-scripts/ensure-fabric-host.sh"
-sed -e "s|/var/lib/host-volume|${HV}|g" "${FABRIC_SCRIPT}" >"${TMP}/ensure-fabric-run.sh"
+cp "${FABRIC_SCRIPT}" "${TMP}/ensure-fabric-run.sh"
 chmod +x "${TMP}/ensure-fabric-run.sh"
 rm -rf "${HV}"
 mkdir -p "${HV}"
+export HV_ROOT="${HV}"
 : >"${TMP}/setup.order"
 bash "${TMP}/ensure-fabric-run.sh" "${USER_NAME}" --fabric fabric 2>"${TMP}/stderr5" \
   || fail "ordered ensure-fabric failed: $(cat "${TMP}/stderr5")"

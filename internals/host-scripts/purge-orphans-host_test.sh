@@ -6,6 +6,7 @@ set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 HOST_SCRIPT="${REPO_ROOT}/internals/host-scripts/purge-orphans-host.sh"
 ORPHAN_LIB="${REPO_ROOT}/internals/host-scripts/lib/orphan-reap-host.sh"
+PATHS_LIB="${REPO_ROOT}/internals/host-scripts/lib/host-volume-paths-host.sh"
 
 fail() { echo "FAIL: $*" >&2; exit 1; }
 pass() { echo "PASS: $*"; }
@@ -16,9 +17,11 @@ HV="${TMP}/host-volume"
 STAGE="${TMP}/stage"
 mkdir -p "${STAGE}" "${HV}/internals/workloads" "${HV}/data/workloads"
 
-sed -e "s|/var/lib/host-volume|${HV}|g" "${HOST_SCRIPT}" >"${STAGE}/purge-orphans-host.sh"
+cp "${HOST_SCRIPT}" "${STAGE}/purge-orphans-host.sh"
 cp "${ORPHAN_LIB}" "${STAGE}/orphan-reap-host.sh"
+cp "${PATHS_LIB}" "${STAGE}/host-volume-paths-host.sh"
 chmod +x "${STAGE}/purge-orphans-host.sh"
+export HV_ROOT="${HV}"
 
 # Stub Host libs: record purge/clear; fake session paths into TMP.
 cat >"${STAGE}/workload-units-host.sh" <<EOF

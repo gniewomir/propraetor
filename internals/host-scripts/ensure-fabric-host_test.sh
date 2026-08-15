@@ -23,13 +23,14 @@ trap 'rm -rf "${TMP}"' EXIT
 HV="${TMP}/host-volume"
 mkdir -p "${HV}" "${TMP}/lib"
 cp "${REPO_ROOT}/internals/host-scripts/lib/sync-tree-host.sh" "${TMP}/lib/sync-tree-host.sh"
+cp "${REPO_ROOT}/internals/host-scripts/lib/host-volume-paths-host.sh" \
+  "${TMP}/lib/host-volume-paths-host.sh"
 printf '# ensure-fabric unit stub lib\n' >"${TMP}/lib/stub.sh"
 
-# Runnable copy with Host Volume redirected into TMP.
-sed \
-  -e "s|/var/lib/host-volume|${HV}|g" \
-  "${HOST_SCRIPT}" >"${TMP}/ensure-run.sh"
+# Runnable copy; Host Volume via ambient HV_ROOT (#214 path vocabulary).
+cp "${HOST_SCRIPT}" "${TMP}/ensure-run.sh"
 chmod +x "${TMP}/ensure-run.sh"
+export HV_ROOT="${HV}"
 
 mkdir -p "${TMP}/fabric" "${TMP}/edge"
 cat >"${TMP}/fabric/setup.sh" <<EOF

@@ -12,11 +12,9 @@ USER_NAME="${PLATFORM_USER:-platform}"
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 MANIFEST="${TREE}/manifest.json"
 
-# SoT (Mirrored materialize) vs durable Host bytes (ADR-0053 / ADR-0047 / ADR-0041).
-WORKLOADS_ROOT=/var/lib/host-volume/internals/workloads
-WORKLOADS_DATA=/var/lib/host-volume/data/workloads
-
 # Staged payload beside this script. No Host Volume dual-read (ADR-0018).
+# shellcheck source=host-volume-paths-host.sh
+source "${HERE}/host-volume-paths-host.sh"
 # shellcheck source=quadlet-user-session.sh
 source "${HERE}/quadlet-user-session.sh"
 # shellcheck source=workload-units-host.sh
@@ -33,6 +31,10 @@ source "${HERE}/manifest.sh"
 source "${HERE}/binding.sh"
 # shellcheck source=workload-materialize-host.sh
 source "${HERE}/workload-materialize-host.sh"
+
+# SoT (Mirrored materialize) vs durable Host bytes (ADR-0053 / ADR-0047 / ADR-0041).
+WORKLOADS_ROOT="$(host_volume_workloads_sot_root)"
+WORKLOADS_DATA="$(host_volume_workloads_persist_root)"
 
 [[ -d "${TREE}" ]] || {
   echo "workload tree missing: ${TREE}" >&2

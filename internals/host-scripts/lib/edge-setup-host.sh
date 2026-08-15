@@ -20,6 +20,8 @@
 # Returns 0 only when Domain presence is reconciled and front door answers.
 
 _edge_setup_lib_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=host-volume-paths-host.sh
+source "${_edge_setup_lib_dir}/host-volume-paths-host.sh"
 # shellcheck source=quadlet-user-session.sh
 source "${_edge_setup_lib_dir}/quadlet-user-session.sh"
 # shellcheck source=edge-want-list-host.sh
@@ -82,7 +84,7 @@ edge_setup() {
   [[ -n "${staged_acme_env}" ]] || staged_acme_env="$(component_handoff_acme_env)"
 
   USER_NAME="${USER_NAME:-platform}"
-  DATA_ROOT="${DATA_ROOT:-/var/lib/host-volume/data/components/edge}"
+  DATA_ROOT="${DATA_ROOT:-$(host_volume_component_persist edge)}"
   ROUTES_DIR="${DATA_ROOT}/routes"
   DOMAINS_DIR="${DATA_ROOT}/domains"
   CERTS_DIR="${DATA_ROOT}/certs"
@@ -115,7 +117,7 @@ edge_setup() {
 
   # Route Declarations: gather Intent-run Binding×Provides into Edge interior
   # (ADR-0040 / ADR-0041 / ADR-0053). Workload Setup/Purge do not write Edge routes.
-  WORKLOADS_ROOT="${WORKLOADS_ROOT:-/var/lib/host-volume/internals/workloads}"
+  WORKLOADS_ROOT="${WORKLOADS_ROOT:-$(host_volume_workloads_sot_root)}"
   local routes_changed=0
   if [[ "${skip_gather}" == "1" ]]; then
     EDGE_ROUTES_CHANGED=0
@@ -221,7 +223,7 @@ edge_setup_pre_workloads() {
   local staged_acme_env="${3:-}"
 
   USER_NAME="${USER_NAME:-platform}"
-  DATA_ROOT="${DATA_ROOT:-/var/lib/host-volume/data/components/edge}"
+  DATA_ROOT="${DATA_ROOT:-$(host_volume_component_persist edge)}"
   # Session begin so is-active probes the same user context Setup will use.
   if ! declare -F quadlet_user >/dev/null 2>&1; then
     # shellcheck source=quadlet-user-session.sh
