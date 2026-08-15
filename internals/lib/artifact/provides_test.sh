@@ -70,10 +70,19 @@ fi
 pass "invalid Provides fails closed"
 
 # --- reserved basenames ---
-want=$'binding.json\nmanifest.json\nprovides.json\nrequires.json'
+want=$'binding.json\nmanifest.json\npersist\nprovides.json\nrequires.json'
 got="$(artifact_reserved_basenames)"
 [[ "${got}" == "${want}" ]] || fail "reserved basenames order/content; got: ${got}"
 pass "reserved basenames"
+
+# --- directories key must not be reserved Persist ---
+cat >"${PROVIDES}" <<'EOF'
+{ "directories": { "persist": "./persist" } }
+EOF
+if artifact_provides_validate "${PROVIDES}" >/dev/null 2>&1; then
+  fail "Provides directories persist must fail closed"
+fi
+pass "Provides directories cannot target persist"
 
 # --- directories key must not be reserved ---
 cat >"${PROVIDES}" <<'EOF'

@@ -14,9 +14,9 @@ TMP="$(umask 077; mktemp -d "${TMPDIR:-/tmp}/component-handoff.XXXXXX")"
 trap 'rm -rf "${TMP}"' EXIT
 export HV_ROOT="${TMP}/host-volume"
 
-# --- path helpers resolve under HV_ROOT/data/components/handoff ---
+# --- path helpers resolve under HV_ROOT/components/handoff ---
 root="$(component_handoff_root)"
-[[ "${root}" == "${HV_ROOT}/data/components/handoff" ]] \
+[[ "${root}" == "${HV_ROOT}/components/handoff" ]] \
   || fail "handoff root wrong: ${root}"
 [[ "$(component_handoff_acme_want_list)" == "${root}/acme-want-list" ]] \
   || fail "acme want-list path wrong"

@@ -20,7 +20,7 @@ trap 'acceptance_wl_cleanup' EXIT
 host_ssh bash -s <<REMOTE
 set -euo pipefail
 for n in ${WL} ${KEEP}; do
-  rm -rf "/var/lib/host-volume/internals/workloads/\${n}" \
+  rm -rf "/host-volume/workloads/\${n}" \
          "/home/platform/.config/platform/workloads/\${n}"
   rm -f "/home/platform/.config/containers/systemd/\${n}"*.container
   rm -rf "/home/platform/.config/containers/systemd/\${n}"*.container.d
@@ -66,21 +66,21 @@ ensure_database_fulfillment
 "${REPO_ROOT}/internals/ensure-workload.sh" "${WL}" --env "${ENV_SLUG}"
 "${REPO_ROOT}/internals/ensure-workload.sh" "${KEEP}" --env "${ENV_SLUG}"
 
-host_ssh "test -f /var/lib/host-volume/data/components/database/clients/${WL}/client.crt" \
+host_ssh "test -f /host-volume/components/database/persist/clients/${WL}/client.crt" \
   || fail "expected durable client cert for orphan candidate after fulfill"
 pass "Component Setup fulfilled Database for soon-to-be orphan"
 
 # Drop from Environment → Host leftover becomes an orphan (Mirror leaves it alone).
 rm -rf "${FIX_DIR:?}/${WL}"
 "${REPO_ROOT}/internals/ensure-mirror.sh" --env "${ENV_SLUG}"
-host_ssh "test -f /var/lib/host-volume/internals/workloads/${WL}/manifest.json" \
+host_ssh "test -f /host-volume/workloads/${WL}/manifest.json" \
   || fail "Mirror must leave orphan SoT alone before Orphan Reap"
 
 "${REPO_ROOT}/internals/purge-orphans.sh" --env "${ENV_SLUG}"
 
-host_ssh "test ! -e /var/lib/host-volume/internals/workloads/${WL}" \
+host_ssh "test ! -e /host-volume/workloads/${WL}" \
   || fail "Orphan Reap must remove orphan SoT"
-host_ssh "test -f /var/lib/host-volume/data/components/database/clients/${WL}/client.crt" \
+host_ssh "test -f /host-volume/components/database/persist/clients/${WL}/client.crt" \
   || fail "Orphan Reap alone must not drop Database client material"
 
 retain_ok="$(host_ssh bash -s <<REMOTE
@@ -88,7 +88,7 @@ set -euo pipefail
 UID_NUM=\$(id -u platform)
 HOME_DIR=\$(getent passwd platform | cut -d: -f6)
 export XDG_RUNTIME_DIR=/run/user/\${UID_NUM}
-admin=\$(grep -E '^POSTGRES_USER=' /var/lib/host-volume/data/components/database/admin/environment \
+admin=\$(grep -E '^POSTGRES_USER=' /host-volume/components/database/persist/admin/environment \
   | head -n1 | cut -d= -f2-)
 [[ -n "\${admin}" ]] || { echo missing-admin; exit 0; }
 role=\$(runuser -u platform -- env HOME=\${HOME_DIR} XDG_RUNTIME_DIR=\$XDG_RUNTIME_DIR \
@@ -114,13 +114,13 @@ pass "Orphan Reap alone leaves role, database, and client material"
 
 ensure_database_post_workloads
 
-host_ssh "test ! -e /var/lib/host-volume/data/components/database/clients/${WL}" \
+host_ssh "test ! -e /host-volume/components/database/persist/clients/${WL}" \
   || fail "post-workloads must remove durable client material after Orphan Reap"
 host_ssh "test ! -e /home/platform/.config/platform/workloads/${WL}/database" \
   || fail "post-workloads must clear published Database binding after Orphan Reap"
 host_ssh "test ! -e /home/platform/.config/containers/systemd/${WL}.container.d/50-platform-database.conf" \
   || fail "post-workloads must clear Database drop-in after Orphan Reap"
-host_ssh "test -f /var/lib/host-volume/internals/workloads/${KEEP}/manifest.json" \
+host_ssh "test -f /host-volume/workloads/${KEEP}/manifest.json" \
   || fail "post-workloads must leave Environment Workloads alone"
 
 gone_ok="$(host_ssh bash -s <<REMOTE
@@ -128,7 +128,7 @@ set -euo pipefail
 UID_NUM=\$(id -u platform)
 HOME_DIR=\$(getent passwd platform | cut -d: -f6)
 export XDG_RUNTIME_DIR=/run/user/\${UID_NUM}
-admin=\$(grep -E '^POSTGRES_USER=' /var/lib/host-volume/data/components/database/admin/environment \
+admin=\$(grep -E '^POSTGRES_USER=' /host-volume/components/database/persist/admin/environment \
   | head -n1 | cut -d= -f2-)
 [[ -n "\${admin}" ]] || { echo missing-admin; exit 0; }
 role=\$(runuser -u platform -- env HOME=\${HOME_DIR} XDG_RUNTIME_DIR=\$XDG_RUNTIME_DIR \

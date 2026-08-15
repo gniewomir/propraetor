@@ -17,7 +17,7 @@ acceptance_wl_track "${WL}"
 trap 'acceptance_wl_cleanup' EXIT
 
 host_ssh \
-  "rm -rf /var/lib/host-volume/internals/workloads/${WL} \
+  "rm -rf /host-volume/workloads/${WL} \
           /home/platform/.config/platform/workloads/${WL}; \
    rm -f /home/platform/.config/containers/systemd/${WL}*.container; \
    rm -rf /home/platform/.config/containers/systemd/${WL}*.container.d" \
@@ -61,7 +61,7 @@ ensure_database_fulfillment
 
 host_ssh "test -f /home/platform/.config/platform/workloads/${WL}/database/environment" \
   || fail "expected published Database binding after fulfill"
-host_ssh "test -f /var/lib/host-volume/data/components/database/clients/${WL}/client.crt" \
+host_ssh "test -f /host-volume/components/database/persist/clients/${WL}/client.crt" \
   || fail "expected durable client cert after fulfill"
 pass "Component Setup published Database fulfillment for Intent run"
 
@@ -69,9 +69,9 @@ write_manifest trash
 "${REPO_ROOT}/internals/ensure-workload.sh" "${WL}" --env "${ENV_SLUG}"
 "${REPO_ROOT}/internals/purge-trash.sh" --env "${ENV_SLUG}"
 
-host_ssh "test ! -e /var/lib/host-volume/internals/workloads/${WL}" \
+host_ssh "test ! -e /host-volume/workloads/${WL}" \
   || fail "Purge should remove Intent trash SoT"
-host_ssh "test -f /var/lib/host-volume/data/components/database/clients/${WL}/client.crt" \
+host_ssh "test -f /host-volume/components/database/persist/clients/${WL}/client.crt" \
   || fail "Purge alone must not drop Database client material"
 # Binding may remain under Platform User tree — Purge clears EnvironmentFile only, not Database projection.
 host_ssh "test -f /home/platform/.config/platform/workloads/${WL}/database/environment" \
@@ -82,7 +82,7 @@ set -euo pipefail
 UID_NUM=\$(id -u platform)
 HOME_DIR=\$(getent passwd platform | cut -d: -f6)
 export XDG_RUNTIME_DIR=/run/user/\${UID_NUM}
-admin=\$(grep -E '^POSTGRES_USER=' /var/lib/host-volume/data/components/database/admin/environment \
+admin=\$(grep -E '^POSTGRES_USER=' /host-volume/components/database/persist/admin/environment \
   | head -n1 | cut -d= -f2-)
 [[ -n "\${admin}" ]] || { echo missing-admin; exit 0; }
 role=\$(runuser -u platform -- env HOME=\${HOME_DIR} XDG_RUNTIME_DIR=\$XDG_RUNTIME_DIR \
@@ -108,7 +108,7 @@ pass "Purge alone leaves role, database, client material, and binding"
 
 ensure_database_post_workloads
 
-host_ssh "test ! -e /var/lib/host-volume/data/components/database/clients/${WL}" \
+host_ssh "test ! -e /host-volume/components/database/persist/clients/${WL}" \
   || fail "post-workloads must remove durable client material after Purge"
 host_ssh "test ! -e /home/platform/.config/platform/workloads/${WL}/database" \
   || fail "post-workloads must clear published Database binding after Purge"
@@ -120,7 +120,7 @@ set -euo pipefail
 UID_NUM=\$(id -u platform)
 HOME_DIR=\$(getent passwd platform | cut -d: -f6)
 export XDG_RUNTIME_DIR=/run/user/\${UID_NUM}
-admin=\$(grep -E '^POSTGRES_USER=' /var/lib/host-volume/data/components/database/admin/environment \
+admin=\$(grep -E '^POSTGRES_USER=' /host-volume/components/database/persist/admin/environment \
   | head -n1 | cut -d= -f2-)
 [[ -n "\${admin}" ]] || { echo missing-admin; exit 0; }
 role=\$(runuser -u platform -- env HOME=\${HOME_DIR} XDG_RUNTIME_DIR=\$XDG_RUNTIME_DIR \

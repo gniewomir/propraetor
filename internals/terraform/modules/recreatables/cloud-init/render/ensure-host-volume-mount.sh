@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# Host-only: converge Host Volume at /var/lib/host-volume (ADR-0031).
+# Host-only: converge Host Volume at /host-volume (ADR-0031 / ADR-0054).
 # Usage: ensure-host-volume-mount.sh /dev/disk/by-id/scsi-0DO_Volume_<name>
 # Idempotent. On foreign mount of the device, umount then mount from fstab.
 # EBUSY on umount fails the attempt (systemd Restart=on-failure retries).
 set -euo pipefail
 
 DEVICE="${1:-}"
-TARGET="${HOST_VOLUME_TARGET:-/var/lib/host-volume}"
+TARGET="${HOST_VOLUME_TARGET:-/host-volume}"
 # Per-attempt device wait; longer horizon is Restart=on-failure + start-limit.
 WAIT_SECONDS="${HOST_VOLUME_DEVICE_WAIT_SECONDS:-20}"
 
@@ -26,7 +26,7 @@ done
 
 self_enable() {
   # WantedBy symlink without runcmd (ADR-0031). Skip in tests (non-canonical TARGET).
-  if [[ "${TARGET}" != "/var/lib/host-volume" ]]; then
+  if [[ "${TARGET}" != "/host-volume" ]]; then
     return 0
   fi
   mkdir -p /etc/systemd/system/multi-user.target.wants

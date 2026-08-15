@@ -73,7 +73,7 @@ write_files:
   - path: /etc/systemd/system/host-volume.service
     content: |
       [Unit]
-      Description=Host Volume at /var/lib/host-volume
+      Description=Host Volume at /host-volume
       DefaultDependencies=no
       After=local-fs-pre.target systemd-udev-settle.service
       Before=multi-user.target
@@ -101,7 +101,7 @@ write_files:
     content: |
       ACTION=="add", SUBSYSTEM=="block", ENV{DEVTYPE}=="disk", ENV{ID_SERIAL}=="0DO_Volume_${volume_name}", TAG+="systemd", ENV{SYSTEMD_WANTS}+="host-volume.service"
 mounts:
-  - [ /dev/disk/by-id/scsi-0DO_Volume_${volume_name}, /var/lib/host-volume, ext4, "defaults,nofail,discard,noatime", "0", "2" ]
+  - [ /dev/disk/by-id/scsi-0DO_Volume_${volume_name}, /host-volume, ext4, "defaults,nofail,discard,noatime", "0", "2" ]
 runcmd:
   - sysctl --system
   - loginctl enable-linger platform

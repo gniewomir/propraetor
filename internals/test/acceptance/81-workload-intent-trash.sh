@@ -55,12 +55,12 @@ WantedBy=default.target
 EOF
 
 want_before="$(host_ssh \
-  "cat /var/lib/host-volume/data/components/edge/acme/want-list 2>/dev/null || true")"
+  "cat /host-volume/components/edge/persist/acme/want-list 2>/dev/null || true")"
 
 host_ssh bash -s <<REMOTE
 set -euo pipefail
-rm -rf /var/lib/host-volume/internals/workloads/${WL} \
-  /var/lib/host-volume/internals/workloads/reclaim-intent
+rm -rf /host-volume/workloads/${WL} \
+  /host-volume/workloads/reclaim-intent
 rm -f /home/platform/.config/containers/systemd/${WL}.container \
   /home/platform/.config/containers/systemd/reclaim-intent.container
 REMOTE
@@ -70,13 +70,13 @@ write_manifest run
 
 if [[ -n "${HOST}" ]]; then
   edge_before="$(host_ssh \
-    "ls /var/lib/host-volume/data/components/edge/routes/${WL}.conf \
-         /var/lib/host-volume/data/components/edge/routes/${WL}--* 2>/dev/null || true")"
+    "ls /host-volume/components/edge/persist/routes/${WL}.conf \
+         /host-volume/components/edge/persist/routes/${WL}--* 2>/dev/null || true")"
   [[ -z "${edge_before}" ]] \
     || fail "Workload Setup alone must not write Edge Route interior (got: ${edge_before})"
   ensure_edge_route_fulfillment
   host_ssh \
-    "test -f /var/lib/host-volume/data/components/edge/routes/${WL}--${HOST}.conf" \
+    "test -f /host-volume/components/edge/persist/routes/${WL}--${HOST}.conf" \
     || fail "Edge Setup should fulfill operator Route ${WL}--${HOST}.conf"
 else
   echo "SOFT-SKIP: empty Domain want-list — Route install assertions"
@@ -88,27 +88,27 @@ host_ssh \
 write_manifest trash
 "${REPO_ROOT}/internals/ensure-workload.sh" "${WL}" --env "${PLATFORM_ENV:-test}"
 
-host_ssh "test -f /var/lib/host-volume/internals/workloads/${WL}/manifest.json" \
+host_ssh "test -f /host-volume/workloads/${WL}/manifest.json" \
   || fail "Intent trash Workload data should remain until Purge"
 if [[ -n "${HOST}" ]]; then
   host_ssh \
-    "test -f /var/lib/host-volume/internals/workloads/${WL}/routes/probe.conf" \
+    "test -f /host-volume/workloads/${WL}/routes/probe.conf" \
     || fail "Intent trash should retain Provides Route fragment under Workload tree until Purge"
   host_ssh \
-    "test -f /var/lib/host-volume/internals/workloads/${WL}/binding.json" \
+    "test -f /host-volume/workloads/${WL}/binding.json" \
     || fail "Intent trash should retain Binding until Purge"
   still_present="$(host_ssh \
-    "ls /var/lib/host-volume/data/components/edge/routes/${WL}.conf /var/lib/host-volume/data/components/edge/routes/${WL}--* 2>/dev/null || true")"
+    "ls /host-volume/components/edge/persist/routes/${WL}.conf /host-volume/components/edge/persist/routes/${WL}--* 2>/dev/null || true")"
   [[ -n "${still_present}" ]] \
     || fail "Workload Setup alone must not drop Edge Routes on Intent trash"
   ensure_edge_route_fulfillment
 fi
-host_ssh "test -f /var/lib/host-volume/internals/workloads/${WL}/quadlets/${WL}.container" \
+host_ssh "test -f /host-volume/workloads/${WL}/quadlets/${WL}.container" \
   || fail "Intent trash should retain Quadlet SoT until Purge"
 host_ssh "test -f /home/platform/.config/containers/systemd/${WL}.container" \
   || fail "Intent trash should retain unit file until Purge"
 trash_routes="$(host_ssh \
-  "ls /var/lib/host-volume/data/components/edge/routes/${WL}.conf /var/lib/host-volume/data/components/edge/routes/${WL}--* 2>/dev/null || true")"
+  "ls /host-volume/components/edge/persist/routes/${WL}.conf /host-volume/components/edge/persist/routes/${WL}--* 2>/dev/null || true")"
 [[ -z "${trash_routes}" ]] || fail "Edge Setup must drop fulfillment for Intent trash (got: ${trash_routes})"
 active="$(host_ssh bash -s <<REMOTE
 UID_NUM=\$(id -u platform)
@@ -123,7 +123,7 @@ REMOTE
 )"
 [[ "${active}" == "inactive" ]] || fail "Intent trash: Workload Quadlet should not be active"
 want_after="$(host_ssh \
-  "cat /var/lib/host-volume/data/components/edge/acme/want-list 2>/dev/null || true")"
+  "cat /host-volume/components/edge/persist/acme/want-list 2>/dev/null || true")"
 [[ "${want_after}" == "${want_before}" ]] \
   || fail "Intent trash must not rewrite ACME want-list"
 pass "Intent trash drops Edge fulfillment via Edge Setup; stops Quadlets; data retained until Purge; want-list unchanged"
@@ -138,6 +138,6 @@ cat >"${FIX_DIR}/reclaim-intent/manifest.json" <<EOF
 EOF
 "${REPO_ROOT}/internals/ensure-workload.sh" "reclaim-intent" --env "${PLATFORM_ENV:-test}"
 host_ssh \
-  "test -f /var/lib/host-volume/internals/workloads/reclaim-intent/manifest.json" \
+  "test -f /host-volume/workloads/reclaim-intent/manifest.json" \
   || fail "second Workload Setup with Intent run should succeed"
 pass "another Workload can Setup Intent run without hostname claims"

@@ -27,7 +27,7 @@ SECRET_UNUSED='envcfg-surplus-should-not-appear'
 host_cleanup_wl() {
   local name="$1"
   host_ssh \
-    "rm -rf /var/lib/host-volume/internals/workloads/${name} \
+    "rm -rf /host-volume/workloads/${name} \
             /home/platform/.config/platform/workloads/${name}; \
      rm -f /home/platform/.config/containers/systemd/${name}*.container; \
      rm -rf /home/platform/.config/containers/systemd/${name}*.container.d" \
@@ -199,7 +199,7 @@ got_token="$(acceptance_container_printenv "${WL}" APP_TOKEN)"
   || fail "overridden baseline value must not remain in container process env"
 pass "container process env has Requires names only (.env.override + shell override)"
 
-SOT="/var/lib/host-volume/internals/workloads/${WL}"
+SOT="/host-volume/workloads/${WL}"
 sot_grep="$(host_ssh "grep -R -F '${SECRET_OVERRIDE}' ${SOT} 2>/dev/null || true")"
 [[ -z "${sot_grep}" ]] || fail "secret must not appear in Host Volume SoT (got: ${sot_grep})"
 pass "bag values absent from Host Volume SoT"

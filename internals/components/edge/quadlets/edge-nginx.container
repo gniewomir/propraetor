@@ -5,11 +5,11 @@ After=network-online.target
 [Container]
 Image=docker.io/library/nginx:1.31.3-alpine
 Pod=edge.pod
-Volume=/var/lib/host-volume/internals/components/edge/nginx.conf:/etc/nginx/nginx.conf:ro
-Volume=/var/lib/host-volume/data/components/edge/domains:/etc/nginx/edge-domains:ro
-Volume=/var/lib/host-volume/data/components/edge/routes:/etc/nginx/edge-routes:ro
-Volume=/var/lib/host-volume/data/components/edge/certs:/etc/nginx/certs:ro
-Volume=/var/lib/host-volume/data/components/edge/acme-www:/var/www/acme:ro
+Volume=/host-volume/components/edge/nginx.conf:/etc/nginx/nginx.conf:ro
+Volume=/host-volume/components/edge/persist/domains:/etc/nginx/edge-domains:ro
+Volume=/host-volume/components/edge/persist/routes:/etc/nginx/edge-routes:ro
+Volume=/host-volume/components/edge/persist/certs:/etc/nginx/certs:ro
+Volume=/host-volume/components/edge/persist/acme-www:/var/www/acme:ro
 
 [Service]
 Restart=on-failure

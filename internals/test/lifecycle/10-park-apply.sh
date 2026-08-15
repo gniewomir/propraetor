@@ -14,7 +14,7 @@ source "$(cd "$(dirname "$0")" && pwd)/lib/lib.sh"
 [[ -n "${REPO_ROOT:-}" ]] || fail "fixture missing REPO_ROOT (run via ./test.sh lifecycle)"
 [[ -d "${STACK_DIR}" ]] || fail "missing Stack dir ${STACK_DIR}"
 
-MARKER_PATH="/var/lib/host-volume/lifecycle-park-apply.marker"
+MARKER_PATH="/host-volume/lifecycle-park-apply.marker"
 MARKER_BODY="lifecycle-park-apply-$(date -u +%Y%m%dT%H%M%SZ)-$$"
 
 ensure_stack_applied

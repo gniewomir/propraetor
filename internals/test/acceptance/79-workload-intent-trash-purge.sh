@@ -62,12 +62,12 @@ stage_wl purge-me run
 write_purge_route
 
 want_before="$(host_ssh \
-  "cat /var/lib/host-volume/data/components/edge/acme/want-list 2>/dev/null || true")"
+  "cat /host-volume/components/edge/persist/acme/want-list 2>/dev/null || true")"
 
 host_ssh bash -s <<'REMOTE'
 set -euo pipefail
 for n in trash-a reclaim-b keep-me purge-me; do
-  rm -rf "/var/lib/host-volume/internals/workloads/${n}"
+  rm -rf "/host-volume/workloads/${n}"
   rm -f "/home/platform/.config/containers/systemd/${n}.container"
 done
 REMOTE
@@ -84,14 +84,14 @@ stage_wl trash-a run
 stage_wl trash-a trash
 "${REPO_ROOT}/internals/ensure-workload.sh" "trash-a" --env "${PLATFORM_ENV:-test}"
 
-host_ssh "test -f /var/lib/host-volume/internals/workloads/trash-a/manifest.json" \
+host_ssh "test -f /host-volume/workloads/trash-a/manifest.json" \
   || fail "Intent trash Workload data should remain until Purge"
 pass "Intent trash retains Workload data until Purge"
 
 stage_wl reclaim-b run
 "${REPO_ROOT}/internals/ensure-workload.sh" "reclaim-b" --env "${PLATFORM_ENV:-test}"
 host_ssh \
-  "test -f /var/lib/host-volume/internals/workloads/reclaim-b/manifest.json" \
+  "test -f /host-volume/workloads/reclaim-b/manifest.json" \
   || fail "second Intent run Workload should Setup"
 pass "Intent run Workload Setup does not depend on hostname claims"
 
@@ -105,13 +105,13 @@ ROUTE_INSTALLED_NAME=""
 if [[ -n "${ROUTE_FQDN}" ]]; then
   ROUTE_INSTALLED_NAME="purge-me--${ROUTE_FQDN}.conf"
   edge_before="$(host_ssh \
-    "ls /var/lib/host-volume/data/components/edge/routes/purge-me.conf \
-         /var/lib/host-volume/data/components/edge/routes/purge-me--* 2>/dev/null || true")"
+    "ls /host-volume/components/edge/persist/routes/purge-me.conf \
+         /host-volume/components/edge/persist/routes/purge-me--* 2>/dev/null || true")"
   [[ -z "${edge_before}" ]] \
     || fail "Workload Setup alone must not write Edge Route interior (got: ${edge_before})"
   ensure_edge_route_fulfillment
   host_ssh \
-    "test -f /var/lib/host-volume/data/components/edge/routes/${ROUTE_INSTALLED_NAME}" \
+    "test -f /host-volume/components/edge/persist/routes/${ROUTE_INSTALLED_NAME}" \
     || fail "Edge Setup should fulfill operator Route ${ROUTE_INSTALLED_NAME}"
   pass "Edge Setup gathers purge-me Route fragment after Intent run"
 else
@@ -122,7 +122,7 @@ fi
 CERT_FQDN="${ROUTE_FQDN}"
 if [[ -z "${CERT_FQDN}" ]]; then
   CERT_FQDN="$(host_ssh \
-    "ls -1 /var/lib/host-volume/data/components/edge/certs 2>/dev/null | head -1" || true)"
+    "ls -1 /host-volume/components/edge/persist/certs 2>/dev/null | head -1" || true)"
 fi
 
 stage_wl purge-me trash
@@ -132,47 +132,47 @@ write_purge_route
 if [[ -n "${ROUTE_FQDN}" ]]; then
   host_ssh bash -s <<REMOTE
 set -euo pipefail
-printf '%s\n' 'leftover-route' > /var/lib/host-volume/data/components/edge/routes/purge-me--${ROUTE_FQDN}.conf
-chown platform:platform /var/lib/host-volume/data/components/edge/routes/purge-me--${ROUTE_FQDN}.conf
+printf '%s\n' 'leftover-route' > /host-volume/components/edge/persist/routes/purge-me--${ROUTE_FQDN}.conf
+chown platform:platform /host-volume/components/edge/persist/routes/purge-me--${ROUTE_FQDN}.conf
 REMOTE
 fi
 
 "${REPO_ROOT}/internals/purge-trash.sh" --env "${PLATFORM_ENV:-test}"
 
-host_ssh "test ! -e /var/lib/host-volume/internals/workloads/purge-me" \
+host_ssh "test ! -e /host-volume/workloads/purge-me" \
   || fail "Purge should remove Intent trash purge-me SoT"
-host_ssh "test ! -e /var/lib/host-volume/data/workloads/purge-me" \
+host_ssh "test ! -e /host-volume/workloads/purge-me" \
   || fail "Purge should remove Intent trash purge-me durable data"
-host_ssh "test ! -e /var/lib/host-volume/internals/workloads/trash-a" \
+host_ssh "test ! -e /host-volume/workloads/trash-a" \
   || fail "Purge should remove Intent trash trash-a SoT"
-host_ssh "test ! -e /var/lib/host-volume/data/workloads/trash-a" \
+host_ssh "test ! -e /host-volume/workloads/trash-a" \
   || fail "Purge should remove Intent trash trash-a durable data"
 if [[ -n "${ROUTE_FQDN}" ]]; then
   leftover="$(host_ssh \
-    "ls /var/lib/host-volume/data/components/edge/routes/purge-me.conf /var/lib/host-volume/data/components/edge/routes/purge-me--* 2>/dev/null || true")"
+    "ls /host-volume/components/edge/persist/routes/purge-me.conf /host-volume/components/edge/persist/routes/purge-me--* 2>/dev/null || true")"
   [[ -n "${leftover}" ]] \
     || fail "Purge alone must not clear Edge Routes (fulfillment drop is Edge Setup)"
   ensure_edge_route_fulfillment
 fi
 purge_routes="$(host_ssh \
-  "ls /var/lib/host-volume/data/components/edge/routes/purge-me.conf /var/lib/host-volume/data/components/edge/routes/purge-me--* 2>/dev/null || true")"
+  "ls /host-volume/components/edge/persist/routes/purge-me.conf /host-volume/components/edge/persist/routes/purge-me--* 2>/dev/null || true")"
 [[ -z "${purge_routes}" ]] || fail "Edge Setup after Purge should drop Routes for trash Workloads (got: ${purge_routes})"
 if host_ssh "test -e /home/platform/.config/containers/systemd/purge-me.container"; then
   fail "Purge should remove related Quadlet unit for purge-me"
 fi
-host_ssh "test -f /var/lib/host-volume/internals/workloads/keep-me/manifest.json" \
+host_ssh "test -f /host-volume/workloads/keep-me/manifest.json" \
   || fail "Purge must not touch Intent stop keep-me"
-host_ssh "test -f /var/lib/host-volume/internals/workloads/reclaim-b/manifest.json" \
+host_ssh "test -f /host-volume/workloads/reclaim-b/manifest.json" \
   || fail "Purge must not touch Intent run reclaim-b"
 
 if [[ -n "${CERT_FQDN}" ]]; then
   host_ssh \
-    "test -f /var/lib/host-volume/data/components/edge/certs/${CERT_FQDN}/fullchain.pem \
-     && test -f /var/lib/host-volume/data/components/edge/certs/${CERT_FQDN}/privkey.pem" \
+    "test -f /host-volume/components/edge/persist/certs/${CERT_FQDN}/fullchain.pem \
+     && test -f /host-volume/components/edge/persist/certs/${CERT_FQDN}/privkey.pem" \
     || fail "Purge must keep Domain-scoped certificates for ${CERT_FQDN}"
 fi
 want_after="$(host_ssh \
-  "cat /var/lib/host-volume/data/components/edge/acme/want-list 2>/dev/null || true")"
+  "cat /host-volume/components/edge/persist/acme/want-list 2>/dev/null || true")"
 [[ "${want_after}" == "${want_before}" ]] \
   || fail "Purge must not rewrite ACME want-list"
 pass "Purge removes trash Workloads/units; Edge Setup drops Routes; keeps Domain-scoped certs; leaves want-list unchanged"

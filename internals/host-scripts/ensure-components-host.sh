@@ -4,7 +4,7 @@
 # ACME EnvironmentFile (and Database admin EnvironmentFile when Database is selected)
 # into the Component Setup handoff root on the Host Volume, ships host-scripts, then
 # applies one Component Setup slot (pre-workloads | post-workloads) — ADR-0043 /
-# ADR-0040 / ADR-0010 / ADR-0041 / ADR-0045 / ADR-0049 / #181 / #188.
+# ADR-0040 / ADR-0010 / ADR-0054 / ADR-0045 / ADR-0049 / #181 / #188 / #215.
 # Does not install Fabric. No combined "full" mode.
 # Usage:
 #   ensure-components-host.sh <platform-user> <pre-workloads|post-workloads> [--component <name>]...
@@ -57,9 +57,8 @@ source "${HERE}/lib/sync-tree-host.sh"
 # shellcheck source=lib/component-handoff-host.sh
 source "${HERE}/lib/component-handoff-host.sh"
 HV_ROOT="$(host_volume_mount_root)"
-INTERNALS_ROOT="$(host_volume_sot_root)"
-DATA_ROOT="$(host_volume_persist_root)"
 COMPONENTS_ROOT="$(host_volume_components_sot_root)"
+WORKLOADS_ROOT="$(host_volume_workloads_sot_root)"
 HOST_SCRIPTS_ROOT="$(host_volume_host_scripts_root)"
 WANT_STAGE="${HERE}/platform-acme-want-list"
 ACME_ENV_STAGE="${HERE}/platform-acme.env"
@@ -74,22 +73,21 @@ for name in "${COMPONENTS[@]}"; do
   fi
 done
 
+# Hard cut (ADR-0018 / ADR-0054): retire ADR-0041 Host Volume parents.
+# Do not remove components/ — that is the live SoT parent (and handoff sibling).
+rm -rf "${HV_ROOT:?}/internals" "${HV_ROOT:?}/data" "${HV_ROOT:?}/components_data"
+
+mkdir -p \
+  "${COMPONENTS_ROOT}" \
+  "${WORKLOADS_ROOT}" \
+  "${HOST_SCRIPTS_ROOT}"
+
 component_handoff_install_acme "${WANT_STAGE}" "${ACME_ENV_STAGE}"
 if [[ "${need_database}" == "1" ]]; then
   component_handoff_install_database_admin "${DB_ADMIN_STAGE}"
 fi
 
-# Hard cut (ADR-0018 / ADR-0041): retire components/ + components_data/.
-rm -rf "${HV_ROOT:?}/components" "${HV_ROOT:?}/components_data"
-
-mkdir -p \
-  "${COMPONENTS_ROOT}" \
-  "${INTERNALS_ROOT}/workloads" \
-  "${HOST_SCRIPTS_ROOT}" \
-  "${DATA_ROOT}/components" \
-  "${DATA_ROOT}/workloads"
-
-# Host-executable helpers ship under internals/host-scripts (ADR-0041).
+# Host-executable helpers ship under host-scripts/ (ADR-0054).
 [[ -d "${HERE}/lib" ]] || {
   echo "ensure-components: staged host-scripts lib missing" >&2
   exit 1
@@ -98,6 +96,7 @@ sync_tree_inplace "${HERE}/lib" "${HOST_SCRIPTS_ROOT}/lib"
 
 install_component_tree() {
   local name="$1"
+  local persist
   [[ -d "${HERE}/${name}" ]] || {
     echo "ensure-components: staged Component tree missing: ${name}" >&2
     exit 1
@@ -116,6 +115,8 @@ install_component_tree() {
     "${COMPONENTS_ROOT}/${name}/post-workloads.sh"
   # Hard cut (ADR-0018 / ADR-0043): retire monolithic setup.sh if still present on volume.
   rm -f "${COMPONENTS_ROOT}/${name}/setup.sh"
+  persist="$(host_volume_component_persist "${name}")"
+  mkdir -p "${persist}"
 }
 
 for name in "${COMPONENTS[@]}"; do
@@ -123,7 +124,8 @@ for name in "${COMPONENTS[@]}"; do
 done
 
 # Mount root stays root-owned; everything under it is Platform User–owned.
-chown -R "${USER_NAME}:${USER_NAME}" "${INTERNALS_ROOT}" "${DATA_ROOT}"
+chown -R "${USER_NAME}:${USER_NAME}" \
+  "${COMPONENTS_ROOT}" "${WORKLOADS_ROOT}" "${HOST_SCRIPTS_ROOT}"
 
 # Fail closed if ACME handoffs are missing before Component Setup.
 component_handoff_require_acme

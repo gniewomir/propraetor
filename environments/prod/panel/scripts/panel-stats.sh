@@ -13,7 +13,7 @@ panel_stats_disk_path() {
 }
 
 panel_stats_host_volume() {
-  printf '%s\n' "${PANEL_STATS_HOST_VOLUME:-/var/lib/host-volume}"
+  printf '%s\n' "${PANEL_STATS_HOST_VOLUME:-/host-volume}"
 }
 
 panel_stats_out_file() {
@@ -22,7 +22,7 @@ panel_stats_out_file() {
     return 0
   fi
   printf '%s\n' \
-    "${PANEL_STATS_OUT_DIR:-/var/lib/host-volume/data/workloads/panel/stats}/stats.json"
+    "${PANEL_STATS_OUT_DIR:-/host-volume/workloads/panel/persist/stats}/stats.json"
 }
 
 panel_stats_cpu_sample_sec() {

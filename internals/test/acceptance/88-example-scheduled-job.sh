@@ -78,7 +78,7 @@ runuser -u platform -- env XDG_RUNTIME_DIR=\$XDG_RUNTIME_DIR \
   systemctl --user stop ${WL}-${ROLE}.service ${WL}-${ROLE}.timer 2>/dev/null || true
 runuser -u platform -- env XDG_RUNTIME_DIR=\$XDG_RUNTIME_DIR \
   systemctl --user disable --now ${WL}-${ROLE}.timer 2>/dev/null || true
-rm -rf /var/lib/host-volume/internals/workloads/${WL}
+rm -rf /host-volume/workloads/${WL}
 rm -f /home/platform/.config/containers/systemd/${WL}-${ROLE}.container \
   /home/platform/.config/systemd/user/${WL}-${ROLE}.timer \
   /home/platform/.config/systemd/user/timers.target.wants/${WL}-${ROLE}.timer
@@ -90,10 +90,10 @@ write_manifest run
 "${REPO_ROOT}/internals/ensure-workload.sh" "${WL}" --env "${PLATFORM_ENV:-test}"
 
 host_ssh \
-  "test -f /var/lib/host-volume/internals/workloads/${WL}/quadlets/${WL}-${ROLE}.container" \
+  "test -f /host-volume/workloads/${WL}/quadlets/${WL}-${ROLE}.container" \
   || fail "Setup should store authored job container SoT"
 host_ssh \
-  "test -f /var/lib/host-volume/internals/workloads/${WL}/systemd/${WL}-${ROLE}.timer" \
+  "test -f /host-volume/workloads/${WL}/systemd/${WL}-${ROLE}.timer" \
   || fail "Setup should store authored timer SoT"
 host_ssh \
   "test -f /home/platform/.config/containers/systemd/${WL}-${ROLE}.container" \

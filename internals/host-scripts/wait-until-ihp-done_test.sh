@@ -180,7 +180,7 @@ export HOST_VOLUME_MOUNT_POLL_SECONDS=1
 if run_gate; then
   fail "gate should fail when mount never appears"
 fi
-grep -q 'Host Volume mount /var/lib/host-volume missing' "${STUBS}/err" \
+grep -q 'Host Volume mount /host-volume missing' "${STUBS}/err" \
   || fail "expected mount-missing message, got: $(cat "${STUBS}/err")"
 grep -q 'host-volume.service' "${STUBS}/err" \
   || fail "expected pointer to host-volume.service, got: $(cat "${STUBS}/err")"

@@ -61,7 +61,7 @@ export PATH="${TMP}/bin:${PATH}"
 
 # --- Fabric only: installs fabric, runs Fabric Setup, ignores staged Edge ---
 : >"${TMP}/setup.order"
-mkdir -p "${HV}/components/legacy" "${HV}/components_data/legacy"
+mkdir -p "${HV}/internals/legacy" "${HV}/data/legacy" "${HV}/components_data/legacy"
 bash "${TMP}/ensure-run.sh" "${USER_NAME}" --fabric fabric 2>"${TMP}/stderr" \
   || fail "ensure-fabric-run failed: $(cat "${TMP}/stderr")"
 
@@ -75,12 +75,14 @@ printf '%s\n' "${order}" | grep -Fxq 'fabric' || fail "Fabric Setup did not run,
 if printf '%s\n' "${order}" | grep -Fxq 'edge'; then
   fail "ensure-fabric must not run staged Edge Setup"
 fi
-[[ -f "${HV}/internals/fabric/setup.sh" ]] || fail "fabric tree not installed on Host Volume"
-[[ -f "${HV}/internals/fabric/marker.txt" ]] || fail "fabric marker not installed"
-[[ ! -e "${HV}/internals/components/edge" ]] || fail "ensure-fabric must not install Edge"
-[[ -d "${HV}/internals/host-scripts/lib" ]] || fail "host-scripts lib not installed"
-[[ -d "${HV}/data/fabric" ]] || fail "data/fabric missing"
-[[ ! -e "${HV}/components" ]] || fail "retired components/ must not exist after ensure-fabric"
+[[ -f "${HV}/fabric/setup.sh" ]] || fail "fabric tree not installed on Host Volume"
+[[ -f "${HV}/fabric/marker.txt" ]] || fail "fabric marker not installed"
+[[ ! -e "${HV}/components/edge" ]] || fail "ensure-fabric must not install Edge"
+[[ -d "${HV}/host-scripts/lib" ]] || fail "host-scripts lib not installed"
+[[ -d "${HV}/fabric" ]] || fail "fabric SoT missing"
+[[ ! -e "${HV}/fabric/persist" ]] || fail "Fabric must not get Persist"
+[[ ! -e "${HV}/internals" ]] || fail "retired internals/ must not exist after ensure-fabric"
+[[ ! -e "${HV}/data" ]] || fail "retired data/ must not exist after ensure-fabric"
 [[ ! -e "${HV}/components_data" ]] || fail "retired components_data/ must not exist after ensure-fabric"
 pass "ensure-fabric installs Fabric only and runs Fabric Setup"
 
@@ -93,18 +95,18 @@ grep -Eqi 'unknown argument|--fabric' "${TMP}/stderr2" \
 pass "ensure-fabric rejects --component"
 
 # --- non-breaking ship: update fabric tree without replacing directory inode ---
-mkdir -p "${HV}/internals/fabric"
-printf 'old\n' >"${HV}/internals/fabric/marker.txt"
-dir_ino="$(inode_of "${HV}/internals/fabric")"
-file_ino="$(inode_of "${HV}/internals/fabric/marker.txt")"
+mkdir -p "${HV}/fabric"
+printf 'old\n' >"${HV}/fabric/marker.txt"
+dir_ino="$(inode_of "${HV}/fabric")"
+file_ino="$(inode_of "${HV}/fabric/marker.txt")"
 : >"${TMP}/setup.order"
 bash "${TMP}/ensure-run.sh" "${USER_NAME}" --fabric fabric 2>"${TMP}/stderr3" \
   || fail "re-ensure-fabric failed: $(cat "${TMP}/stderr3")"
-[[ "$(inode_of "${HV}/internals/fabric")" == "${dir_ino}" ]] \
+[[ "$(inode_of "${HV}/fabric")" == "${dir_ino}" ]] \
   || fail "fabric directory inode changed (breaking ship for bind mounts)"
-[[ "$(inode_of "${HV}/internals/fabric/marker.txt")" == "${file_ino}" ]] \
+[[ "$(inode_of "${HV}/fabric/marker.txt")" == "${file_ino}" ]] \
   || fail "fabric marker inode changed (file was unlinked instead of overwritten)"
-grep -Fxq 'fabric-marker' "${HV}/internals/fabric/marker.txt" \
+grep -Fxq 'fabric-marker' "${HV}/fabric/marker.txt" \
   || fail "fabric marker content not updated in place"
 pass "ensure-fabric updates Fabric tree without replacing directory/file inodes"
 

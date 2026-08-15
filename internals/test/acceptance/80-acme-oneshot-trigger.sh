@@ -13,12 +13,12 @@ source "${REPO_ROOT}/internals/lib/domains/domains.sh"
 EXPECTED="$(domains_acme_fqdns_for "${PLATFORM_ENV:-test}")"
 
 before="$(host_ssh \
-  "cat /var/lib/host-volume/data/components/edge/acme/last-run 2>/dev/null || echo none")"
+  "cat /host-volume/components/edge/persist/acme/last-run 2>/dev/null || echo none")"
 sleep 2
 
 "${REPO_ROOT}/internals/ensure-components.sh" post-workloads --env "${PLATFORM_ENV:-test}"
 
-want="$(host_ssh "cat /var/lib/host-volume/data/components/edge/acme/want-list")"
+want="$(host_ssh "cat /host-volume/components/edge/persist/acme/want-list")"
 if [[ -n "${EXPECTED}" ]]; then
   while IFS= read -r fqdn; do
     [[ -n "${fqdn}" ]] || continue
@@ -35,7 +35,7 @@ fi
 after="missing"
 for _ in $(seq 1 30); do
   after="$(host_ssh \
-    "cat /var/lib/host-volume/data/components/edge/acme/last-run 2>/dev/null || echo missing")"
+    "cat /host-volume/components/edge/persist/acme/last-run 2>/dev/null || echo missing")"
   if [[ "${after}" != "missing" && "${after}" != "${before}" ]]; then
     break
   fi
@@ -77,8 +77,8 @@ while IFS= read -r fqdn; do
   pem_ok=0
   for _ in $(seq 1 120); do
     if host_ssh \
-      "test -f /var/lib/host-volume/data/components/edge/certs/${fqdn}/fullchain.pem \
-       && test -f /var/lib/host-volume/data/components/edge/certs/${fqdn}/privkey.pem"; then
+      "test -f /host-volume/components/edge/persist/certs/${fqdn}/fullchain.pem \
+       && test -f /host-volume/components/edge/persist/certs/${fqdn}/privkey.pem"; then
       pem_ok=1
       break
     fi

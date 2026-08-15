@@ -18,7 +18,7 @@ acceptance_wl_track "${WL}"
 trap 'acceptance_wl_cleanup' EXIT
 
 host_ssh \
-  "rm -rf /var/lib/host-volume/internals/workloads/${WL} \
+  "rm -rf /host-volume/workloads/${WL} \
           /home/platform/.config/platform/workloads/${WL}; \
    rm -f /home/platform/.config/containers/systemd/${WL}*.container; \
    rm -rf /home/platform/.config/containers/systemd/${WL}*.container.d" \
@@ -64,10 +64,10 @@ host_ssh "test -f /home/platform/.config/platform/workloads/${WL}/database/envir
   || fail "expected published Database environment binding after fulfill"
 host_ssh "test -f /home/platform/.config/containers/systemd/${WL}.container.d/50-platform-database.conf" \
   || fail "expected Setup-owned Database drop-in after fulfill"
-host_ssh "test -f /var/lib/host-volume/data/components/database/clients/${WL}/client.crt" \
+host_ssh "test -f /host-volume/components/database/persist/clients/${WL}/client.crt" \
   || fail "expected durable client cert after fulfill"
 host_ssh "grep -Eq '^propraetor[[:space:]]+${WL}[[:space:]]+${WL}\$' \
-  /var/lib/host-volume/data/components/database/conf/pg_ident.conf" \
+  /host-volume/components/database/persist/conf/pg_ident.conf" \
   || fail "expected pg_ident map row after fulfill"
 pass "Component Setup published binding for Intent run"
 
@@ -87,12 +87,12 @@ host_ssh "test ! -e /home/platform/.config/platform/workloads/${WL}/database" \
 host_ssh "test ! -e /home/platform/.config/containers/systemd/${WL}.container.d/50-platform-database.conf" \
   || fail "Component Setup must remove Database drop-in on Intent stop"
 if host_ssh "grep -Eq '^propraetor[[:space:]]+${WL}[[:space:]]+${WL}\$' \
-  /var/lib/host-volume/data/components/database/conf/pg_ident.conf"; then
+  /host-volume/components/database/persist/conf/pg_ident.conf"; then
   fail "Component Setup must remove pg_ident map row on Intent stop"
 fi
 pass "Component Setup unpublishes Database binding after Intent stop"
 
-host_ssh "test -f /var/lib/host-volume/data/components/database/clients/${WL}/client.crt" \
+host_ssh "test -f /host-volume/components/database/persist/clients/${WL}/client.crt" \
   || fail "durable client cert must remain until Purge"
 pass "durable client material retained after Intent stop"
 
@@ -102,7 +102,7 @@ set -euo pipefail
 UID_NUM=\$(id -u platform)
 HOME_DIR=\$(getent passwd platform | cut -d: -f6)
 export XDG_RUNTIME_DIR=/run/user/\${UID_NUM}
-admin=\$(grep -E '^POSTGRES_USER=' /var/lib/host-volume/data/components/database/admin/environment \
+admin=\$(grep -E '^POSTGRES_USER=' /host-volume/components/database/persist/admin/environment \
   | head -n1 | cut -d= -f2-)
 [[ -n "\${admin}" ]] || { echo missing-admin; exit 0; }
 role=\$(runuser -u platform -- env HOME=\${HOME_DIR} XDG_RUNTIME_DIR=\$XDG_RUNTIME_DIR \

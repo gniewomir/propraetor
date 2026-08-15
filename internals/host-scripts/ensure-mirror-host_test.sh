@@ -55,11 +55,10 @@ write_internal_stubs() {
 }
 
 # Seed an orphan on the Host that must survive Mirror
-mkdir -p "${HV}/internals/workloads/orphan-left/routes"
-printf '{"intent":"run","source":"internal"}\n' >"${HV}/internals/workloads/orphan-left/manifest.json"
-printf 'keep-orphan\n' >"${HV}/internals/workloads/orphan-left/routes/orphan.conf"
-mkdir -p "${HV}/data/workloads/orphan-left"
-printf 'durable\n' >"${HV}/data/workloads/orphan-left/state.bin"
+mkdir -p "${HV}/workloads/orphan-left/routes" "${HV}/workloads/orphan-left/persist"
+printf '{"intent":"run","source":"internal"}\n' >"${HV}/workloads/orphan-left/manifest.json"
+printf 'keep-orphan\n' >"${HV}/workloads/orphan-left/routes/orphan.conf"
+printf 'durable\n' >"${HV}/workloads/orphan-left/persist/state.bin"
 
 # --- internal Source: Environment bag + Provides directories ---
 mkdir -p "${STAGE}/workloads/alpha/routes" \
@@ -95,51 +94,55 @@ mkdir -p "${STAGE}/workloads/gamma/www/.well-known"
 printf 'acme\n' >"${STAGE}/workloads/gamma/www/.well-known/probe"
 
 # Pre-existing Host tree for alpha that Mirror must update (upsert)
-mkdir -p "${HV}/internals/workloads/alpha/routes"
-printf '{"intent":"stop","source":"internal"}\n' >"${HV}/internals/workloads/alpha/manifest.json"
-printf 'stale\n' >"${HV}/internals/workloads/alpha/routes/stale.conf"
-printf 'old-a\n' >"${HV}/internals/workloads/alpha/routes/a.conf"
+mkdir -p "${HV}/workloads/alpha/routes"
+printf '{"intent":"stop","source":"internal"}\n' >"${HV}/workloads/alpha/manifest.json"
+printf 'stale\n' >"${HV}/workloads/alpha/routes/stale.conf"
+printf 'old-a\n' >"${HV}/workloads/alpha/routes/a.conf"
 
 cp "${TMP}/mirror-run.sh" "${STAGE}/ensure-mirror-host.sh"
 bash "${STAGE}/ensure-mirror-host.sh" "${USER_NAME}" \
   || fail "ensure-mirror-host failed for internal Workloads"
 
-python3 - "${HV}/internals/workloads/alpha/manifest.json" <<'PY' || fail "alpha Manifest not upserted"
+python3 - "${HV}/workloads/alpha/manifest.json" <<'PY' || fail "alpha Manifest not upserted"
 import json, sys
 m = json.load(open(sys.argv[1], encoding="utf-8"))
 assert m.get("intent") == "run" and m.get("source") == "internal", m
 PY
-grep -Fxq 'route-a' "${HV}/internals/workloads/alpha/routes/a.conf" \
+grep -Fxq 'route-a' "${HV}/workloads/alpha/routes/a.conf" \
   || fail "alpha route not materialized"
-grep -Fxq 'home' "${HV}/internals/workloads/alpha/www/index.html" \
+grep -Fxq 'home' "${HV}/workloads/alpha/www/index.html" \
   || fail "alpha www root not materialized"
-grep -Fxq 'nested' "${HV}/internals/workloads/alpha/www/usage/index.html" \
+grep -Fxq 'nested' "${HV}/workloads/alpha/www/usage/index.html" \
   || fail "alpha nested www not materialized"
-grep -Fq 'echo ok' "${HV}/internals/workloads/alpha/scripts/alpha-job.sh" \
+grep -Fq 'echo ok' "${HV}/workloads/alpha/scripts/alpha-job.sh" \
   || fail "alpha scripts not materialized"
-[[ ! -e "${HV}/internals/workloads/alpha/routes/stale.conf" ]] \
+[[ ! -e "${HV}/workloads/alpha/routes/stale.conf" ]] \
   || fail "stale authored file must be pruned within Mirrored tree"
-grep -Fq 'static site' "${HV}/internals/workloads/alpha/provides.json" \
+grep -Fq 'static site' "${HV}/workloads/alpha/provides.json" \
   || fail "alpha Provides must land on Host"
 pass "Mirror materializes internal Source + Provides directories"
 
 # Leaves orphans alone (definition tree + durable data)
-[[ -f "${HV}/internals/workloads/orphan-left/manifest.json" ]] \
+[[ -f "${HV}/workloads/orphan-left/manifest.json" ]] \
   || fail "Mirror must leave orphan definition tree"
-grep -Fxq 'keep-orphan' "${HV}/internals/workloads/orphan-left/routes/orphan.conf" \
+grep -Fxq 'keep-orphan' "${HV}/workloads/orphan-left/routes/orphan.conf" \
   || fail "orphan routes must be untouched"
-grep -Fxq 'durable' "${HV}/data/workloads/orphan-left/state.bin" \
+grep -Fxq 'durable' "${HV}/workloads/orphan-left/persist/state.bin" \
   || fail "orphan durable data must be untouched"
+[[ -d "${HV}/workloads/alpha/persist" ]] \
+  || fail "Mirror must auto-create empty Persist for Environment Workloads"
+[[ -d "${HV}/workloads/gamma/persist" ]] \
+  || fail "Mirror must auto-create Persist for Manifest-less bags"
 pass "Mirror leaves orphan Host trees alone"
 
 # Manifest-less bag, hidden paths, and preserved symlinks
-[[ ! -f "${HV}/internals/workloads/gamma/manifest.json" ]] \
+[[ ! -f "${HV}/workloads/gamma/manifest.json" ]] \
   || fail "gamma must remain Manifest-less"
-grep -Fxq 'draft' "${HV}/internals/workloads/gamma/notes/idea.md" \
+grep -Fxq 'draft' "${HV}/workloads/gamma/notes/idea.md" \
   || fail "opaque bag extras must be mirrored"
-grep -Fxq 'acme' "${HV}/internals/workloads/gamma/www/.well-known/probe" \
+grep -Fxq 'acme' "${HV}/workloads/gamma/www/.well-known/probe" \
   || fail "in-tree hidden paths must be mirrored"
-[[ -L "${HV}/internals/workloads/gamma/link-to-target" ]] \
+[[ -L "${HV}/workloads/gamma/link-to-target" ]] \
   || fail "symlinks must be preserved as links"
 pass "Mirror upserts Manifest-less bags; preserves hidden paths and symlinks"
 
@@ -226,21 +229,21 @@ bash "${STAGE}/ensure-mirror-host.sh" "${USER_NAME}" \
   || fail "ensure-mirror-host failed for zip Source"
 
 grep -Fxq 'from-zip-unit' \
-  "${HV}/internals/workloads/zippy/quadlets/zippy.container" \
+  "${HV}/workloads/zippy/quadlets/zippy.container" \
   || fail "zip Provides directories must materialize quadlets"
-grep -Fxq 'from-zip-www' "${HV}/internals/workloads/zippy/www/index.html" \
+grep -Fxq 'from-zip-www' "${HV}/workloads/zippy/www/index.html" \
   || fail "zip Provides directories must materialize www"
-grep -Fq 'units' "${HV}/internals/workloads/zippy/provides.json" \
+grep -Fq 'units' "${HV}/workloads/zippy/provides.json" \
   || fail "zip Artifact Provides must land on Host"
-grep -Fq 'database' "${HV}/internals/workloads/zippy/requires.json" \
+grep -Fq 'database' "${HV}/workloads/zippy/requires.json" \
   || fail "zip Artifact Requires must land on Host"
-python3 - "${HV}/internals/workloads/zippy/manifest.json" <<'PY' || fail "zip Manifest must remain Environment SoT"
+python3 - "${HV}/workloads/zippy/manifest.json" <<'PY' || fail "zip Manifest must remain Environment SoT"
 import json, sys
 m = json.load(open(sys.argv[1], encoding="utf-8"))
 assert m.get("intent") == "run"
 assert str(m.get("source", "")).endswith(".zip")
 PY
-[[ -f "${HV}/internals/workloads/zippy/binding.json" ]] \
+[[ -f "${HV}/workloads/zippy/binding.json" ]] \
   || fail "zip Environment Binding must remain on Host"
 pass "Mirror materializes zip URI Source via Provides directories"
 
@@ -258,9 +261,9 @@ EOF
 cp "${TMP}/mirror-run.sh" "${STAGE}/ensure-mirror-host.sh"
 bash "${STAGE}/ensure-mirror-host.sh" "${USER_NAME}" \
   || fail "ensure-mirror-host failed for path zip Source"
-grep -Fxq 'from-zip-www' "${HV}/internals/workloads/zippath/www/index.html" \
+grep -Fxq 'from-zip-www' "${HV}/workloads/zippath/www/index.html" \
   || fail "path zip Provides directories must materialize www"
-[[ -f "${HV}/internals/workloads/zippath/artifact.zip" ]] \
+[[ -f "${HV}/workloads/zippath/artifact.zip" ]] \
   || fail "path zip must remain on Host as Environment bag"
 pass "Mirror materializes path zip Source via Provides directories"
 

@@ -22,7 +22,7 @@ SECRET2='envrot-secret-two'
 SURPLUS='envrot-surplus-value'
 
 host_ssh \
-  "rm -rf /var/lib/host-volume/internals/workloads/${WL} \
+  "rm -rf /host-volume/workloads/${WL} \
           /home/platform/.config/platform/workloads/${WL}; \
    rm -f /home/platform/.config/containers/systemd/${WL}.container; \
    rm -rf /home/platform/.config/containers/systemd/${WL}.container.d" \

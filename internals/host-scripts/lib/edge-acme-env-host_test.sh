@@ -53,7 +53,7 @@ pass "missing staged file leaves existing; creates staging default if absent"
 # --- edge-acme.service wires EnvironmentFile to Host ACME path ---
 UNIT="${REPO_ROOT}/internals/components/edge/systemd/edge-acme.service"
 [[ -f "${UNIT}" ]] || fail "missing edge-acme.service"
-grep -Eq '^EnvironmentFile=/var/lib/host-volume/data/components/edge/acme/environment$' "${UNIT}" \
+grep -Eq '^EnvironmentFile=/host-volume/components/edge/persist/acme/environment$' "${UNIT}" \
   || fail "edge-acme.service must EnvironmentFile= Host ACME environment path"
 pass "edge-acme.service consumes Host ACME EnvironmentFile"
 

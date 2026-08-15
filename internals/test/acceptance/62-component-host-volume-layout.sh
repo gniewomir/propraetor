@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Acceptance Test: Host Volume internals/ + data/ layout and ownership (ADR-0010 / ADR-0041 / #154)
+# Acceptance Test: Host Volume owner-tree layout + nested Persist (ADR-0054 / #215)
 set -euo pipefail
 # shellcheck source=lib.sh
 source "$(cd "$(dirname "$0")" && pwd)/lib.sh"
@@ -8,14 +8,13 @@ require_ip
 acceptance_host_session
 
 USER_NAME="${PLATFORM_USER:-platform}"
-INTERNALS_ROOT=/var/lib/host-volume/internals
-FABRIC_ROOT="${INTERNALS_ROOT}/fabric"
-COMPONENTS_ROOT="${INTERNALS_ROOT}/components"
-WORKLOADS_SOT_ROOT="${INTERNALS_ROOT}/workloads"
-HOST_SCRIPTS_ROOT="${INTERNALS_ROOT}/host-scripts"
-DATA_ROOT=/var/lib/host-volume/data
-EDGE_DATA="${DATA_ROOT}/components/edge"
-DB_DATA="${DATA_ROOT}/components/database"
+HV_ROOT=/host-volume
+FABRIC_ROOT="${HV_ROOT}/fabric"
+COMPONENTS_ROOT="${HV_ROOT}/components"
+WORKLOADS_SOT_ROOT="${HV_ROOT}/workloads"
+HOST_SCRIPTS_ROOT="${HV_ROOT}/host-scripts"
+EDGE_PERSIST="${COMPONENTS_ROOT}/edge/persist"
+DB_PERSIST="${COMPONENTS_ROOT}/database/persist"
 
 owner_of() {
   host_ssh "stat -c '%U:%G' '$1'" 2>/dev/null || true
@@ -42,9 +41,9 @@ must_not_exist() {
   fi
 }
 
-mount_owner="$(owner_of /var/lib/host-volume)"
+mount_owner="$(owner_of "${HV_ROOT}")"
 if [[ "${mount_owner}" != "root:root" ]]; then
-  fail "/var/lib/host-volume owner expected root:root, got '${mount_owner}'"
+  fail "/host-volume owner expected root:root, got '${mount_owner}'"
 fi
 
 must_be_dir "${FABRIC_ROOT}"
@@ -82,33 +81,36 @@ must_be_file "${HOST_SCRIPTS_ROOT}/lib/database-setup-host.sh"
 must_be_file "${HOST_SCRIPTS_ROOT}/lib/database-tls-host.sh"
 must_not_exist "${COMPONENTS_ROOT}/lib"
 must_not_exist "${COMPONENTS_ROOT}/edge/certs"
-must_not_exist /var/lib/host-volume/components
-must_not_exist /var/lib/host-volume/components_data
+# Retired ADR-0041 parents / mount contract
+must_not_exist "${HV_ROOT}/internals"
+must_not_exist "${HV_ROOT}/data"
+must_not_exist "${HV_ROOT}/components_data"
+# Fabric has no Persist contract
+must_not_exist "${FABRIC_ROOT}/persist"
 
-must_be_dir "${DATA_ROOT}/fabric"
-must_be_dir "${DATA_ROOT}/components"
-must_be_dir "${DATA_ROOT}/workloads"
-must_be_dir "${EDGE_DATA}/routes"
-must_be_dir "${EDGE_DATA}/domains"
-must_be_dir "${EDGE_DATA}/certs"
-must_be_dir "${EDGE_DATA}/acme-www"
-must_be_dir "${EDGE_DATA}/acme"
-must_be_dir "${DB_DATA}/ca"
-must_be_dir "${DB_DATA}/server"
-must_be_dir "${DB_DATA}/pgdata"
-must_be_dir "${DB_DATA}/clients"
-must_be_dir "${DB_DATA}/conf"
-must_be_file "${DB_DATA}/ca/ca.crt"
-must_be_file "${DB_DATA}/server/server.crt"
-must_be_file "${DB_DATA}/admin/environment"
-must_not_exist "${EDGE_DATA}/routes/00-empty.conf"
-must_not_exist "${EDGE_DATA}/domains/00-empty.conf"
-must_be_file "${EDGE_DATA}/acme/want-list"
+# Nested Persist interiors (auto-created + Component Setup)
+must_be_dir "${EDGE_PERSIST}"
+must_be_dir "${DB_PERSIST}"
+must_be_dir "${EDGE_PERSIST}/routes"
+must_be_dir "${EDGE_PERSIST}/domains"
+must_be_dir "${EDGE_PERSIST}/certs"
+must_be_dir "${EDGE_PERSIST}/acme-www"
+must_be_dir "${EDGE_PERSIST}/acme"
+must_be_dir "${DB_PERSIST}/ca"
+must_be_dir "${DB_PERSIST}/server"
+must_be_dir "${DB_PERSIST}/pgdata"
+must_be_dir "${DB_PERSIST}/clients"
+must_be_dir "${DB_PERSIST}/conf"
+must_be_file "${DB_PERSIST}/ca/ca.crt"
+must_be_file "${DB_PERSIST}/server/server.crt"
+must_be_file "${DB_PERSIST}/admin/environment"
+must_not_exist "${EDGE_PERSIST}/routes/00-empty.conf"
+must_not_exist "${EDGE_PERSIST}/domains/00-empty.conf"
+must_be_file "${EDGE_PERSIST}/acme/want-list"
 must_not_exist "${COMPONENTS_ROOT}/edge/acme-www"
 must_not_exist "${COMPONENTS_ROOT}/edge/acme"
 
 for path in \
-  "${INTERNALS_ROOT}" \
   "${FABRIC_ROOT}" \
   "${FABRIC_ROOT}/quadlets" \
   "${COMPONENTS_ROOT}" \
@@ -120,22 +122,18 @@ for path in \
   "${WORKLOADS_SOT_ROOT}" \
   "${HOST_SCRIPTS_ROOT}" \
   "${HOST_SCRIPTS_ROOT}/lib" \
-  "${DATA_ROOT}" \
-  "${DATA_ROOT}/fabric" \
-  "${DATA_ROOT}/components" \
-  "${DATA_ROOT}/workloads" \
-  "${EDGE_DATA}" \
-  "${EDGE_DATA}/routes" \
-  "${EDGE_DATA}/domains" \
-  "${EDGE_DATA}/certs" \
-  "${EDGE_DATA}/acme-www" \
-  "${EDGE_DATA}/acme" \
-  "${DB_DATA}" \
-  "${DB_DATA}/ca" \
-  "${DB_DATA}/server" \
-  "${DB_DATA}/pgdata" \
-  "${DB_DATA}/clients" \
-  "${DB_DATA}/conf"
+  "${EDGE_PERSIST}" \
+  "${EDGE_PERSIST}/routes" \
+  "${EDGE_PERSIST}/domains" \
+  "${EDGE_PERSIST}/certs" \
+  "${EDGE_PERSIST}/acme-www" \
+  "${EDGE_PERSIST}/acme" \
+  "${DB_PERSIST}" \
+  "${DB_PERSIST}/ca" \
+  "${DB_PERSIST}/server" \
+  "${DB_PERSIST}/pgdata" \
+  "${DB_PERSIST}/clients" \
+  "${DB_PERSIST}/conf"
 do
   o="$(owner_of "${path}")"
   if [[ "${o}" != "${USER_NAME}:${USER_NAME}" ]]; then
@@ -143,4 +141,4 @@ do
   fi
 done
 
-pass "Host Volume internals/ + data/ layout and ownership"
+pass "Host Volume owner-tree layout and nested Persist ownership"

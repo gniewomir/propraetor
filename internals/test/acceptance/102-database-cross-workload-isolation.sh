@@ -19,8 +19,8 @@ acceptance_wl_track "${WLA}" "${WLB}"
 trap 'acceptance_wl_cleanup' EXIT
 
 host_ssh \
-  "rm -rf /var/lib/host-volume/internals/workloads/${WLA} \
-          /var/lib/host-volume/internals/workloads/${WLB} \
+  "rm -rf /host-volume/workloads/${WLA} \
+          /host-volume/workloads/${WLB} \
           /home/platform/.config/platform/workloads/${WLA} \
           /home/platform/.config/platform/workloads/${WLB}; \
    rm -f /home/platform/.config/containers/systemd/${WLA}*.container \

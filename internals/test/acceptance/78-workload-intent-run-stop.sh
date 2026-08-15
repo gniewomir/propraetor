@@ -56,17 +56,17 @@ WantedBy=default.target
 EOF
 
 want_before="$(host_ssh \
-  "cat /var/lib/host-volume/data/components/edge/acme/want-list 2>/dev/null || true")"
+  "cat /host-volume/components/edge/persist/acme/want-list 2>/dev/null || true")"
 
 host_ssh \
-  "rm -rf /var/lib/host-volume/internals/workloads/${WL}; \
+  "rm -rf /host-volume/workloads/${WL}; \
    rm -f /home/platform/.config/containers/systemd/${WL}.container"
 
 write_manifest run
 "${REPO_ROOT}/internals/ensure-workload.sh" "${WL}" --env "${PLATFORM_ENV:-test}"
 
 host_ssh \
-  "test -f /var/lib/host-volume/internals/workloads/${WL}/quadlets/${WL}.container" \
+  "test -f /host-volume/workloads/${WL}/quadlets/${WL}.container" \
   || fail "Intent run should store authored Quadlet SoT"
 host_ssh \
   "test -f /home/platform/.config/containers/systemd/${WL}.container" \
@@ -75,13 +75,13 @@ pass "Intent run installs authored Quadlet"
 
 if [[ -n "${HOST}" ]]; then
   edge_before="$(host_ssh \
-    "ls /var/lib/host-volume/data/components/edge/routes/${WL}.conf \
-         /var/lib/host-volume/data/components/edge/routes/${WL}--* 2>/dev/null || true")"
+    "ls /host-volume/components/edge/persist/routes/${WL}.conf \
+         /host-volume/components/edge/persist/routes/${WL}--* 2>/dev/null || true")"
   [[ -z "${edge_before}" ]] \
     || fail "Workload Setup alone must not write Edge Route interior (got: ${edge_before})"
   ensure_edge_route_fulfillment
   host_ssh \
-    "test -f /var/lib/host-volume/data/components/edge/routes/${WL}--${HOST}.conf" \
+    "test -f /host-volume/components/edge/persist/routes/${WL}--${HOST}.conf" \
     || fail "Edge Setup should fulfill Route fragment ${WL}--${HOST}.conf"
   pass "Edge Setup gathers Binding-attached Route fragment after Intent run"
 else
@@ -93,12 +93,12 @@ write_manifest stop
 
 if [[ -n "${HOST}" ]]; then
   still_present="$(host_ssh \
-    "ls /var/lib/host-volume/data/components/edge/routes/${WL}.conf /var/lib/host-volume/data/components/edge/routes/${WL}--* 2>/dev/null || true")"
+    "ls /host-volume/components/edge/persist/routes/${WL}.conf /host-volume/components/edge/persist/routes/${WL}--* 2>/dev/null || true")"
   [[ -n "${still_present}" ]] \
     || fail "Workload Setup alone must not drop Edge Routes on Intent stop"
   ensure_edge_route_fulfillment
   stop_routes="$(host_ssh \
-    "ls /var/lib/host-volume/data/components/edge/routes/${WL}.conf /var/lib/host-volume/data/components/edge/routes/${WL}--* 2>/dev/null || true")"
+    "ls /host-volume/components/edge/persist/routes/${WL}.conf /host-volume/components/edge/persist/routes/${WL}--* 2>/dev/null || true")"
   [[ -z "${stop_routes}" ]] || fail "Edge Setup must drop fulfillment for Intent stop (got: ${stop_routes})"
   pass "Edge Setup drops Workload Routes after Intent stop"
 fi
@@ -121,7 +121,7 @@ REMOTE
 pass "Intent stop: Workload Quadlets are inactive; unit file retained"
 
 want_after="$(host_ssh \
-  "cat /var/lib/host-volume/data/components/edge/acme/want-list 2>/dev/null || true")"
+  "cat /host-volume/components/edge/persist/acme/want-list 2>/dev/null || true")"
 [[ "${want_after}" == "${want_before}" ]] \
   || fail "Intent stop must not rewrite ACME want-list"
 pass "Intent stop leaves Domain ACME want-list unchanged"

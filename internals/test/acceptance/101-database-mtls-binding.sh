@@ -17,7 +17,7 @@ acceptance_wl_track "${WL}"
 trap 'acceptance_wl_cleanup' EXIT
 
 host_ssh \
-  "rm -rf /var/lib/host-volume/internals/workloads/${WL} \
+  "rm -rf /host-volume/workloads/${WL} \
           /home/platform/.config/platform/workloads/${WL}; \
    rm -f /home/platform/.config/containers/systemd/${WL}*.container; \
    rm -rf /home/platform/.config/containers/systemd/${WL}*.container.d" \
@@ -59,10 +59,10 @@ host_ssh "test -f /home/platform/.config/platform/workloads/${WL}/database/envir
   || fail "expected published Database environment binding"
 host_ssh "test -f /home/platform/.config/platform/workloads/${WL}/database/client.crt" \
   || fail "expected published client.crt"
-host_ssh "test -f /var/lib/host-volume/data/components/database/clients/${WL}/client.crt" \
+host_ssh "test -f /host-volume/components/database/persist/clients/${WL}/client.crt" \
   || fail "expected Host Volume client cert"
 host_ssh "grep -E '^propraetor[[:space:]]+${WL}[[:space:]]+${WL}\$' \
-  /var/lib/host-volume/data/components/database/conf/pg_ident.conf" \
+  /host-volume/components/database/persist/conf/pg_ident.conf" \
   || fail "expected pg_ident map row for ${WL}"
 pass "Component Setup created client material and published binding"
 

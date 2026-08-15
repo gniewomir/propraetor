@@ -79,7 +79,7 @@ UID_NUM=\$(id -u platform)
 export XDG_RUNTIME_DIR=/run/user/\${UID_NUM}
 runuser -u platform -- env XDG_RUNTIME_DIR=\$XDG_RUNTIME_DIR \
   systemctl --user stop ${WL}-pod.service ${WL}-${ROLE}.service 2>/dev/null || true
-rm -rf /var/lib/host-volume/internals/workloads/${WL} \
+rm -rf /host-volume/workloads/${WL} \
   /home/platform/.config/platform/workloads/${WL}
 rm -f /home/platform/.config/containers/systemd/${WL}.pod \
   /home/platform/.config/containers/systemd/${WL}-${ROLE}.container
@@ -99,7 +99,7 @@ acceptance_assert_container_env "${WL}-${ROLE}" EXAMPLE_GREETING "${GREETING}"
 acceptance_assert_container_env "${WL}-${ROLE}" EXAMPLE_MODE "${MODE}"
 pass "container process environment exposes EXAMPLE_GREETING and EXAMPLE_MODE"
 
-sot_grep="$(host_ssh "grep -R -F '${GREETING}' /var/lib/host-volume/internals/workloads/${WL} 2>/dev/null || true")"
+sot_grep="$(host_ssh "grep -R -F '${GREETING}' /host-volume/workloads/${WL} 2>/dev/null || true")"
 [[ -z "${sot_grep}" ]] || fail "secret must not appear in Host Volume SoT (got: ${sot_grep})"
 pass "bag values absent from Host Volume SoT"
 

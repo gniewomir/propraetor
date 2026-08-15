@@ -17,7 +17,7 @@ acceptance_wl_track "${WL}"
 trap 'acceptance_wl_cleanup' EXIT
 
 host_ssh \
-  "rm -rf /var/lib/host-volume/internals/workloads/${WL} \
+  "rm -rf /host-volume/workloads/${WL} \
           /home/platform/.config/platform/workloads/${WL}; \
    rm -f /home/platform/.config/containers/systemd/${WL}*.container; \
    rm -rf /home/platform/.config/containers/systemd/${WL}*.container.d" \
@@ -116,7 +116,7 @@ pass "thin Manifest Setup succeeds with Requires database:true"
 if host_ssh "test -d /home/platform/.config/platform/workloads/${WL}/database"; then
   fail "Workload Setup must not publish Database binding"
 fi
-if host_ssh "test -d /var/lib/host-volume/data/components/database/clients/${WL}"; then
+if host_ssh "test -d /host-volume/components/database/persist/clients/${WL}"; then
   fail "Workload Setup must not create Database client material"
 fi
 pass "Workload Setup does not fulfill Database (no binding / client cert)"

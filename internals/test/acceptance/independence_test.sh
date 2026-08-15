@@ -59,8 +59,8 @@ case_a_leave_residue() {
   printf '{ "intent": "trash" }\n' \
     >"${REPO_ROOT}/environments/test/committed-wl/manifest.json"
   printf 'host-leak\n' >"${HOST_ROOT}/var/lib/propraetor/case-a-host-residue"
-  mkdir -p "${ACCEPTANCE_HV_DATA_ROOT}/workloads/polluter-wl"
-  printf 'durable\n' >"${ACCEPTANCE_HV_DATA_ROOT}/workloads/polluter-wl/owned.bin"
+  mkdir -p "${ACCEPTANCE_HV_DATA_ROOT}/workloads/polluter-wl/persist"
+  printf 'durable\n' >"${ACCEPTANCE_HV_DATA_ROOT}/workloads/polluter-wl/persist/owned.bin"
 }
 
 # Case A (policy-compliant): same mutations, but track + cleanup on EXIT; Deploy
@@ -70,7 +70,7 @@ case_a_with_restore() {
   case_a_leave_residue
   acceptance_wl_track "polluter-wl"
   acceptance_sot_track "committed-wl/manifest.json"
-  acceptance_data_track "workloads/polluter-wl/owned.bin"
+  acceptance_data_track "workloads/polluter-wl/persist/owned.bin"
   acceptance_wl_cleanup
 }
 
@@ -108,12 +108,12 @@ reset_trackers
 case_a_leave_residue
 acceptance_wl_track "polluter-wl"
 acceptance_sot_track "committed-wl/manifest.json"
-acceptance_data_track "workloads/polluter-wl/owned.bin"
+acceptance_data_track "workloads/polluter-wl/persist/owned.bin"
 acceptance_wl_cleanup
 if ( case_b_assert_clean ); then
   fail "case B must still fail when Deploy baseline skipped (Host residue)"
 fi
-[[ ! -e "${ACCEPTANCE_HV_DATA_ROOT}/workloads/polluter-wl/owned.bin" ]] \
+[[ ! -e "${ACCEPTANCE_HV_DATA_ROOT}/workloads/polluter-wl/persist/owned.bin" ]] \
   || fail "tracked data/ must be cleaned by owning case restore"
 pass "SoT/data restore alone is not enough; Host needs Deploy baseline"
 

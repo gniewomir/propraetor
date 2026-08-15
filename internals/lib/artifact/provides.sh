@@ -19,7 +19,7 @@
 #   itself a reserved basename.
 
 artifact_reserved_basenames() {
-  printf '%s\n' binding.json manifest.json provides.json requires.json
+  printf '%s\n' binding.json manifest.json persist provides.json requires.json
 }
 
 artifact_provides_validate() {

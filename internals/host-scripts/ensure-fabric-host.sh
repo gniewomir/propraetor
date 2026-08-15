@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Host-local half of ensure-fabric. Invoked after Host delivery unpacks the stage.
 # Installs staged Fabric trees onto the Host Volume, ships host-scripts, then applies
-# Fabric Setup (ADR-0040 / ADR-0041 / #155). Does not install Components or stage ACME.
+# Fabric Setup (ADR-0040 / ADR-0054 / #215). Does not install Components or stage ACME.
 # Usage:
 #   ensure-fabric-host.sh <platform-user> [--fabric <name>]...
 set -euo pipefail
@@ -38,19 +38,17 @@ source "${HERE}/lib/host-volume-paths-host.sh"
 # shellcheck source=lib/sync-tree-host.sh
 source "${HERE}/lib/sync-tree-host.sh"
 HV_ROOT="$(host_volume_mount_root)"
-INTERNALS_ROOT="$(host_volume_sot_root)"
-DATA_ROOT="$(host_volume_persist_root)"
+FABRIC_ROOT="$(host_volume_fabric_root)"
 HOST_SCRIPTS_ROOT="$(host_volume_host_scripts_root)"
 
-# Hard cut (ADR-0018 / ADR-0041): retire components/ + components_data/.
-rm -rf "${HV_ROOT:?}/components" "${HV_ROOT:?}/components_data"
+# Hard cut (ADR-0018 / ADR-0054): retire ADR-0041 Host Volume parents.
+rm -rf "${HV_ROOT:?}/internals" "${HV_ROOT:?}/data" "${HV_ROOT:?}/components_data"
 
 mkdir -p \
-  "${INTERNALS_ROOT}" \
-  "${HOST_SCRIPTS_ROOT}" \
-  "${DATA_ROOT}/fabric"
+  "${FABRIC_ROOT}" \
+  "${HOST_SCRIPTS_ROOT}"
 
-# Host-executable helpers ship under internals/host-scripts (ADR-0041).
+# Host-executable helpers ship under host-scripts/ (ADR-0054).
 [[ -d "${HERE}/lib" ]] || {
   echo "ensure-fabric: staged host-scripts lib missing" >&2
   exit 1
@@ -67,8 +65,8 @@ install_fabric_tree() {
     echo "ensure-fabric: staged Fabric Setup missing: ${name}/setup.sh" >&2
     exit 1
   }
-  sync_tree_inplace "${HERE}/${name}" "${INTERNALS_ROOT}/${name}"
-  chmod a+x "${INTERNALS_ROOT}/${name}/setup.sh"
+  sync_tree_inplace "${HERE}/${name}" "${HV_ROOT}/${name}"
+  chmod a+x "${HV_ROOT}/${name}/setup.sh"
 }
 
 for name in "${FABRIC[@]}"; do
@@ -76,9 +74,9 @@ for name in "${FABRIC[@]}"; do
 done
 
 # Mount root stays root-owned; everything under it is Platform User–owned.
-chown -R "${USER_NAME}:${USER_NAME}" "${INTERNALS_ROOT}" "${DATA_ROOT}"
+chown -R "${USER_NAME}:${USER_NAME}" "${FABRIC_ROOT}" "${HOST_SCRIPTS_ROOT}"
 
 for name in "${FABRIC[@]}"; do
   echo "Running Fabric Setup: ${name}" >&2
-  PLATFORM_USER="${USER_NAME}" "${INTERNALS_ROOT}/${name}/setup.sh"
+  PLATFORM_USER="${USER_NAME}" "${HV_ROOT}/${name}/setup.sh"
 done

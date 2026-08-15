@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 # Host-local Mirror. Invoked by internals/ensure-mirror.sh after Host delivery.
-# Materializes each staged Environment Workload onto Host Volume internals/workloads/
+# Materializes each staged Environment Workload onto Host Volume workloads/
 # regardless of Source (Environment upsert + resolve Source + Provides directories;
 # reserved collisions fail closed). Leaves Host basenames absent from the stage alone.
-# Does not apply Intent or touch data/workloads (ADR-0053 / ADR-0047 / ADR-0041 / #204).
+# Does not apply Intent. Preserves nested Persist under each owner (ADR-0053 /
+# ADR-0054 / ADR-0047 / #204 / #215).
 # Usage: bash ensure-mirror-host.sh <platform-user>
 set -euo pipefail
 
@@ -36,6 +37,7 @@ for wl_dir in "${STAGE_WORKLOADS}"/*; do
   mat_out="${MAT_TMP}/${wl_name}"
   workload_materialize_tree "${wl_dir}" "${mat_out}" || exit 1
   sync_tree_inplace "${mat_out}" "${WORKLOADS_ROOT}/${wl_name}"
+  mkdir -p "$(host_volume_workload_persist "${wl_name}")"
 done
 
 chown -R "${USER_NAME}:${USER_NAME}" "${WORKLOADS_ROOT}" 2>/dev/null || true

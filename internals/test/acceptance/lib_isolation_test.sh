@@ -30,26 +30,26 @@ reset_trackers() {
 
 # --- tracked data/: register, cleanup removes, assert fails on leak ---
 reset_trackers
-mkdir -p "${ACCEPTANCE_HV_DATA_ROOT}/workloads/fixture-a"
-printf 'owned\n' >"${ACCEPTANCE_HV_DATA_ROOT}/workloads/fixture-a/acceptance-owned"
+mkdir -p "${ACCEPTANCE_HV_DATA_ROOT}/workloads/fixture-a/persist"
+printf 'owned\n' >"${ACCEPTANCE_HV_DATA_ROOT}/workloads/fixture-a/persist/acceptance-owned"
 # Preexisting durable must not be touched when untracked.
-mkdir -p "${ACCEPTANCE_HV_DATA_ROOT}/workloads/other"
-printf 'keep\n' >"${ACCEPTANCE_HV_DATA_ROOT}/workloads/other/state.bin"
+mkdir -p "${ACCEPTANCE_HV_DATA_ROOT}/workloads/other/persist"
+printf 'keep\n' >"${ACCEPTANCE_HV_DATA_ROOT}/workloads/other/persist/state.bin"
 
-acceptance_data_track "workloads/fixture-a/acceptance-owned"
+acceptance_data_track "workloads/fixture-a/persist/acceptance-owned"
 acceptance_wl_cleanup
 
-[[ ! -e "${ACCEPTANCE_HV_DATA_ROOT}/workloads/fixture-a/acceptance-owned" ]] \
+[[ ! -e "${ACCEPTANCE_HV_DATA_ROOT}/workloads/fixture-a/persist/acceptance-owned" ]] \
   || fail "tracked data/ path must be removed by cleanup"
-[[ -f "${ACCEPTANCE_HV_DATA_ROOT}/workloads/other/state.bin" ]] \
+[[ -f "${ACCEPTANCE_HV_DATA_ROOT}/workloads/other/persist/state.bin" ]] \
   || fail "untracked preexisting data/ must remain"
 pass "tracked data/ cleaned; untracked preexisting left alone"
 
 # Assert G: leak after cleanup must fail the owning case.
 reset_trackers
-mkdir -p "${ACCEPTANCE_HV_DATA_ROOT}/workloads/leaky"
-printf 'leak\n' >"${ACCEPTANCE_HV_DATA_ROOT}/workloads/leaky/residue"
-acceptance_data_track "workloads/leaky/residue"
+mkdir -p "${ACCEPTANCE_HV_DATA_ROOT}/workloads/leaky/persist"
+printf 'leak\n' >"${ACCEPTANCE_HV_DATA_ROOT}/workloads/leaky/persist/residue"
+acceptance_data_track "workloads/leaky/persist/residue"
 # Simulate botched cleanup: remove via helper path but re-create before assert by
 # stubbing — call assert directly with path still present.
 if ( acceptance_data_assert_gone >/dev/null 2>&1 ); then
@@ -57,7 +57,7 @@ if ( acceptance_data_assert_gone >/dev/null 2>&1 ); then
 fi
 pass "tracked data/ assert fails on leak"
 
-rm -f "${ACCEPTANCE_HV_DATA_ROOT}/workloads/leaky/residue"
+rm -f "${ACCEPTANCE_HV_DATA_ROOT}/workloads/leaky/persist/residue"
 acceptance_data_assert_gone
 pass "tracked data/ assert passes when path is gone"
 
@@ -75,12 +75,12 @@ fi
 [[ ${#ACCEPTANCE_SOT_TRACKED[@]} -eq 0 ]] \
   || fail "failed acceptance_sot_track must not append paths"
 # Case-owned Host Volume data/ probes remain allowed on non-test.
-mkdir -p "${ACCEPTANCE_HV_DATA_ROOT}/components/edge"
-printf 'probe\n' >"${ACCEPTANCE_HV_DATA_ROOT}/components/edge/diagnose-probe"
-acceptance_data_track "components/edge/diagnose-probe" \
+mkdir -p "${ACCEPTANCE_HV_DATA_ROOT}/components/edge/persist"
+printf 'probe\n' >"${ACCEPTANCE_HV_DATA_ROOT}/components/edge/persist/diagnose-probe"
+acceptance_data_track "components/edge/persist/diagnose-probe" \
   || fail "acceptance_data_track must remain allowed when PLATFORM_ENV≠test"
 acceptance_wl_cleanup
-[[ ! -e "${ACCEPTANCE_HV_DATA_ROOT}/components/edge/diagnose-probe" ]] \
+[[ ! -e "${ACCEPTANCE_HV_DATA_ROOT}/components/edge/persist/diagnose-probe" ]] \
   || fail "non-test acceptance_data_track cleanup must still remove tracked path"
 pass "non-test track helpers fail closed; data_track still allowed"
 export PLATFORM_ENV="test"
@@ -137,7 +137,7 @@ reset_trackers
 if ( acceptance_data_track "../etc/passwd" >/dev/null 2>&1 ); then
   fail "acceptance_data_track must reject '..' segments"
 fi
-if ( acceptance_data_track "/var/lib/host-volume/data/x" >/dev/null 2>&1 ); then
+if ( acceptance_data_track "/host-volume/x" >/dev/null 2>&1 ); then
   fail "acceptance_data_track must reject absolute paths"
 fi
 pass "acceptance_data_track rejects unsafe paths"
@@ -147,18 +147,18 @@ reset_trackers
 mkdir -p "${ENV_DIR}/combo-fixture"
 printf '{ "intent": "run" }\n' >"${ENV_DIR}/combo-fixture/manifest.json"
 printf '{ "intent": "stop" }\n' >"${ENV_DIR}/committed-wl/manifest.json"
-mkdir -p "${ACCEPTANCE_HV_DATA_ROOT}/workloads/combo-fixture"
-printf 'x\n' >"${ACCEPTANCE_HV_DATA_ROOT}/workloads/combo-fixture/acceptance-owned"
+mkdir -p "${ACCEPTANCE_HV_DATA_ROOT}/workloads/combo-fixture/persist"
+printf 'x\n' >"${ACCEPTANCE_HV_DATA_ROOT}/workloads/combo-fixture/persist/acceptance-owned"
 
 acceptance_wl_track "combo-fixture"
 acceptance_sot_track "committed-wl/manifest.json"
-acceptance_data_track "workloads/combo-fixture/acceptance-owned"
+acceptance_data_track "workloads/combo-fixture/persist/acceptance-owned"
 acceptance_wl_cleanup
 
 [[ ! -e "${ENV_DIR}/combo-fixture" ]] || fail "combo: fixture must be gone"
 got="$(cat "${ENV_DIR}/committed-wl/manifest.json")"
 [[ "${got}" == '{ "intent": "run" }' ]] || fail "combo: SoT must be restored, got: ${got}"
-[[ ! -e "${ACCEPTANCE_HV_DATA_ROOT}/workloads/combo-fixture/acceptance-owned" ]] \
+[[ ! -e "${ACCEPTANCE_HV_DATA_ROOT}/workloads/combo-fixture/persist/acceptance-owned" ]] \
   || fail "combo: tracked data/ must be gone"
 pass "unified cleanup: fixtures + SoT + tracked data/"
 

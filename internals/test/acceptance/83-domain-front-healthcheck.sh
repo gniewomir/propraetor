@@ -18,7 +18,7 @@ source "${REPO_ROOT}/internals/lib/domains/domain_front_target.sh"
 # shellcheck source=../../lib/domains/domain_front_staging_hc.sh
 source "${REPO_ROOT}/internals/lib/domains/domain_front_staging_hc.sh"
 
-DATA_ROOT=/var/lib/host-volume/data/components/edge
+DATA_ROOT=/host-volume/components/edge
 DOMAINS_HOST="${DATA_ROOT}/domains"
 CERTS_HOST="${DATA_ROOT}/certs"
 STAGING_CA="${REPO_ROOT}/internals/test/acceptance/fixtures/le-staging-roots/le-staging-roots.pem"
@@ -137,7 +137,7 @@ fi
 
 # --- ACME HTTP-01 still works ---
 TOKEN="domain-front-acme-probe"
-acceptance_data_track "components/edge/acme-www/.well-known/acme-challenge/${TOKEN}"
+acceptance_data_track "components/edge/persist/acme-www/.well-known/acme-challenge/${TOKEN}"
 host_ssh bash -s <<REMOTE
 set -euo pipefail
 TOKEN_PATH=${DATA_ROOT}/acme-www/.well-known/acme-challenge/${TOKEN}
@@ -166,7 +166,7 @@ systemctl start "user@\${UID_NUM}.service"
 runuser -u platform -- env XDG_RUNTIME_DIR="\$XDG_RUNTIME_DIR" \
   systemctl --user stop edge-acme.service 2>/dev/null || true
 runuser -u platform -- env XDG_RUNTIME_DIR="\$XDG_RUNTIME_DIR" EDGE_ACME_ISSUE=0 \
-  /var/lib/host-volume/internals/components/edge/acme-run.sh
+  /host-volume/components/edge/acme-run.sh
 REMOTE
 front_post_acme="$(host_ssh "sha256sum '${DOMAINS_HOST}/${FQDN}.conf'")"
 [[ "${front_pre_acme}" == "${front_post_acme}" ]] \

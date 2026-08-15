@@ -328,8 +328,8 @@ write_host_volume_file() {
   acceptance_host_session
   host_ssh bash -s <<EOF
 set -euo pipefail
-findmnt --mountpoint /var/lib/host-volume >/dev/null \
-  || { echo "FAIL: /var/lib/host-volume not mounted" >&2; exit 1; }
+findmnt --mountpoint /host-volume >/dev/null \
+  || { echo "FAIL: /host-volume not mounted" >&2; exit 1; }
 printf '%s\n' '${body}' > '${path}'
 # Flush file data + metadata; then a global sync as belt-and-braces before Park.
 sync '${path}'
@@ -366,22 +366,22 @@ wait_until_ssh_reachable() {
   fail "SSH not usable at ${IP} within ${timeout}s (pubkey session could not run a command)"
 }
 
-# Poll until Host Volume is mounted at /var/lib/host-volume (does not wait for full IHP).
+# Poll until Host Volume is mounted at /host-volume (does not wait for full IHP).
 # Optional: VOLUME_MOUNT_TIMEOUT_SECONDS (default 300).
 wait_until_volume_mounted() {
   require_ip
   acceptance_host_session
   local timeout="${VOLUME_MOUNT_TIMEOUT_SECONDS:-300}"
   local deadline=$((SECONDS + timeout))
-  echo "Waiting for Host Volume mount at ${IP}:/var/lib/host-volume (up to ${timeout}s) ..."
+  echo "Waiting for Host Volume mount at ${IP}:/host-volume (up to ${timeout}s) ..."
   while ((SECONDS < deadline)); do
-    if host_ssh "findmnt --mountpoint /var/lib/host-volume" >/dev/null 2>&1; then
-      pass "Host Volume mounted at /var/lib/host-volume"
+    if host_ssh "findmnt --mountpoint /host-volume" >/dev/null 2>&1; then
+      pass "Host Volume mounted at /host-volume"
       return 0
     fi
     sleep 5
   done
-  fail "Host Volume not mounted at /var/lib/host-volume within ${timeout}s"
+  fail "Host Volume not mounted at /host-volume within ${timeout}s"
 }
 
 # Absolute path to committed domains.json (never the override).

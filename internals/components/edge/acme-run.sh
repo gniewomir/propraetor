@@ -10,7 +10,7 @@ set -euo pipefail
 
 # Path vocabulary bootstrap (#214). Host Volume SoT segment "internals/" ≠ repo internals/.
 # shellcheck source=../../host-scripts/lib/host-volume-paths-host.sh
-source "${HV_ROOT:-/var/lib/host-volume}/internals/host-scripts/lib/host-volume-paths-host.sh"
+source "${HV_ROOT:-/host-volume}/host-scripts/lib/host-volume-paths-host.sh"
 
 DATA_ROOT="$(host_volume_component_persist edge)"
 ROUTES_DIR="${DATA_ROOT}/routes"

@@ -5,7 +5,7 @@ Description=Propraetor example hello-service web
 Image=docker.io/library/nginx:1.31.3-alpine
 ContainerName=hello-service-web
 Pod=hello-service.pod
-Volume=/var/lib/host-volume/data/workloads/hello-service:/var/lib/workload:rw
+Volume=/host-volume/workloads/hello-service/persist:/var/lib/workload:rw
 
 [Service]
 Restart=on-failure

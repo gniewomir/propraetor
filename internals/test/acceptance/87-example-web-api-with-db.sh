@@ -80,7 +80,7 @@ HOME_DIR=\$(getent passwd platform | cut -d: -f6)
 export XDG_RUNTIME_DIR=/run/user/\${UID_NUM}
 runuser -u platform -- env XDG_RUNTIME_DIR=\$XDG_RUNTIME_DIR \
   systemctl --user stop ${WL}-pod.service ${WL}-api.service ${WL}-db.service 2>/dev/null || true
-rm -rf /var/lib/host-volume/internals/workloads/${WL}
+rm -rf /host-volume/workloads/${WL}
 rm -f /home/platform/.config/containers/systemd/${WL}.pod \
   /home/platform/.config/containers/systemd/${WL}-api.container \
   /home/platform/.config/containers/systemd/${WL}-db.container
@@ -90,7 +90,7 @@ REMOTE
 "${REPO_ROOT}/internals/ensure-workload.sh" "${WL}" --env "${PLATFORM_ENV:-test}"
 
 host_ssh \
-  "test -f /var/lib/host-volume/internals/workloads/${WL}/quadlets/${WL}.pod" \
+  "test -f /host-volume/workloads/${WL}/quadlets/${WL}.pod" \
   || fail "Setup should store authored pod SoT"
 host_ssh \
   "test -f /home/platform/.config/containers/systemd/${WL}.pod" \
@@ -212,8 +212,8 @@ runuser -u platform -- env HOME="${HOME_DIR}" XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR
   DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/${UID_NUM}/bus" \
   PROBE_TOKEN="${PROBE_TOKEN}" \
   bash -c 'cd "$HOME" && printf %s "$PROBE_TOKEN" | podman exec -i '"${cid}"' sh -c "cat >/var/lib/workload/acceptance-owned"'
-test -f "/var/lib/host-volume/data/workloads/${WL}/acceptance-owned"
-grep -qx "${PROBE_TOKEN}" "/var/lib/host-volume/data/workloads/${WL}/acceptance-owned"
+test -f "/host-volume/workloads/${WL}/acceptance-owned"
+grep -qx "${PROBE_TOKEN}" "/host-volume/workloads/${WL}/acceptance-owned"
 REMOTE
 pass "owned Host Volume mounted RW at /var/lib/workload"
 
@@ -244,7 +244,7 @@ if [[ -z "${ROUTE_FQDN}" ]]; then
   echo "SOFT-SKIP: empty Domain want-list — Route install / HTTPS attach assertions"
 else
   installed="$(host_ssh \
-    "cat /var/lib/host-volume/data/components/edge/routes/${WL}--${ROUTE_FQDN}.conf")"
+    "cat /host-volume/components/edge/persist/routes/${WL}--${ROUTE_FQDN}.conf")"
   printf '%s\n' "${installed}" | grep -qE "proxy_pass[[:space:]]+http://${WL}" \
     || fail "installed Route must proxy to app basename only"
   printf '%s\n' "${installed}" | grep -qE ":5432|${WL}-db" \

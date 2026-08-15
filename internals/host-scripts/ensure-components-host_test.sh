@@ -88,7 +88,7 @@ pass "unknown Setup slot fails closed"
 
 # --- pre-workloads: installs Edge, runs only that slot, ignores staged Fabric ---
 : >"${TMP}/setup.order"
-mkdir -p "${HV}/components/legacy" "${HV}/components_data/legacy"
+mkdir -p "${HV}/internals/legacy" "${HV}/data/legacy" "${HV}/components_data/legacy"
 bash "${TMP}/ensure-run.sh" "${USER_NAME}" pre-workloads --component edge 2>"${TMP}/stderr" \
   || fail "ensure-run pre-workloads failed: $(cat "${TMP}/stderr")"
 
@@ -105,27 +105,28 @@ fi
 if printf '%s\n' "${order}" | grep -Fxq 'fabric'; then
   fail "ensure-components must not run staged Fabric Setup"
 fi
-[[ -f "${HV}/internals/components/edge/pre-workloads.sh" ]] \
+[[ -f "${HV}/components/edge/pre-workloads.sh" ]] \
   || fail "edge pre-workloads.sh not installed on Host Volume"
-[[ -f "${HV}/internals/components/edge/post-workloads.sh" ]] \
+[[ -f "${HV}/components/edge/post-workloads.sh" ]] \
   || fail "edge post-workloads.sh not installed on Host Volume"
-[[ ! -e "${HV}/internals/components/edge/setup.sh" ]] \
+[[ ! -e "${HV}/components/edge/setup.sh" ]] \
   || fail "monolithic setup.sh must not be shipped"
-[[ -f "${HV}/internals/components/edge/nginx.conf" ]] || fail "edge nginx.conf not installed"
-[[ -f "${HV}/internals/components/edge/domain-template.conf" ]] \
+[[ -f "${HV}/components/edge/nginx.conf" ]] || fail "edge nginx.conf not installed"
+[[ -f "${HV}/components/edge/domain-template.conf" ]] \
   || fail "edge domain-template.conf not installed"
-[[ ! -e "${HV}/internals/fabric/setup.sh" ]] || fail "ensure-components must not install Fabric"
-[[ -d "${HV}/internals/host-scripts/lib" ]] || fail "host-scripts lib not installed on Host Volume"
-[[ -d "${HV}/internals/workloads" ]] || fail "workloads SoT root missing on Host Volume"
-[[ -d "${HV}/data/components" ]] || fail "data/components missing on Host Volume"
-[[ -d "${HV}/data/workloads" ]] || fail "data/workloads missing on Host Volume"
-[[ -f "${HV}/data/components/handoff/acme-want-list" ]] \
+[[ ! -e "${HV}/fabric/setup.sh" ]] || fail "ensure-components must not install Fabric"
+[[ -d "${HV}/host-scripts/lib" ]] || fail "host-scripts lib not installed on Host Volume"
+[[ -d "${HV}/workloads" ]] || fail "workloads SoT root missing on Host Volume"
+[[ -d "${HV}/components" ]] || fail "components SoT root missing on Host Volume"
+[[ -d "${HV}/components/edge/persist" ]] || fail "Edge Persist not auto-created"
+[[ -f "${HV}/components/handoff/acme-want-list" ]] \
   || fail "ACME want-list handoff missing under Host Volume"
-[[ -f "${HV}/data/components/handoff/acme.env" ]] \
+[[ -f "${HV}/components/handoff/acme.env" ]] \
   || fail "ACME env handoff missing under Host Volume"
-grep -Fxq 'alpha.example.test' "${HV}/data/components/handoff/acme-want-list" \
+grep -Fxq 'alpha.example.test' "${HV}/components/handoff/acme-want-list" \
   || fail "ACME want-list handoff content wrong"
-[[ ! -e "${HV}/components" ]] || fail "retired components/ must not exist after ensure"
+[[ ! -e "${HV}/internals" ]] || fail "retired internals/ must not exist after ensure"
+[[ ! -e "${HV}/data" ]] || fail "retired data/ must not exist after ensure"
 [[ ! -e "${HV}/components_data" ]] || fail "retired components_data/ must not exist after ensure"
 pass "ensure-components pre-workloads installs Components and runs only that slot"
 
@@ -171,9 +172,9 @@ bash "${TMP}/ensure-run.sh" "${USER_NAME}" pre-workloads --component edge --comp
 order="$(cat "${TMP}/setup.order")"
 printf '%s\n' "${order}" | grep -Fxq 'edge-pre' || fail "edge-pre missing in dual run: ${order}"
 printf '%s\n' "${order}" | grep -Fxq 'database-pre' || fail "database-pre missing in dual run: ${order}"
-[[ -f "${HV}/internals/components/database/pre-workloads.sh" ]] \
+[[ -f "${HV}/components/database/pre-workloads.sh" ]] \
   || fail "database pre-workloads.sh not installed"
-[[ -f "${HV}/data/components/handoff/database-admin.env" ]] \
+[[ -f "${HV}/components/handoff/database-admin.env" ]] \
   || fail "Database admin handoff missing when Database selected"
 pass "ensure-components runs Edge and Database Setup in one slot"
 
@@ -223,18 +224,18 @@ grep -Eqi 'unknown|pre-workloads|post-workloads|slot' "${TMP}/stderr3" \
 pass "Component name is not a valid Setup slot"
 
 # --- non-breaking ship: update Edge tree without replacing directory/file inodes ---
-mkdir -p "${HV}/internals/components/edge"
-printf 'old-nginx\n' >"${HV}/internals/components/edge/nginx.conf"
-dir_ino="$(inode_of "${HV}/internals/components/edge")"
-file_ino="$(inode_of "${HV}/internals/components/edge/nginx.conf")"
+mkdir -p "${HV}/components/edge"
+printf 'old-nginx\n' >"${HV}/components/edge/nginx.conf"
+dir_ino="$(inode_of "${HV}/components/edge")"
+file_ino="$(inode_of "${HV}/components/edge/nginx.conf")"
 : >"${TMP}/setup.order"
 bash "${TMP}/ensure-run.sh" "${USER_NAME}" pre-workloads --component edge 2>"${TMP}/stderr4" \
   || fail "re-ensure-components failed: $(cat "${TMP}/stderr4")"
-[[ "$(inode_of "${HV}/internals/components/edge")" == "${dir_ino}" ]] \
+[[ "$(inode_of "${HV}/components/edge")" == "${dir_ino}" ]] \
   || fail "edge directory inode changed (breaking ship for bind mounts)"
-[[ "$(inode_of "${HV}/internals/components/edge/nginx.conf")" == "${file_ino}" ]] \
+[[ "$(inode_of "${HV}/components/edge/nginx.conf")" == "${file_ino}" ]] \
   || fail "nginx.conf inode changed (file was unlinked instead of overwritten)"
-grep -Fxq 'edge-nginx' "${HV}/internals/components/edge/nginx.conf" \
+grep -Fxq 'edge-nginx' "${HV}/components/edge/nginx.conf" \
   || fail "nginx.conf content not updated in place"
 pass "ensure-components updates Edge tree without replacing directory/file inodes"
 
@@ -255,8 +256,8 @@ printf '%s\n' "${order}" | head -1 | grep -Fxq 'fabric' \
   || fail "Fabric Setup must run first when both cogs run in order, got: ${order}"
 printf '%s\n' "${order}" | tail -1 | grep -Fxq 'edge-pre' \
   || fail "Component Setup must run after Fabric when both cogs run in order, got: ${order}"
-[[ -f "${HV}/internals/fabric/setup.sh" ]] || fail "fabric missing after ordered ensure"
-[[ -f "${HV}/internals/components/edge/pre-workloads.sh" ]] \
+[[ -f "${HV}/fabric/setup.sh" ]] || fail "fabric missing after ordered ensure"
+[[ -f "${HV}/components/edge/pre-workloads.sh" ]] \
   || fail "edge pre-workloads missing after ordered ensure"
 pass "ensure-fabric then ensure-components leaves Fabric and Edge installed in order"
 

@@ -3,7 +3,7 @@
 # Runs on the Host only (as root). Success means Initial Host Provisioning
 # outcomes required for Components hold: IHP finished, ADR-0030 SSH port
 # cutover reboot completed, port floor 80, Platform User present, Host Volume
-# mounted at /var/lib/host-volume, and Platform journal readiness (ADR-0050).
+# mounted at /host-volume, and Platform journal readiness (ADR-0050).
 # Usage: PLATFORM_USER=platform ./wait-until-ihp-done.sh
 # Optional: PLATFORM_USER (default platform)
 # Test overrides: IHP_POWER_STATE_SEM, IHP_POWER_STATE_SEM_EPOCH, IHP_BOOT_EPOCH,

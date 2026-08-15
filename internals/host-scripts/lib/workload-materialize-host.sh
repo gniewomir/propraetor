@@ -102,6 +102,15 @@ _workload_materialize_fetch_uri() {
   rm -f "${zip_path}"
 }
 
+_workload_materialize_refuse_persist() {
+  local tree="${1:?}"
+  local label="${2:?}"
+  if [[ -e "${tree}/persist" || -L "${tree}/persist" ]]; then
+    echo "workload_materialize_tree: ${label} must not ship persist/ (reserved Persist)" >&2
+    return 1
+  fi
+}
+
 # ENV_TREE → OUT (Host Workload projection).
 workload_materialize_tree() {
   local env_tree="${1:?workload_materialize_tree: Environment Workload tree required}"
@@ -114,6 +123,7 @@ workload_materialize_tree() {
   }
 
   artifact_source_tree_gate "${env_tree}" || return 1
+  _workload_materialize_refuse_persist "${env_tree}" "Environment tree" || return 1
 
   rm -rf "${out}"
   mkdir -p "${out}" || return 1
@@ -147,6 +157,11 @@ workload_materialize_tree() {
       fi
     fi
     artifact_root="${extract_tmp}"
+  fi
+
+  if ! _workload_materialize_refuse_persist "${artifact_root}" "Artifact"; then
+    [[ -n "${extract_tmp}" ]] && rm -rf "${extract_tmp}"
+    return 1
   fi
 
   provides="${artifact_root}/provides.json"
@@ -184,6 +199,11 @@ workload_materialize_tree() {
     [[ -n "${extract_tmp}" ]] && rm -rf "${extract_tmp}"
     return 1
   }
+
+  if ! _workload_materialize_refuse_persist "${out}" "materialized tree"; then
+    [[ -n "${extract_tmp}" ]] && rm -rf "${extract_tmp}"
+    return 1
+  fi
 
   [[ -n "${extract_tmp}" ]] && rm -rf "${extract_tmp}"
   return 0

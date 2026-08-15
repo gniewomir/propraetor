@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Acceptance Test: Mirror upsert/orphan-leave + Orphan Reap (ADR-0041 / #156)
+# Acceptance Test: Mirror upsert/orphan-leave + Orphan Reap (ADR-0054 / #156 / #215)
 set -euo pipefail
 # shellcheck source=lib.sh
 source "$(cd "$(dirname "$0")" && pwd)/lib.sh"
@@ -44,7 +44,7 @@ EOF
 host_ssh bash -s <<'REMOTE'
 set -euo pipefail
 for n in keep-alive gone-soon; do
-  rm -rf "/var/lib/host-volume/internals/workloads/${n}"
+  rm -rf "/host-volume/workloads/${n}"
   rm -f "/home/platform/.config/containers/systemd/${n}.container"
   rm -rf "/home/platform/.config/containers/systemd/${n}.container.d"
 done
@@ -55,11 +55,11 @@ stage_wl gone-soon
 "${REPO_ROOT}/internals/ensure-workload.sh" keep-alive --env "${ENV_SLUG}"
 "${REPO_ROOT}/internals/ensure-workload.sh" gone-soon --env "${ENV_SLUG}"
 
-host_ssh "mkdir -p /var/lib/host-volume/data/workloads/gone-soon && \
-  printf 'durable-orphan\\n' > /var/lib/host-volume/data/workloads/gone-soon/state.bin && \
-  chown -R platform:platform /var/lib/host-volume/data/workloads/gone-soon"
+host_ssh "mkdir -p /host-volume/workloads/gone-soon/persist && \
+  printf 'durable-orphan\\n' > /host-volume/workloads/gone-soon/persist/state.bin && \
+  chown -R platform:platform /host-volume/workloads/gone-soon/persist"
 
-host_ssh "test -f /var/lib/host-volume/internals/workloads/gone-soon/manifest.json" \
+host_ssh "test -f /host-volume/workloads/gone-soon/manifest.json" \
   || fail "gone-soon should be on Host before orphaning"
 host_ssh "test -f /home/platform/.config/containers/systemd/gone-soon.container" \
   || fail "gone-soon unit should be installed before orphaning"
@@ -67,33 +67,33 @@ host_ssh "test -f /home/platform/.config/containers/systemd/gone-soon.container"
 # Drop from Environment → Host leftover becomes an orphan
 rm -rf "${FIX_DIR}/gone-soon"
 
-# Mirror upserts keep-alive and must leave the orphan alone
+# Mirror upserts keep-alive and must leave the orphan alone (incl. Persist)
 printf '{"intent":"stop","source":"internal","description":"mirrored"}\n' >"${FIX_DIR}/keep-alive/manifest.json"
 "${REPO_ROOT}/internals/ensure-mirror.sh" --env "${ENV_SLUG}"
 
-host_ssh "grep -Fq mirrored /var/lib/host-volume/internals/workloads/keep-alive/manifest.json" \
+host_ssh "grep -Fq mirrored /host-volume/workloads/keep-alive/manifest.json" \
   || fail "Mirror must upsert keep-alive Manifest on Host"
-host_ssh "test -f /var/lib/host-volume/internals/workloads/keep-alive/provides.json" \
+host_ssh "test -f /host-volume/workloads/keep-alive/provides.json" \
   || fail "Mirror must materialize Provides regardless of Source"
-host_ssh "test -f /var/lib/host-volume/internals/workloads/keep-alive/requires.json" \
+host_ssh "test -f /host-volume/workloads/keep-alive/requires.json" \
   || fail "Mirror must materialize Requires regardless of Source"
-host_ssh "test -f /var/lib/host-volume/internals/workloads/keep-alive/binding.json" \
+host_ssh "test -f /host-volume/workloads/keep-alive/binding.json" \
   || fail "Mirror must materialize Binding regardless of Source"
-host_ssh "test -f /var/lib/host-volume/internals/workloads/gone-soon/manifest.json" \
+host_ssh "test -f /host-volume/workloads/gone-soon/manifest.json" \
   || fail "Mirror must leave orphan definition tree alone"
-host_ssh "grep -Fxq durable-orphan /var/lib/host-volume/data/workloads/gone-soon/state.bin" \
-  || fail "Mirror must leave orphan durable data alone"
+host_ssh "grep -Fxq durable-orphan /host-volume/workloads/gone-soon/persist/state.bin" \
+  || fail "Mirror must leave orphan Persist alone"
+host_ssh "test -d /host-volume/workloads/keep-alive/persist" \
+  || fail "Mirror must auto-create empty Persist for Environment Workloads"
 pass "Mirror upserts Environment Workloads and leaves orphans alone"
 
 "${REPO_ROOT}/internals/purge-orphans.sh" --env "${ENV_SLUG}"
 
-host_ssh "test ! -e /var/lib/host-volume/internals/workloads/gone-soon" \
-  || fail "Orphan Reap must remove orphan definition tree"
-host_ssh "test ! -e /var/lib/host-volume/data/workloads/gone-soon" \
-  || fail "Orphan Reap must remove orphan durable data"
+host_ssh "test ! -e /host-volume/workloads/gone-soon" \
+  || fail "Orphan Reap must remove orphan owner tree (SoT + Persist)"
 host_ssh "test ! -e /home/platform/.config/containers/systemd/gone-soon.container" \
   || fail "Orphan Reap must remove orphan unit file"
-host_ssh "test -f /var/lib/host-volume/internals/workloads/keep-alive/manifest.json" \
+host_ssh "test -f /host-volume/workloads/keep-alive/manifest.json" \
   || fail "Orphan Reap must leave Environment Workloads alone"
 pass "Orphan Reap removes absent basenames' Host Volume trees and units"
 

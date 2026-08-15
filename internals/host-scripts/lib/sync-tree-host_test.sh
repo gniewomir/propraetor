@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Unit tests: sync_tree_inplace preserves dest directory/file inodes (#155).
+# Unit tests: sync_tree_inplace preserves dest directory/file inodes (#155)
+# and owner Persist (ADR-0054 / #215).
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"
@@ -37,5 +38,30 @@ grep -Fxq 'new' "${TMP}/dest/nginx.conf" || fail "nginx.conf not updated"
 [[ -f "${TMP}/dest/extra.conf" ]] || fail "extra.conf not added"
 [[ ! -e "${TMP}/dest/stale.txt" ]] || fail "stale.txt not pruned"
 pass "sync_tree_inplace updates in place, adds, and prunes"
+
+# --- Persist under dest survives sync; source persist fails closed ---
+mkdir -p "${TMP}/persist-src" "${TMP}/persist-dest/persist/nested"
+printf 'durable\n' >"${TMP}/persist-dest/persist/nested/state.bin"
+printf 'soT\n' >"${TMP}/persist-dest/manifest.json"
+printf 'soT-new\n' >"${TMP}/persist-src/manifest.json"
+printf 'gone\n' >"${TMP}/persist-dest/stale-sot.txt"
+
+sync_tree_inplace "${TMP}/persist-src" "${TMP}/persist-dest" \
+  || fail "sync with dest Persist must succeed"
+grep -Fxq 'soT-new' "${TMP}/persist-dest/manifest.json" || fail "SoT not updated"
+[[ ! -e "${TMP}/persist-dest/stale-sot.txt" ]] || fail "non-Persist stale not pruned"
+grep -Fxq 'durable' "${TMP}/persist-dest/persist/nested/state.bin" \
+  || fail "Persist bytes must survive sync"
+pass "sync_tree_inplace preserves dest persist/"
+
+mkdir -p "${TMP}/bad-src/persist"
+printf 'nope\n' >"${TMP}/bad-src/persist/x"
+mkdir -p "${TMP}/bad-dest"
+if sync_tree_inplace "${TMP}/bad-src" "${TMP}/bad-dest" 2>"${TMP}/bad-err"; then
+  fail "source persist/ must fail closed"
+fi
+grep -Eqi 'persist' "${TMP}/bad-err" \
+  || fail "source persist rejection unclear: $(cat "${TMP}/bad-err")"
+pass "sync_tree_inplace rejects source persist/"
 
 echo "All sync-tree-host offline tests passed."

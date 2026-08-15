@@ -50,11 +50,11 @@ require_data_track() {
 }
 
 require_data_track "75-edge-acme-foundation.sh" \
-  "components/edge/acme-www/.well-known/acme-challenge/edge-acme-foundation-probe"
+  "components/edge/persist/acme-www/.well-known/acme-challenge/edge-acme-foundation-probe"
 require_data_track "77-https-fixture-pem.sh" \
-  "components/edge/acme-www/.well-known/acme-challenge/"
+  "components/edge/persist/acme-www/.well-known/acme-challenge/"
 require_data_track "83-domain-front-healthcheck.sh" \
-  "components/edge/acme-www/.well-known/acme-challenge/"
+  "components/edge/persist/acme-www/.well-known/acme-challenge/"
 
 # --- diagnose-runnable cases must not write Environment SoT (ADR-0042 / #176) ---
 # Fixture-class = references acceptance_wl_track / acceptance_sot_track.

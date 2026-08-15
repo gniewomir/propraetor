@@ -246,9 +246,9 @@ acceptance_env_dir() {
   printf '%s/environments/%s\n' "${REPO_ROOT}" "${PLATFORM_ENV:-test}"
 }
 
-# Host Volume data/ root. Override ACCEPTANCE_HV_DATA_ROOT for Unit Tests (no live Host).
+# Host Volume mount root (Persist paths are relative under it). Override ACCEPTANCE_HV_DATA_ROOT for Unit Tests (no live Host).
 acceptance_hv_data_root() {
-  printf '%s\n' "${ACCEPTANCE_HV_DATA_ROOT:-/var/lib/host-volume/data}"
+  printf '%s\n' "${ACCEPTANCE_HV_DATA_ROOT:-/host-volume}"
 }
 
 ACCEPTANCE_WL_TRACKED=()
@@ -284,11 +284,11 @@ acceptance_data_track() {
   for rel in "$@"; do
     case "${rel}" in
       "" | /*)
-        echo "FAIL: acceptance_data_track: path must be relative under data/ (got '${rel}')" >&2
+        echo "FAIL: acceptance_data_track: path must be relative under Host Volume mount (got '${rel}')" >&2
         return 1
         ;;
     esac
-    # Reject .. segments (undeclared escape outside data/).
+    # Reject .. segments (undeclared escape outside Host Volume mount).
     case "/${rel}/" in
       */../*)
         echo "FAIL: acceptance_data_track: path must not contain '..' (got '${rel}')" >&2
@@ -300,13 +300,13 @@ acceptance_data_track() {
 }
 
 acceptance_data_path() {
-  local rel="${1:?acceptance_data_path: relative data/ path required}"
+  local rel="${1:?acceptance_data_path: relative Host Volume path required}"
   printf '%s/%s\n' "$(acceptance_hv_data_root)" "${rel}"
 }
 
-# True if the tracked Host data/ path exists (local override or via Host SSH).
+# True if the tracked Host Volume path exists (local override or via Host SSH).
 acceptance_data_exists() {
-  local rel="${1:?acceptance_data_exists: relative data/ path required}"
+  local rel="${1:?acceptance_data_exists: relative Host Volume path required}"
   local full
   full="$(acceptance_data_path "${rel}")"
   if [[ -n "${ACCEPTANCE_HV_DATA_ROOT:-}" ]]; then
@@ -317,7 +317,7 @@ acceptance_data_exists() {
 }
 
 acceptance_data_rm() {
-  local rel="${1:?acceptance_data_rm: relative data/ path required}"
+  local rel="${1:?acceptance_data_rm: relative Host Volume path required}"
   local full
   full="$(acceptance_data_path "${rel}")"
   if [[ -n "${ACCEPTANCE_HV_DATA_ROOT:-}" ]]; then
@@ -327,12 +327,12 @@ acceptance_data_rm() {
   host_ssh "rm -rf $(printf '%q' "${full}")"
 }
 
-# Tracked-G: every registered survive-Deploy data/ path must be gone.
+# Tracked-G: every registered survive-Deploy Host Volume path must be gone.
 acceptance_data_assert_gone() {
   local rel
   for rel in "${ACCEPTANCE_DATA_TRACKED[@]+"${ACCEPTANCE_DATA_TRACKED[@]}"}"; do
     if acceptance_data_exists "${rel}"; then
-      echo "FAIL: tracked Host Volume data/ path still present after cleanup: ${rel}" >&2
+      echo "FAIL: tracked Host Volume  path still present after cleanup: ${rel}" >&2
       return 1
     fi
   done
@@ -354,7 +354,7 @@ acceptance_sot_restore() {
 }
 
 # Shared EXIT protocol: remove fixture Workloads, restore tracked SoT, clean + assert
-# tracked survive-Deploy data/ (ADR-0042 / #163).
+# tracked survive-Deploy Host Volume (ADR-0042 / #163).
 acceptance_wl_cleanup() {
   local root name rel
   root="$(acceptance_env_dir)"

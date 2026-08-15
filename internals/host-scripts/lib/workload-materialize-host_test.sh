@@ -91,4 +91,21 @@ fi
 rm -f "${PATH_TREE}/escape"
 pass "materialize refuses outbound Workload symlink"
 
+# --- Persist reserved: Environment / Artifact must not ship persist/ ---
+PERS_TREE="${TMP}/persist-wl"
+mkdir -p "${PERS_TREE}/persist"
+printf '{}\n' >"${PERS_TREE}/binding.json"
+cat >"${PERS_TREE}/manifest.json" <<'EOF'
+{ "intent": "run", "source": "internal" }
+EOF
+printf '{ "directories": { "www": "www" } }\n' >"${PERS_TREE}/provides.json"
+printf '{ "database": false }\n' >"${PERS_TREE}/requires.json"
+mkdir -p "${PERS_TREE}/www"
+if err="$(workload_materialize_tree "${PERS_TREE}" "${OUT}" 2>&1)"; then
+  fail "Environment persist/ must fail closed"
+fi
+printf '%s\n' "${err}" | grep -Eqi 'persist' \
+  || fail "Environment persist rejection unclear: ${err}"
+pass "materialize refuses Environment persist/"
+
 echo "All workload-materialize-host offline tests passed."

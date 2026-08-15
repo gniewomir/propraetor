@@ -50,7 +50,7 @@ pass "Deploy leaves Edge healthy (units active, front door answers)"
 
 # Route fulfillment landed via post-workloads on the Deploy ladder.
 installed="$(host_ssh \
-  "cat /var/lib/host-volume/data/components/edge/routes/${WL}--${ROUTE_FQDN}.conf")"
+  "cat /host-volume/components/edge/persist/routes/${WL}--${ROUTE_FQDN}.conf")"
 printf '%s\n' "${installed}" | grep -qE "proxy_pass[[:space:]]+http://${WL}" \
   || fail "Deploy post-workloads must fulfill Route proxying to Workload basename"
 pass "Deploy fulfilled Route-backed Workload Route (${ROUTE_FQDN})"

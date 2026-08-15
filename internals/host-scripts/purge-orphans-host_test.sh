@@ -15,7 +15,7 @@ TMP="$(umask 077; mktemp -d "${TMPDIR:-/tmp}/purge-orphans.XXXXXX")"
 trap 'rm -rf "${TMP}"' EXIT
 HV="${TMP}/host-volume"
 STAGE="${TMP}/stage"
-mkdir -p "${STAGE}" "${HV}/internals/workloads" "${HV}/data/workloads"
+mkdir -p "${STAGE}" "${HV}/workloads" "${HV}/workloads"
 
 cp "${HOST_SCRIPT}" "${STAGE}/purge-orphans-host.sh"
 cp "${ORPHAN_LIB}" "${STAGE}/orphan-reap-host.sh"
@@ -54,17 +54,17 @@ EOF
 chmod +x "${TMP}/bin/chown"
 export PATH="${TMP}/bin:${PATH}"
 
-# Host: keep-me (in Environment) + orphan (absent) + durable data for both
+# Host: keep-me (in Environment) + orphan (absent) + durable Persist for both
 mkdir -p \
-  "${HV}/internals/workloads/keep-me/quadlets" \
-  "${HV}/internals/workloads/orphan-gone/quadlets" \
-  "${HV}/data/workloads/keep-me" \
-  "${HV}/data/workloads/orphan-gone"
-printf '{"intent":"run"}\n' >"${HV}/internals/workloads/keep-me/manifest.json"
-printf '{"intent":"run"}\n' >"${HV}/internals/workloads/orphan-gone/manifest.json"
-printf 'unit\n' >"${HV}/internals/workloads/orphan-gone/quadlets/orphan.container"
-printf 'keep-data\n' >"${HV}/data/workloads/keep-me/state.bin"
-printf 'orphan-data\n' >"${HV}/data/workloads/orphan-gone/state.bin"
+  "${HV}/workloads/keep-me/quadlets" \
+  "${HV}/workloads/orphan-gone/quadlets" \
+  "${HV}/workloads/keep-me/persist" \
+  "${HV}/workloads/orphan-gone/persist"
+printf '{"intent":"run"}\n' >"${HV}/workloads/keep-me/manifest.json"
+printf '{"intent":"run"}\n' >"${HV}/workloads/orphan-gone/manifest.json"
+printf 'unit\n' >"${HV}/workloads/orphan-gone/quadlets/orphan.container"
+printf 'keep-data\n' >"${HV}/workloads/keep-me/persist/state.bin"
+printf 'orphan-data\n' >"${HV}/workloads/orphan-gone/persist/state.bin"
 
 printf 'keep-me\n' >"${STAGE}/keep.txt"
 : >"${TMP}/purged-units"
@@ -74,13 +74,13 @@ printf 'keep-me\n' >"${STAGE}/keep.txt"
 PLATFORM_USER="$(id -un)" bash "${STAGE}/purge-orphans-host.sh" \
   || fail "purge-orphans-host failed"
 
-[[ -f "${HV}/internals/workloads/keep-me/manifest.json" ]] \
+[[ -f "${HV}/workloads/keep-me/manifest.json" ]] \
   || fail "keep-me definition tree must survive"
-grep -Fxq 'keep-data' "${HV}/data/workloads/keep-me/state.bin" \
+grep -Fxq 'keep-data' "${HV}/workloads/keep-me/persist/state.bin" \
   || fail "keep-me durable data must survive"
-[[ ! -e "${HV}/internals/workloads/orphan-gone" ]] \
+[[ ! -e "${HV}/workloads/orphan-gone" ]] \
   || fail "orphan definition tree must be removed"
-[[ ! -e "${HV}/data/workloads/orphan-gone" ]] \
+[[ ! -e "${HV}/workloads/orphan-gone" ]] \
   || fail "orphan durable data must be removed"
 grep -Fxq 'orphan-gone' "${TMP}/purged-units" \
   || fail "orphan units must be purged"

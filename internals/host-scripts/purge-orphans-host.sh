@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # Host-local Orphan Reap. Invoked by internals/purge-orphans.sh.
 # Removes Host Workloads whose basename is absent from the Environment keep set
-# (Host Volume internals + data trees, Platform User units, EnvironmentFiles).
-# Same cleanup class as Purge; keyed by Environment absence, not Intent trash (ADR-0041 / #156).
+# (Host Volume owner tree including Persist, Platform User units, EnvironmentFiles).
+# Same cleanup class as Purge; keyed by Environment absence, not Intent trash
+# (ADR-0054 / ADR-0041 / #156 / #215).
 set -euo pipefail
 
 USER_NAME="${PLATFORM_USER:-platform}"
@@ -21,7 +22,6 @@ source "${HERE}/quadlet-user-session.sh"
 # shellcheck source=orphan-reap-host.sh
 source "${HERE}/orphan-reap-host.sh"
 WORKLOADS_ROOT="$(host_volume_workloads_sot_root)"
-WORKLOADS_DATA="$(host_volume_workloads_persist_root)"
 
 [[ -f "${KEEP_FILE}" ]] || {
   echo "purge-orphans-host: keep.txt missing" >&2
@@ -34,11 +34,11 @@ while IFS= read -r WL_NAME; do
   [[ -n "${WL_NAME}" ]] || continue
   environment_configuration_clear "${WL_NAME}"
   workload_units_purge "${WL_NAME}"
+  # Whole owner tree (SoT + nested Persist).
   rm -rf "${WORKLOADS_ROOT:?}/${WL_NAME}"
-  rm -rf "${WORKLOADS_DATA:?}/${WL_NAME}"
 done < <(orphan_reap_absent_basenames "${WORKLOADS_ROOT}" "${KEEP_FILE}")
 
 chown -R "${USER_NAME}:${USER_NAME}" \
-  "${WORKLOADS_ROOT}" "${WORKLOADS_DATA}" "${HOME_DIR}/.config" 2>/dev/null || true
+  "${WORKLOADS_ROOT}" "${HOME_DIR}/.config" 2>/dev/null || true
 
 quadlet_user_session_reload

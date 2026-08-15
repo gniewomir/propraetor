@@ -10,7 +10,8 @@ _component_handoff_lib_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${_component_handoff_lib_dir}/host-volume-paths-host.sh"
 
 component_handoff_root() {
-  printf '%s\n' "$(host_volume_components_persist_root)/handoff"
+  # Sibling of Component owner trees — not nested Persist (ADR-0054).
+  printf '%s\n' "$(host_volume_components_sot_root)/handoff"
 }
 
 component_handoff_acme_want_list() {

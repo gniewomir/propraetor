@@ -25,7 +25,7 @@ SECRET='envpurge-secret-value'
 host_cleanup() {
   local name="$1"
   host_ssh \
-    "rm -rf /var/lib/host-volume/internals/workloads/${name} \
+    "rm -rf /host-volume/workloads/${name} \
             /home/platform/.config/platform/workloads/${name}; \
      rm -f /home/platform/.config/containers/systemd/${name}.container; \
      rm -rf /home/platform/.config/containers/systemd/${name}.container.d" \

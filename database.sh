@@ -88,7 +88,7 @@ HOST_PORT="$(database_console_start_host_loopback_proxy "${USER_NAME}" </dev/nul
 HOST_PROXY_STARTED=1
 LOCAL_PORT="$(database_console_local_port)" || fail "could not allocate local TCP port"
 
-host_ssh "cat /var/lib/host-volume/data/components/database/ca/ca.crt" </dev/null >"${CA_FILE}" \
+host_ssh "cat /host-volume/components/database/persist/ca/ca.crt" </dev/null >"${CA_FILE}" \
   || fail "could not fetch Database CA from Host"
 [[ -s "${CA_FILE}" ]] || fail "Database CA file empty"
 

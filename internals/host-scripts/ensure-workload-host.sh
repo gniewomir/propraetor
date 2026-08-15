@@ -32,9 +32,7 @@ source "${HERE}/binding.sh"
 # shellcheck source=workload-materialize-host.sh
 source "${HERE}/workload-materialize-host.sh"
 
-# SoT (Mirrored materialize) vs durable Host bytes (ADR-0053 / ADR-0047 / ADR-0041).
 WORKLOADS_ROOT="$(host_volume_workloads_sot_root)"
-WORKLOADS_DATA="$(host_volume_workloads_persist_root)"
 
 [[ -d "${TREE}" ]] || {
   echo "workload tree missing: ${TREE}" >&2
@@ -56,6 +54,9 @@ if [[ "${WL_NAME}" == "database" ]]; then
   echo "workload basename 'database' is reserved for the Database Component dial identity" >&2
   exit 1
 fi
+
+# Nested Persist under this owner (ADR-0054).
+WL_PERSIST="$(host_volume_workload_persist "${WL_NAME}")"
 
 command -v python3 >/dev/null || {
   echo "python3 required on Host for Workload Manifest parsing" >&2
@@ -81,7 +82,7 @@ if [[ -n "${WL_ENV_RESOLVED}" ]]; then
   }
 fi
 
-mkdir -p "${WORKLOADS_ROOT}/${WL_NAME}" "${WORKLOADS_DATA}/${WL_NAME}"
+mkdir -p "${WORKLOADS_ROOT}/${WL_NAME}" "${WL_PERSIST}"
 
 STAGE_UNITS="$(mktemp "${TMPDIR:-/tmp}/platform-stage-units.XXXXXX")"
 MAT_TREE="$(umask 077; mktemp -d "${TMPDIR:-/tmp}/platform-wl-mat.XXXXXX")"
@@ -140,7 +141,7 @@ sync_tree_inplace "${MAT_TREE}" "${WORKLOADS_ROOT}/${WL_NAME}" || exit 1
 workload_units_apply "${WL_NAME}" "${WL_INTENT}" "${QUADLETS_STAGE}" "${SYSTEMD_STAGE}" || exit 1
 unset -f workload_units_before_reload
 
-# Cover Host Volume SoT (incl. units synced by apply) and durable data root.
+# Cover Host Volume SoT (incl. units synced by apply) and nested Persist.
 chown -R "${USER_NAME}:${USER_NAME}" \
   "${WORKLOADS_ROOT}/${WL_NAME}" \
-  "${WORKLOADS_DATA}/${WL_NAME}"
+  "${WL_PERSIST}"

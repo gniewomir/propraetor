@@ -141,7 +141,7 @@ runuser -u platform -- env XDG_RUNTIME_DIR=\$XDG_RUNTIME_DIR \
   systemctl --user stop ${WL}-data-volume.service 2>/dev/null || true
 runuser -u platform -- env XDG_RUNTIME_DIR=\$XDG_RUNTIME_DIR \
   systemctl --user reset-failed ${WL}-data-volume.service 2>/dev/null || true
-rm -rf /var/lib/host-volume/internals/workloads/${WL}
+rm -rf /host-volume/workloads/${WL}
 rm -f /home/platform/.config/containers/systemd/${WL}.container \
   /home/platform/.config/containers/systemd/${WL}-batch.container \
   /home/platform/.config/containers/systemd/${WL}-data.volume \
