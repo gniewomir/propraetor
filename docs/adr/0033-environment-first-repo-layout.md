@@ -15,11 +15,13 @@ Committed Environment intent lives under root `environments/<slug>/`, not under 
 
 **Setup converge vs noop:** Workload Setup is idempotent. If the materialize result equals the Host Volume stored Workload tree, Setup is a noop for SoT (Manifest, Binding, Artifact) — except Intent **run** still converges when required Quadlet unit *files* are missing on the Host (e.g. after Park/Apply recreates the Host while Host Volume SoT survived). Workload Setup does not write Edge interior; Route fulfillment refreshes on Edge Component Setup (ADR-0040). Live pod/container health is not part of the noop gate; reboot/crash recovery is linger / unit `Restart=` / diagnostics, not Setup. Setup starts units only when it converges and Intent is **run**.
 
-**Host Volume:** Mirrored Workload SoT under `internals/workloads/<name>/`; durable runtime under `data/workloads/<name>/` (ADR-0041). Setup identity remains the definition-tree basename.
+**Host Volume:** Mirrored Workload SoT under `workloads/<name>/` with optional nested Persist (ADR-0054). Setup identity remains the definition-tree basename.
 
 **Amended by ADR-0053:** Mirror materializes Workloads onto the Host Volume regardless of Source (not Environment-bag upsert alone).
 
 **Amended by ADR-0051:** repo `environments/` remains the default Environments root; optional Operator Configuration may relocate that root (full replace when set).
+
+**Amended by ADR-0054 / #215 / #218:** Host Volume owner trees at `/host-volume` mount root (no `internals/` / top-level `data/`).
 
 **Considered:** keep root `workloads/` + `config/environments/`; `workloads/environments/…`; `environments/<slug>/workloads/<name>/`; path-based Setup; Setup inside Apply; environments linter for incomplete dirs; noop gated on live unit/pod health; deferring “not in tree ⇒ remove” forever (overturned — ADR-0041 Orphan Reap). Rejected for locality, footguns, or premature surface.
 

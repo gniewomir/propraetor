@@ -146,7 +146,7 @@
 | **Abstraction / exit** | Intentionally thin vs K8s/Swarm: “basic Docker commands”; **kamal-proxy** for traffic switching. Config is Kamal-specific but small; images are ordinary Docker images. Imperative deploy model (not cluster reconciliation). ([vision](https://kamal-deploy.org/)) |
 | **Solo-operator signals** | One app (or accessories) to a list of IPs; no mandatory dashboard. Fits operators who already know Linux/Docker. |
 | **Scaling** | Multiple servers/roles in `deploy.yml`; external LB if multi-server. Not a shared multi-tenant Host platform. |
-| **vs Propraetor** | **Closest philosophical neighbor** on lock-in and native Docker. **Does not** provision/Park Host + Durables, own a shared Edge for many Workloads, or define Workload Intent (`run`/`stop`/`trash`). Complementary layer more than substitute. |
+| **vs Propraetor** | **Closest philosophical neighbor** on lock-in and native Docker. **Does not** provision/Park Host + Durables, own a shared Edge for many Workloads, or define Workload Intent (`run`/`stop`). Complementary layer more than substitute. |
 
 ---
 

@@ -61,7 +61,7 @@ runuser -u platform -- env XDG_RUNTIME_DIR="/run/user/$(id -u platform)" \
 
 ## Workload units
 
-Workload Quadlets and `systemd/` units install under the same Platform User. Unit basenames come from the Workload tree (`quadlets/*.container`, `systemd/*.service`, …).
+Workload Quadlets and native units install under the same Platform User from one authored `systemd/` bag. Unit basenames come from that tree (`*.container`, `*.service`, …); Quadlet discovery uses a kind-prefixed directory symlink farm (`workload-<basename>/`, …) so relatives like `Volume=../persist` resolve on Host Volume.
 
 ```bash
 # Replace <unit> with the installed unit name, e.g. myapp.service

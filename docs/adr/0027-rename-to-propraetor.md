@@ -10,7 +10,7 @@ The former project name **Prefect** collided with [prefect.io](https://www.prefe
 
 1. **Ubiquitous language** — Glossary and domain terms use Propraetor; Host-local paths/user stay function-named (ADR-0032).
 2. **Operator surface** — Help text, script/CLI branding, Environment-scoped defaults.
-3. **Host-local identity** — **Not re-branded** (ADR-0032): `/var/lib/host-volume`, `platform`, delivery `/tmp/platform-*`, Component Setup handoff under Host Volume `data/components/handoff/`, etc.
+3. **Host-local identity** — **Not re-branded** (ADR-0032): `/host-volume`, `platform`, delivery `/tmp/platform-*`, Component Setup handoff under Host Volume `components/handoff/`, etc.
 4. **Provider-visible names** — Account-unique labels use `propraetor-${environment_slug}` forms (`naming.tf`); fresh Apply after Teardown.
 5. **Contracts & fixtures** — Acceptance / Lifecycle / Adopt golden strings.
 6. **Repo & agent chrome** — Rules and research prose; prefect.io disambiguation removed where obsolete. Historical ADR *filenames* that contain the old name may remain.

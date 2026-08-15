@@ -12,4 +12,4 @@ Propraetor gains **Deploy** — root `deploy.sh` takes a **Substrate** Host to *
 
 **Cutover:** glossary updated; Host Volume layout hard cut implemented in #154; `ensure-fabric` / `ensure-components` split in #155; Mirror + Orphan Reap in #156; `ensure-workload(s)` in #157; Deploy ladder / `ensure.sh` / `deploy.sh` in #158.
 
-**Amended by ADR-0054 / #215 / #217:** mount `/host-volume` + nested Persist; Intent **run**|**stop** only; Purge / Intent **trash** / `purge-trash` retired — Deploy ladder has no Purge step.
+**Amended by ADR-0054 / #215 / #217 / #218:** mount `/host-volume` + nested Persist; Intent **run**|**stop** only; Purge / Intent **trash** / `purge-trash` retired — Deploy ladder has no Purge step; soft scaffolds teach `Volume=../persist`.

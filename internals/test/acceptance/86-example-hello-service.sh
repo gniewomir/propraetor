@@ -29,9 +29,9 @@ grep -qE '^Network=service-network\.network$' "${EXAMPLE_SRC}/systemd/${WL}.pod"
   || fail "example pod must join Service Network"
 grep -qE '^PublishPort=' "${EXAMPLE_SRC}/systemd/${WL}.pod" \
   && fail "example pod must not PublishPort (soft: Workloads publish none)"
-grep -qE '^Volume=.*/workloads/hello-service:/var/lib/workload:rw$' \
+grep -qE '^Volume=\.\./persist:/var/lib/workload:rw$' \
   "${EXAMPLE_SRC}/systemd/${WL}-web.container" \
-  || fail "example container must mount owned tree RW at /var/lib/workload"
+  || fail "example container must mount Persist via ../persist at /var/lib/workload"
 grep -qE '^PublishPort=' "${EXAMPLE_SRC}/systemd/${WL}-web.container" \
   && fail "example container must not PublishPort"
 
@@ -46,7 +46,8 @@ export XDG_RUNTIME_DIR=/run/user/\${UID_NUM}
 runuser -u platform -- env XDG_RUNTIME_DIR=\$XDG_RUNTIME_DIR \
   systemctl --user stop ${WL}-pod.service ${WL}-web.service 2>/dev/null || true
 rm -rf /host-volume/workloads/${WL}
-rm -f /home/platform/.config/containers/systemd/${WL}.pod \
+rm -f /home/platform/.config/containers/systemd/workload-${WL} \
+  /home/platform/.config/containers/systemd/${WL}.pod \
   /home/platform/.config/containers/systemd/${WL}-web.container
 runuser -u platform -- env XDG_RUNTIME_DIR=\$XDG_RUNTIME_DIR systemctl --user daemon-reload
 REMOTE
@@ -57,8 +58,8 @@ host_ssh \
   "test -f /host-volume/workloads/${WL}/systemd/${WL}.pod" \
   || fail "Setup should store authored pod SoT"
 host_ssh \
-  "test -f /home/platform/.config/containers/systemd/${WL}.pod" \
-  || fail "Setup should install authored pod unit"
+  "test -f /home/platform/.config/containers/systemd/workload-${WL}/${WL}.pod" \
+  || fail "Setup should install authored pod unit via workload dir symlink"
 host_ssh \
   "test -f /home/platform/.config/containers/systemd/workload-${WL}/${WL}-web.container" \
   || fail "Setup should install authored member container"
@@ -128,15 +129,15 @@ runuser -u platform -- env HOME="${HOME_DIR}" XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR
   DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/${UID_NUM}/bus" \
   PROBE_TOKEN="${PROBE_TOKEN}" \
   bash -c 'cd "$HOME" && printf %s "$PROBE_TOKEN" | podman exec -i '"${cid}"' sh -c "cat >/var/lib/workload/acceptance-owned"'
-test -f "/host-volume/workloads/${WL}/acceptance-owned"
-grep -qx "${PROBE_TOKEN}" "/host-volume/workloads/${WL}/acceptance-owned"
+test -f "/host-volume/workloads/${WL}/persist/acceptance-owned"
+grep -qx "${PROBE_TOKEN}" "/host-volume/workloads/${WL}/persist/acceptance-owned"
 REMOTE
-pass "owned Host Volume mounted RW at /var/lib/workload"
+pass "nested Persist mounted RW at /var/lib/workload"
 
 # No Workload Host ports: installed units must not PublishPort; container has no host bindings.
 publish_lines="$(host_ssh \
-  "grep -hE '^PublishPort=' /home/platform/.config/containers/systemd/${WL}.pod \
-     /home/platform/.config/containers/systemd/${WL}-web.container 2>/dev/null || true")"
+  "grep -hE '^PublishPort=' /home/platform/.config/containers/systemd/workload-${WL}/${WL}.pod \
+     /home/platform/.config/containers/systemd/workload-${WL}/${WL}-web.container 2>/dev/null || true")"
 [[ -z "${publish_lines}" ]] \
   || fail "installed hello-service units must not PublishPort (got: ${publish_lines})"
 ports_json="$(host_ssh bash -s <<REMOTE

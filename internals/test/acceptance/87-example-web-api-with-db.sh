@@ -44,12 +44,12 @@ grep -qE "^Pod=${WL}\\.pod$" "${EXAMPLE_SRC}/systemd/${WL}-api.container" \
   || fail "api container must join ${WL}.pod"
 grep -qE "^Pod=${WL}\\.pod$" "${EXAMPLE_SRC}/systemd/${WL}-db.container" \
   || fail "db container must join ${WL}.pod"
-grep -qE "^Volume=.*/workloads/${WL}:/var/lib/workload:rw$" \
+grep -qE "^Volume=\\.\\./persist:/var/lib/workload:rw$" \
   "${EXAMPLE_SRC}/systemd/${WL}-api.container" \
-  || fail "api container must mount owned tree RW at /var/lib/workload"
-grep -qE "^Volume=.*/workloads/${WL}(:|/)" \
+  || fail "api container must mount Persist via ../persist at /var/lib/workload"
+grep -qE "^Volume=\\.\\./persist" \
   "${EXAMPLE_SRC}/systemd/${WL}-db.container" \
-  || fail "db container must mount the owned Host Volume tree (or a subtree)"
+  || fail "db container must mount Persist via ../persist"
 grep -qE '^Environment=PGDATA=/var/lib/workload/' \
   "${EXAMPLE_SRC}/systemd/${WL}-db.container" \
   || fail "db container should keep durable bytes under /var/lib/workload"
@@ -81,7 +81,8 @@ export XDG_RUNTIME_DIR=/run/user/\${UID_NUM}
 runuser -u platform -- env XDG_RUNTIME_DIR=\$XDG_RUNTIME_DIR \
   systemctl --user stop ${WL}-pod.service ${WL}-api.service ${WL}-db.service 2>/dev/null || true
 rm -rf /host-volume/workloads/${WL}
-rm -f /home/platform/.config/containers/systemd/${WL}.pod \
+rm -f /home/platform/.config/containers/systemd/workload-${WL} \
+  /home/platform/.config/containers/systemd/${WL}.pod \
   /home/platform/.config/containers/systemd/${WL}-api.container \
   /home/platform/.config/containers/systemd/${WL}-db.container
 runuser -u platform -- env XDG_RUNTIME_DIR=\$XDG_RUNTIME_DIR systemctl --user daemon-reload
@@ -93,8 +94,8 @@ host_ssh \
   "test -f /host-volume/workloads/${WL}/systemd/${WL}.pod" \
   || fail "Setup should store authored pod SoT"
 host_ssh \
-  "test -f /home/platform/.config/containers/systemd/${WL}.pod" \
-  || fail "Setup should install authored pod unit"
+  "test -f /home/platform/.config/containers/systemd/workload-${WL}/${WL}.pod" \
+  || fail "Setup should install authored pod unit via workload dir symlink"
 host_ssh \
   "test -f /home/platform/.config/containers/systemd/workload-${WL}/${WL}-api.container" \
   || fail "Setup should install authored api container"
@@ -212,15 +213,15 @@ runuser -u platform -- env HOME="${HOME_DIR}" XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR
   DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/${UID_NUM}/bus" \
   PROBE_TOKEN="${PROBE_TOKEN}" \
   bash -c 'cd "$HOME" && printf %s "$PROBE_TOKEN" | podman exec -i '"${cid}"' sh -c "cat >/var/lib/workload/acceptance-owned"'
-test -f "/host-volume/workloads/${WL}/acceptance-owned"
-grep -qx "${PROBE_TOKEN}" "/host-volume/workloads/${WL}/acceptance-owned"
+test -f "/host-volume/workloads/${WL}/persist/acceptance-owned"
+grep -qx "${PROBE_TOKEN}" "/host-volume/workloads/${WL}/persist/acceptance-owned"
 REMOTE
-pass "owned Host Volume mounted RW at /var/lib/workload"
+pass "nested Persist mounted RW at /var/lib/workload"
 
 publish_lines="$(host_ssh \
-  "grep -hE '^PublishPort=' /home/platform/.config/containers/systemd/${WL}.pod \
-     /home/platform/.config/containers/systemd/${WL}-api.container \
-     /home/platform/.config/containers/systemd/${WL}-db.container 2>/dev/null || true")"
+  "grep -hE '^PublishPort=' /home/platform/.config/containers/systemd/workload-${WL}/${WL}.pod \
+     /home/platform/.config/containers/systemd/workload-${WL}/${WL}-api.container \
+     /home/platform/.config/containers/systemd/workload-${WL}/${WL}-db.container 2>/dev/null || true")"
 [[ -z "${publish_lines}" ]] \
   || fail "installed web-api-with-db units must not PublishPort (got: ${publish_lines})"
 

@@ -5,9 +5,9 @@ Description=Propraetor panel
 Image=docker.io/library/nginx:1.31.3-alpine
 ContainerName=panel-web
 Pod=panel.pod
-Volume=/host-volume/workloads/panel/www:/usr/share/nginx/html:ro
-Volume=/host-volume/workloads/panel/persist:/var/lib/workload:rw
-Volume=/host-volume/workloads/panel/persist/stats:/usr/share/nginx/html/stats:ro
+Volume=../www:/usr/share/nginx/html:ro
+Volume=../persist:/var/lib/workload:rw
+Volume=../persist/stats:/usr/share/nginx/html/stats:ro
 
 [Service]
 Restart=on-failure

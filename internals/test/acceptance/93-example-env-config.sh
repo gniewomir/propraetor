@@ -59,9 +59,9 @@ grep -qE '^Network=service-network\.network$' "${EXAMPLE_SRC}/systemd/${WL}.pod"
   || fail "example pod must join Service Network"
 grep -qE '^PublishPort=' "${EXAMPLE_SRC}/systemd/${WL}.pod" \
   && fail "example pod must not PublishPort"
-grep -qE '^Volume=.*/workloads/env-config:/var/lib/workload:rw$' \
+grep -qE '^Volume=\.\./persist:/var/lib/workload:rw$' \
   "${EXAMPLE_SRC}/systemd/${WL}-${ROLE}.container" \
-  || fail "example container must mount owned tree RW at /var/lib/workload"
+  || fail "example container must mount Persist via ../persist at /var/lib/workload"
 grep -qE '^PublishPort=' "${EXAMPLE_SRC}/systemd/${WL}-${ROLE}.container" \
   && fail "example container must not PublishPort"
 

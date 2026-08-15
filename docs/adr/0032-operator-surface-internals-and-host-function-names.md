@@ -13,18 +13,18 @@ Day-to-day operator surface stays at the repo root; project wiring moves under b
 
 | Concern | Name |
 |---------|------|
-| Host Volume mount | `/var/lib/host-volume` |
+| Host Volume mount | `/host-volume` |
 | Platform User (Unix) | `platform` (`PLATFORM_USER`) |
 | Environment slug env | `PLATFORM_ENV` |
 | Host Volume systemd/IHP unit family | `host-volume.service` (and matching tmpfiles/udev) |
 | SSH drop-in | `99-ssh-port.conf` |
 | Edge nginx include dirs | `/etc/nginx/edge-domains`, `/etc/nginx/edge-routes` |
 | Ephemeral delivery unpack | `/tmp/platform-*` (Host delivery stage roots only) |
-| Component Setup handoff | `/var/lib/host-volume/data/components/handoff/` (ACME want-list / ACME env / Database admin — owned by `component-handoff-host`) |
+| Component Setup handoff | `/host-volume/components/handoff/` (ACME want-list / ACME env / Database admin — owned by `component-handoff-host`) |
 | IHP contract gate | **Initial Host Provisioning Done** / **IHP Done** (replaces Carrier ready) |
 
 **Provider-visible names:** Cloud Project, Propraetor Tag / Role Tag, and other account-unique resource name prefixes are Propraetor-derived per ADR-0027. Host paths/user remain **function-named**, not brand-Propraetor.
 
 **Builds on:** ADR-0010 (Host Volume layout — paths update), ADR-0018, ADR-0019 (Environment / `--env`), ADR-0027 (amended: Host-local ≠ brand), ADR-0036 (`./test.sh` and `internals/test/`).
 
-**Amended by ADR-0054 / #217:** `purge-trash` removed from the flat internals surface.
+**Amended by ADR-0054 / #215 / #217 / #218:** mount `/host-volume`; handoff under `components/handoff/`; `purge-trash` removed from the flat internals surface.

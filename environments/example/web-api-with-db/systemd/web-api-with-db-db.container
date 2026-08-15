@@ -9,7 +9,7 @@ Environment=POSTGRES_USER=app
 Environment=POSTGRES_PASSWORD=example
 Environment=POSTGRES_DB=app
 Environment=PGDATA=/var/lib/workload/pgdata
-Volume=/host-volume/workloads/web-api-with-db/persist:/var/lib/workload:U
+Volume=../persist:/var/lib/workload:U
 
 [Service]
 Restart=on-failure

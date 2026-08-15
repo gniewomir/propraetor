@@ -123,7 +123,7 @@ A validation candidate should therefore use a deliberately small connection cap 
 
 **Backups.** PostgreSQL documents SQL dumps, filesystem-level backup, and continuous archiving as distinct approaches ([backup chapter](https://www.postgresql.org/docs/current/backup.html)). `pg_dump` makes a consistent export without blocking readers or writers, but the docs caution that it is generally not the sole regular production-backup method except in simple cases ([`pg_dump`](https://www.postgresql.org/docs/current/app-pgdump.html)). The existing Propraetor-specific storage analysis is in [`droplet-volume-small-postgres.md`](droplet-volume-small-postgres.md).
 
-**Propraetor implications.** Run the DB as a rootless Quadlet on the Service Network with no Host-published port. Bind its data directory into a Workload-owned durable directory on the Host Volume. If the DB belongs to one Workload, keep app and DB units in that Workload's authored `quadlets/`; if several Workloads share it, define explicit ownership, backup, and Purge semantics before implementation because the current lifecycle is Workload-owned.
+**Propraetor implications.** Run the DB as a rootless Quadlet on the Service Network with no Host-published port. Bind its data directory into Workload **Persist** on the Host Volume (`Volume=../persist/…`). If the DB belongs to one Workload, keep app and DB units in that Workload's authored `systemd/` bag; if several Workloads share it, define explicit ownership and backup before implementation — Host destroy is Orphan Reap (Environment absence), not a per-Intent wipe.
 
 ### Firebird 5 — credible lightweight server candidate
 
@@ -202,7 +202,7 @@ The Turso team distinguishes its newer Rust rewrite from libSQL and labels it be
 - Persist the official image's data directory under one clearly owned Workload directory on the Host Volume.
 - Add explicit readiness ordering between application and DB Quadlets; do not treat container start as database readiness.
 - Define backup artifacts outside the live data directory and test restoration onto an empty directory.
-- A database shared by multiple Workloads needs an owner and lifecycle rule: one Workload's `trash`/Purge must not delete another Workload's database. The current Workload-owned model should not silently create shared mutable infrastructure.
+- A database shared by multiple Workloads needs an owner and lifecycle rule: removing one Workload from the Environment (Orphan Reap) must not delete another Workload's database. The current Workload-owned model should not silently create shared mutable infrastructure.
 - Park preserves the Host Volume but removes the Host. Apply must remount the volume before Workload Setup; database crash recovery must tolerate the prior Host disappearing without a clean shutdown.
 
 The Host Volume is currently 1 GiB and also carries Propraetor/Workload durable bytes ([ADR-0009](../adr/0009-host-volume.md)). Measure initial database files, WAL/journal steady-state, backup duplication, and restore scratch space; resize before relying on backups that cannot coexist with live data.

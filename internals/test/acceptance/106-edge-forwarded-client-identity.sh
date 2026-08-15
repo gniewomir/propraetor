@@ -66,7 +66,7 @@ Description=Propraetor Acceptance Forwarded client identity probe
 Image=docker.io/library/nginx:1.31.3-alpine
 ContainerName=${WL}-web
 Pod=${WL}.pod
-Volume=/host-volume/workloads/${WL}/echo.conf:/etc/nginx/conf.d/default.conf:ro
+Volume=../echo.conf:/etc/nginx/conf.d/default.conf:ro
 
 [Service]
 Restart=on-failure

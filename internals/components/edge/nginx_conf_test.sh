@@ -43,6 +43,13 @@ if grep -Fi 'Volume=' "${QUADLET}" | grep -Fq '/var/log'; then
 fi
 pass "edge-nginx.container has no /var/log mounts"
 
+if grep -Eq '^Volume=/host-volume/' "${QUADLET}"; then
+  fail "edge-nginx.container must use Volume=../… relatives (ADR-0054)"
+fi
+grep -Eq '^Volume=\.\./persist/' "${QUADLET}" \
+  || fail "edge-nginx.container must mount Persist via ../persist/…"
+pass "edge-nginx.container uses relative Persist binds"
+
 # Forwarded client identity (ADR-0052): overwrite bundle in http{}; no append helpers.
 printf '%s\n' "${body}" | grep -Eq 'proxy_set_header[[:space:]]+Host[[:space:]]+\$host' \
   || fail "missing proxy_set_header Host \$host"

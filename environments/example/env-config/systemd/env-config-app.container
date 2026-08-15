@@ -6,7 +6,7 @@ Image=docker.io/library/busybox:latest
 ContainerName=env-config-app
 Pod=env-config.pod
 Exec=sleep infinity
-Volume=/host-volume/workloads/env-config/persist:/var/lib/workload:rw
+Volume=../persist:/var/lib/workload:rw
 
 [Service]
 Restart=on-failure

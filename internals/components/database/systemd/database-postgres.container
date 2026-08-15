@@ -9,12 +9,12 @@ Pod=database.pod
 EnvironmentFile=/host-volume/components/database/persist/admin/environment
 Environment=PGDATA=/var/lib/postgresql/data/pgdata
 Entrypoint=/usr/local/bin/database-entrypoint.sh
-Volume=/host-volume/components/database/entrypoint.sh:/usr/local/bin/database-entrypoint.sh:ro
-Volume=/host-volume/components/database/persist/pgdata:/var/lib/postgresql/data:U
-Volume=/host-volume/components/database/persist/ca/ca.crt:/etc/database-certs/ca.crt:ro
-Volume=/host-volume/components/database/persist/server/server.crt:/etc/database-certs/server.crt:ro
-Volume=/host-volume/components/database/persist/server/server.key:/etc/database-certs/server.key:ro
-Volume=/host-volume/components/database/persist/conf:/etc/database-conf:ro
+Volume=../entrypoint.sh:/usr/local/bin/database-entrypoint.sh:ro
+Volume=../persist/pgdata:/var/lib/postgresql/data:U
+Volume=../persist/ca/ca.crt:/etc/database-certs/ca.crt:ro
+Volume=../persist/server/server.crt:/etc/database-certs/server.crt:ro
+Volume=../persist/server/server.key:/etc/database-certs/server.key:ro
+Volume=../persist/conf:/etc/database-conf:ro
 
 [Service]
 Restart=on-failure
