@@ -30,8 +30,24 @@ _workload_units_native_basenames() {
   done < <(unit_bag_basenames "${bag}")
 }
 
+# Write pre-mutation owned basenames to OUT.
+# Prefer ambient WORKLOAD_UNITS_PREV_OWNED (snapshot before project-first Setup);
+# otherwise read the current Host Volume systemd bag.
+_workload_units_write_prev_owned() {
+  local wl_name="${1:?}"
+  local out="${2:?}"
+  if [[ -n "${WORKLOAD_UNITS_PREV_OWNED:-}" && -f "${WORKLOAD_UNITS_PREV_OWNED}" ]]; then
+    cat "${WORKLOAD_UNITS_PREV_OWNED}" >"${out}" || return 1
+    return 0
+  fi
+  unit_bag_basenames "${WORKLOADS_ROOT}/${wl_name}/systemd" >"${out}" || true
+  return 0
+}
+
 # Fail closed on retired quadlets/, bad extensions, empty bag, foreign ownership.
 # Does not mutate Host Volume SoT or Host unit dirs — call before other Setup writes.
+# When Setup projects first, set WORKLOAD_UNITS_PREV_OWNED to the SoT basename
+# snapshot taken *before* projection so foreign refusal still works.
 # Args: wl_name systemd_stage
 workload_units_preflight() {
   local wl_name="${1:?workload name required}"
@@ -52,7 +68,10 @@ workload_units_preflight() {
   prev_owned="$(mktemp "${TMPDIR:-/tmp}/platform-prev-owned.XXXXXX")"
   stage_units="$(mktemp "${TMPDIR:-/tmp}/platform-stage-units.XXXXXX")"
 
-  unit_bag_basenames "${WORKLOADS_ROOT}/${wl_name}/systemd" >"${prev_owned}" || true
+  _workload_units_write_prev_owned "${wl_name}" "${prev_owned}" || {
+    rm -f "${prev_owned}" "${stage_units}"
+    return 1
+  }
 
   if ! unit_validate_systemd_bag "${systemd_stage}"; then
     rc=1
@@ -72,6 +91,20 @@ workload_units_preflight() {
 
   rm -f "${prev_owned}" "${stage_units}"
   return "${rc}"
+}
+
+# Write native basenames from a prev-owned list file to OUT.
+_workload_units_natives_from_prev_file() {
+  local prev_file="${1:?}"
+  local out="${2:?}"
+  local base ext
+  : >"${out}"
+  while IFS= read -r base; do
+    [[ -n "${base}" ]] || continue
+    ext="${base##*.}"
+    unit_ext_is_native "${ext}" || continue
+    printf '%s\n' "${base}"
+  done <"${prev_file}" >"${out}" || true
 }
 
 # Apply unified bag from staged dir through Workload Intent.
@@ -99,8 +132,16 @@ workload_units_apply() {
   prev_owned="$(mktemp "${TMPDIR:-/tmp}/platform-prev-owned.XXXXXX")"
   prev_natives="$(mktemp "${TMPDIR:-/tmp}/platform-prev-natives.XXXXXX")"
 
-  unit_bag_basenames "${WORKLOADS_ROOT}/${wl_name}/systemd" >"${prev_owned}" || true
-  _workload_units_native_basenames "${WORKLOADS_ROOT}/${wl_name}/systemd" >"${prev_natives}" || true
+  _workload_units_write_prev_owned "${wl_name}" "${prev_owned}" || {
+    rm -f "${prev_owned}" "${prev_natives}"
+    return 1
+  }
+  # Natives already on Host (not the post-projection SoT bag) drive reconcile drops.
+  if [[ -n "${WORKLOAD_UNITS_PREV_OWNED:-}" && -f "${WORKLOAD_UNITS_PREV_OWNED}" ]]; then
+    _workload_units_natives_from_prev_file "${WORKLOAD_UNITS_PREV_OWNED}" "${prev_natives}"
+  else
+    _workload_units_native_basenames "${WORKLOADS_ROOT}/${wl_name}/systemd" >"${prev_natives}" || true
+  fi
 
   if ! workload_unit_sync_sot "${wl_name}" "${systemd_stage}"; then
     rc=1
