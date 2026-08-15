@@ -23,8 +23,8 @@ source "${_database_setup_lib_dir}/quadlet-user-session.sh"
 source "${_database_setup_lib_dir}/component-units-host.sh"
 # shellcheck source=component-handoff-host.sh
 source "${_database_setup_lib_dir}/component-handoff-host.sh"
-# shellcheck source=database-tls-host.sh
-source "${_database_setup_lib_dir}/database-tls-host.sh"
+# shellcheck source=component-tls-host.sh
+source "${_database_setup_lib_dir}/component-tls-host.sh"
 # shellcheck source=database-admin-env-host.sh
 source "${_database_setup_lib_dir}/database-admin-env-host.sh"
 # shellcheck source=database-auth-conf-host.sh
@@ -99,7 +99,7 @@ database_setup() {
   mkdir -p "${DATA_ROOT}" "${PGDATA_DIR}" "${CLIENTS_DIR}" "${DATA_ROOT}/admin"
 
   database_install_admin_env "${staged_admin_env}" || return 1
-  database_tls_ensure || return 1
+  component_tls_ensure database "${DATA_ROOT}" || return 1
   database_write_auth_conf || return 1
 
   component_units_install "${component_tree}" component "$(basename "${component_tree}")" || return 1
