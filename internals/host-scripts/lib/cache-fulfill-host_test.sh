@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
-# Offline tests: Cache publish binding paths + Requires-based claim (ADR-0055 / #222).
-# Does not talk to Valkey; stubs ambient dirs and TLS material.
-# Seam: cache_publish_binding / cache_unpublish_binding /
-#       cache_workload_is_run_claimant / cache_basename_is_claim_safe.
+# Offline tests: Cache ACL adapter on shared Declaration converge
+# (ADR-0055 / #222 / #227). Does not talk to Valkey; stubs ambient dirs and TLS.
+# Seam: cache_* adapters → declaration-converge-host (publish/unpublish/claim/orphan).
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"
