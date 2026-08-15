@@ -5,8 +5,8 @@
 # admin client cert, Valkey on Service Network dial name `cache`.
 # Declaration converge: gather Intent-run Requires cache:true, ACL rewrite,
 # publish bindings, disable stopped. post-workloads drops Orphan-absent
-# fulfillments (DELUSER, clients, prefix keys) — no re-converge solely to undo
-# standing ensure (#232).
+# fulfillments (DELUSER, Persist ACL line, clients, prefix keys) — no re-converge
+# solely to undo standing ensure (#232).
 #
 # Ambient (optional overrides for offline tests):
 #   USER_NAME, DATA_ROOT, WORKLOADS_ROOT

@@ -131,6 +131,57 @@ PY
   fi
 }
 
+# Orphan drop (#225 / #232): remove one Workload user line from Persist users.acl.
+# Runtime DELUSER alone is not enough after standing ACL preserve — without this,
+# the next standing ensure would re-emit the orphan line. Idempotent if absent.
+# Never removes default or the admin user from EnvironmentFile.
+# Args: basename
+cache_acl_file_remove_user() {
+  local basename="${1:?cache_acl_file_remove_user: basename required}"
+  local acl_path="${DATA_ROOT}/conf/users.acl"
+  local admin_user=""
+
+  [[ -n "${DATA_ROOT:-}" ]] || {
+    echo "cache_acl_file_remove_user: DATA_ROOT is unset" >&2
+    return 1
+  }
+  [[ -f "${acl_path}" ]] || return 0
+
+  if [[ -n "${ADMIN_ENV:-}" && -f "${ADMIN_ENV}" ]]; then
+    admin_user="$(cache_admin_user_from_env "${ADMIN_ENV}" 2>/dev/null)" || admin_user=""
+  fi
+  if [[ "${basename}" == "default" || ( -n "${admin_user}" && "${basename}" == "${admin_user}" ) ]]; then
+    echo "cache_acl_file_remove_user: refusing to remove reserved user '${basename}'" >&2
+    return 1
+  fi
+
+  python3 - "${acl_path}" "${basename}" <<'PY' || return 1
+import sys
+
+acl_path, name = sys.argv[1], sys.argv[2]
+kept = []
+with open(acl_path, encoding="utf-8") as existing:
+    for raw in existing:
+        line = raw.rstrip("\n")
+        if not line or line.lstrip().startswith("#"):
+            kept.append(line)
+            continue
+        parts = line.split()
+        if len(parts) >= 2 and parts[0] == "user" and parts[1] == name:
+            continue
+        kept.append(line)
+
+with open(acl_path, "w", encoding="utf-8") as out:
+    for line in kept:
+        out.write(f"{line}\n")
+PY
+
+  chmod 0600 "${acl_path}"
+  if [[ -n "${USER_NAME:-}" ]]; then
+    chown "${USER_NAME}:${USER_NAME}" "${acl_path}" 2>/dev/null || true
+  fi
+}
+
 # Declaration converge ACL rewrite: default off + admin (+ Workload users).
 # Intent-run claimants (#222): cert-only `on` (resetpass, ~basename:*, whitelist).
 # Non-claimants with durable client material (#224): `off` until Orphan Reap (#225).

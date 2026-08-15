@@ -108,4 +108,26 @@ grep -E '^user (alpha|gamma) ' "${acl}" >/dev/null \
   && fail "cold standing ACL must not emit Persist client users"
 pass "cold standing ACL is admin-only baseline"
 
+# Orphan drop Persist strip (#225 / #232): remove Workload line; keep peers + admin.
+printf '%s\n' \
+  'user default off' \
+  'user cacheadmin on #abc ~* &* +@all' \
+  "user alpha on resetpass ~alpha:* resetchannels ${EXPECTED_CMDS}" \
+  "user orphan on resetpass ~orphan:* resetchannels ${EXPECTED_CMDS}" \
+  >"${acl}"
+cache_acl_file_remove_user orphan || fail "ACL file remove orphan"
+grep -Eq '^user orphan ' "${acl}" && fail "orphan user line must be gone from Persist ACL"
+grep -Fq "user alpha on resetpass ~alpha:* resetchannels ${EXPECTED_CMDS}" "${acl}" \
+  || fail "peer claimant must remain after orphan strip"
+grep -Eq '^user cacheadmin on #' "${acl}" || fail "admin must remain after orphan strip"
+grep -Eq '^user default off$' "${acl}" || fail "default off must remain after orphan strip"
+cache_acl_file_remove_user orphan || fail "ACL file remove must be idempotent when absent"
+if cache_acl_file_remove_user default; then
+  fail "must refuse to remove default"
+fi
+if cache_acl_file_remove_user cacheadmin; then
+  fail "must refuse to remove admin"
+fi
+pass "orphan Persist ACL strip removes only the dropped basename"
+
 echo "All cache-admin-env-host offline tests passed."
