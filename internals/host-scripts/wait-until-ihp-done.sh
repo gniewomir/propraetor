@@ -13,9 +13,17 @@
 set -euo pipefail
 
 USER_NAME="${PLATFORM_USER:-platform}"
-_ihp_here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# shellcheck source=lib/host-volume-paths-host.sh
-source "${_ihp_here}/lib/host-volume-paths-host.sh"
+# File execution: resolve sibling lib. Operator bash -s delivery (host_wait_until_ihp_done)
+# prepends the lib because BASH_SOURCE is unbound under stdin + set -u.
+_ihp_src="${BASH_SOURCE[0]:-}"
+if [[ -n "${_ihp_src}" && -f "${_ihp_src}" ]]; then
+  _ihp_here="$(cd "$(dirname "${_ihp_src}")" && pwd)"
+  # shellcheck source=lib/host-volume-paths-host.sh
+  source "${_ihp_here}/lib/host-volume-paths-host.sh"
+elif ! declare -F host_volume_mount_root >/dev/null 2>&1; then
+  echo "host_volume_mount_root unavailable (run as a file or via host_wait_until_ihp_done)" >&2
+  exit 1
+fi
 JOURNALD_DROPIN="${IHP_JOURNALD_DROPIN:-/etc/systemd/journald.conf.d/99-platform-journal.conf}"
 CONTAINERS_CONF="${IHP_CONTAINERS_CONF:-/home/${USER_NAME}/.config/containers/containers.conf}"
 HV_MOUNT="$(host_volume_mount_root)"

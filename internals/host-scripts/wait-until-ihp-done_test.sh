@@ -309,3 +309,42 @@ fi
 pass "live probe survives root-SSH-style forbidden cwd"
 unset STUB_FORBIDDEN_CWD
 rmdir "${FORBIDDEN_CWD}" 2>/dev/null || true
+
+# --- Operator delivery: bash -s (no BASH_SOURCE) with lib prepended ---
+PATHS_LIB="${REPO_ROOT}/internals/host-scripts/lib/host-volume-paths-host.sh"
+[[ -f "${PATHS_LIB}" ]] || fail "missing ${PATHS_LIB}"
+run_gate_bash_s() {
+  rm -f "${STATE}/findmnt_count"
+  env PATH="${STUBS}:/usr/bin:/bin" \
+    STUB_STATE="${STATE}" \
+    PLATFORM_USER=platform \
+    HOST_VOLUME_MOUNT_WAIT_SECONDS="${HOST_VOLUME_MOUNT_WAIT_SECONDS:-30}" \
+    HOST_VOLUME_MOUNT_POLL_SECONDS="${HOST_VOLUME_MOUNT_POLL_SECONDS:-1}" \
+    FINDMT_SUCCEED_AFTER="${FINDMT_SUCCEED_AFTER:-}" \
+    IHP_POWER_STATE_SEM_EPOCH="${IHP_POWER_STATE_SEM_EPOCH:-100}" \
+    IHP_BOOT_EPOCH="${IHP_BOOT_EPOCH:-200}" \
+    IHP_CUTOVER_REBOOT_WAIT_SECONDS="${IHP_CUTOVER_REBOOT_WAIT_SECONDS:-30}" \
+    IHP_CUTOVER_REBOOT_POLL_SECONDS="${IHP_CUTOVER_REBOOT_POLL_SECONDS:-1}" \
+    IHP_JOURNALD_DROPIN="${IHP_JOURNALD_DROPIN:-${FIXTURES}/journald.conf}" \
+    IHP_CONTAINERS_CONF="${IHP_CONTAINERS_CONF:-${FIXTURES}/containers.conf}" \
+    JOURNALCTL_FAIL="${JOURNALCTL_FAIL:-}" \
+    PODMAN_LOG_DRIVER="${PODMAN_LOG_DRIVER:-journald}" \
+    bash -s < <(cat -- "${PATHS_LIB}" "${SCRIPT}") 2>"${STUBS}/err"
+}
+
+export FINDMT_SUCCEED_AFTER=1
+export HOST_VOLUME_MOUNT_WAIT_SECONDS=10
+export IHP_POWER_STATE_SEM_EPOCH=100
+export IHP_BOOT_EPOCH=200
+export IHP_CUTOVER_REBOOT_WAIT_SECONDS=30
+unset JOURNALCTL_FAIL PODMAN_LOG_DRIVER
+write_platform_journal_fixtures
+run_gate_bash_s || fail "gate should pass under bash -s with path lib prepended (operator delivery)"
+pass "passes under bash -s with Host Volume path lib prepended"
+
+if bash -s <"${SCRIPT}" >/dev/null 2>"${STUBS}/err-bare"; then
+  fail "bash -s without path lib should fail closed"
+fi
+grep -q 'host_volume_mount_root unavailable' "${STUBS}/err-bare" \
+  || fail "expected unavailable message, got: $(cat "${STUBS}/err-bare")"
+pass "bash -s without path lib fails closed"

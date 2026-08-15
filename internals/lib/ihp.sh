@@ -13,15 +13,25 @@ host_wait_until_ihp_done() {
   local retry_sleep="${IHP_DONE_RETRY_SECONDS:-5}"
   local deadline=$((SECONDS + timeout))
   local rc=0
+  local paths_lib
 
   [[ -f "${script}" ]] || {
     echo "missing ${script}" >&2
     return 1
   }
 
+  # bash -s leaves BASH_SOURCE unbound (set -u) and has no script dir, so the
+  # wait script cannot source siblings. Prepend Host Volume path helpers.
+  paths_lib="$(cd "$(dirname "${script}")" && pwd)/lib/host-volume-paths-host.sh"
+  [[ -f "${paths_lib}" ]] || {
+    echo "missing ${paths_lib}" >&2
+    return 1
+  }
+
   while true; do
     rc=0
-    host_ssh "PLATFORM_USER=${user} bash -s" <"${script}" || rc=$?
+    # Process substitution: one stdin stream of lib + gate for remote bash -s.
+    host_ssh "PLATFORM_USER=${user} bash -s" < <(cat -- "${paths_lib}" "${script}") || rc=$?
     if [[ ${rc} -eq 0 ]]; then
       return 0
     fi
