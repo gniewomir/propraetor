@@ -145,4 +145,15 @@ grep -F '+@keyspace' "${acl}" && fail "Workload ACL must not grant +@keyspace"
 grep -F '+del' "${acl}" >/dev/null || fail "Workload ACL must whitelist +del"
 pass "ACL rewrite publishes cert-only claimant whitelist"
 
+# Intent stop shape: claimant then empty claimants → former user off; client retained.
+mkdir -p "${DATA_ROOT}/clients/${WL}"
+printf 'CERT\n' >"${DATA_ROOT}/clients/${WL}/client.crt"
+: >"${TMP}/no-claimants"
+cache_write_acl_file "${ADMIN_ENV}" "${TMP}/no-claimants" || fail "ACL write with zero claimants"
+grep -Eq "^user ${WL} off$" "${acl}" \
+  || fail "former claimant must be ACL-disabled after Intent stop gather"
+[[ -f "${DATA_ROOT}/clients/${WL}/client.crt" ]] \
+  || fail "durable client cert must remain when ACL user is off"
+pass "zero claimants disables ACL user and retains Persist client"
+
 echo "All cache-fulfill-host offline tests passed."

@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
-# Cache Declaration gather + fulfill (ADR-0055 / #222).
+# Cache Declaration gather + fulfill (ADR-0055 / #222 / #224).
 # Intent-run + Requires cache:true → ACL user / client cert + published binding.
-# Non-claimants → unpublish binding; durable clients retained until Orphan Reap (#225).
-# ACL disable-on-stop refinements are #224; this pass rewrites ACL to current claimants.
+# Non-claimants → unpublish binding + ACL user `off`; durable clients until Orphan Reap (#225).
 # Sourced by Cache Setup. Expects ambient after cache_setup begin:
 #   DATA_ROOT, ADMIN_ENV, HOME_DIR, UNIT_DIR, USER_NAME, WORKLOADS_ROOT
 # Requires: quadlet_user, cache_tls_ensure_client, cache_write_acl_file,
@@ -111,8 +110,9 @@ EOF
   fi
 }
 
-# Clear published binding + Setup-owned drop-ins for one Workload (non-claimant).
-# Retains Host Volume client material until Orphan Reap (#225).
+# Clear published binding + Setup-owned drop-ins for one Workload (Intent stop / non-claim).
+# Retains Host Volume client material until Orphan Reap (#225); ACL disable is via
+# cache_write_acl_file (user off) on the same fulfill pass.
 # When SoT is already gone, clears the binding dir and conventional drop-in leftover.
 cache_unpublish_binding() {
   local wl_name="${1:?cache_unpublish_binding: workload name required}"
@@ -202,7 +202,7 @@ cache_workload_is_run_claimant() {
 }
 
 # Gather Intent-run Requires cache:true claimants; create cert/ACL + publish.
-# Non-claimants: unpublish binding only; client material retained until Orphan Reap.
+# Non-claimants: unpublish binding + ACL user off; client material until Orphan Reap.
 cache_fulfill_declarations() {
   local workloads_root="${1:-${WORKLOADS_ROOT-}}"
   local wl_dir wl_name claims

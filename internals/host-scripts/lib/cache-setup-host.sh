@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# Deep Cache Component Setup (ADR-0055 / #221 / #222).
+# Deep Cache Component Setup (ADR-0055 / #221 / #222 / #224).
 # Sourced by Cache pre-workloads.sh / post-workloads.sh.
 # Standing Component: TLS interior, ACL (default off + admin), admin client cert,
 # Valkey on Service Network dial name `cache`, idle allowed with zero claimants.
-# pre-workloads gathers Intent-run Requires cache:true and publishes bindings (#222).
-# Orphan Reap remains a later sibling (#225); Intent-stop ACL disable is #224.
+# pre/post gather Intent-run Requires cache:true, publish bindings, disable stopped (#224).
+# Orphan Reap remains a later sibling (#225).
 #
 # Ambient (optional overrides for offline tests):
 #   USER_NAME, DATA_ROOT, WORKLOADS_ROOT
@@ -153,9 +153,11 @@ cache_setup_pre_workloads() {
   cache_fulfill_declarations || return 1
 }
 
-# Standing ensure after Workloads (orphan reap later sibling).
+# Standing ensure + re-fulfill after Workloads (idempotent; orphan reap is #225).
+# Re-fulfill keeps Intent-run ACL users enabled after standing ACL rewrite/restart.
 cache_setup_post_workloads() {
   local component_tree="${1:?cache_setup_post_workloads: component tree required}"
   local staged_admin_env="${2:-}"
   cache_setup "${component_tree}" "${staged_admin_env}" || return 1
+  cache_fulfill_declarations || return 1
 }

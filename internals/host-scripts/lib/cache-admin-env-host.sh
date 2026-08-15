@@ -56,14 +56,16 @@ cache_workload_acl_commands() {
     '-@all +@string +@hash +@list +@set +@sortedset +ping +del +unlink +exists +type +expire +expireat +pexpire +pexpireat +ttl +pttl +persist +touch'
 }
 
-# Write Persist ACL file: default off + admin (+ optional Intent-run claimants).
-# Idle standing (#221): omit claimants_file. Claim fulfill (#222): pass sorted
-# basenames file — cert-only users (resetpass, ~basename:*, whitelist).
+# Write Persist ACL file: default off + admin (+ Workload users from Persist clients).
+# Intent-run claimants (#222): cert-only `on` (resetpass, ~basename:*, whitelist).
+# Non-claimants with durable client material (#224): `off` until Orphan Reap (#225).
+# Idle standing (#221): omit claimants_file → every Persist client user is `off`.
 # Args: env_file [claimants_file]
 cache_write_acl_file() {
   local env_file="${1:?cache_write_acl_file: EnvironmentFile required}"
   local claimants_file="${2:-}"
   local acl_path="${DATA_ROOT}/conf/users.acl"
+  local clients_root="${DATA_ROOT}/clients"
   local conf_dir
   local cmds
 
@@ -80,11 +82,18 @@ cache_write_acl_file() {
   mkdir -p "${conf_dir}"
   cmds="$(cache_workload_acl_commands)"
 
-  python3 - "${env_file}" "${acl_path}" "${claimants_file}" "${cmds}" <<'PY' || return 1
+  python3 - "${env_file}" "${acl_path}" "${claimants_file}" "${cmds}" "${clients_root}" <<'PY' || return 1
 import hashlib
+import os
 import sys
 
-env_path, acl_path, claimants_path, cmds = sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4]
+env_path, acl_path, claimants_path, cmds, clients_root = (
+    sys.argv[1],
+    sys.argv[2],
+    sys.argv[3],
+    sys.argv[4],
+    sys.argv[5],
+)
 vals = {}
 with open(env_path, encoding="utf-8") as f:
     for raw in f:
@@ -103,27 +112,58 @@ if any(ch in password for ch in " \t\r\n"):
     raise SystemExit("Cache admin password must not contain whitespace")
 
 unsafe = set("*?[]:")
+claimants = set()
+if claimants_path:
+    with open(claimants_path, encoding="utf-8") as cf:
+        for raw in cf:
+            name = raw.rstrip("\n")
+            if name:
+                claimants.add(name)
+
+retained = []
+if os.path.isdir(clients_root):
+    for name in sorted(os.listdir(clients_root)):
+        client_dir = os.path.join(clients_root, name)
+        if not os.path.isdir(client_dir):
+            continue
+        if not os.path.isfile(os.path.join(client_dir, "client.crt")):
+            continue
+        retained.append(name)
+
 pw_hash = hashlib.sha256(password.encode("utf-8")).hexdigest()
 with open(acl_path, "w", encoding="utf-8") as out:
     out.write("user default off\n")
     out.write(f"user {user} on #{pw_hash} ~* &* +@all\n")
-    if claimants_path:
-        with open(claimants_path, encoding="utf-8") as cf:
-            for raw in cf:
-                name = raw.rstrip("\n")
-                if not name:
-                    continue
-                if any(ch in name for ch in unsafe) or any(ch in name for ch in " \t\r\n/\"'\\"):
-                    raise SystemExit(
-                        f"Cache ACL: basename is not ACL-safe: {name!r}"
-                    )
-                if name == "cache" or name == user:
-                    raise SystemExit(
-                        f"Cache ACL: basename collides with reserved identity: {name!r}"
-                    )
-                out.write(
-                    f"user {name} on resetpass ~{name}:* resetchannels {cmds}\n"
-                )
+    for name in retained:
+        if any(ch in name for ch in unsafe) or any(ch in name for ch in " \t\r\n/\"'\\"):
+            raise SystemExit(
+                f"Cache ACL: basename is not ACL-safe: {name!r}"
+            )
+        if name == "cache" or name == user:
+            raise SystemExit(
+                f"Cache ACL: basename collides with reserved identity: {name!r}"
+            )
+        if name in claimants:
+            out.write(
+                f"user {name} on resetpass ~{name}:* resetchannels {cmds}\n"
+            )
+        else:
+            # Intent stop / non-claim: disable identity; Orphan Reap deletes (#225).
+            out.write(f"user {name} off\n")
+    for name in sorted(claimants - set(retained)):
+        # Claimant without Persist client yet (ensure order): still emit on-line;
+        # cache_tls_ensure_client runs before this write in fulfill.
+        if any(ch in name for ch in unsafe) or any(ch in name for ch in " \t\r\n/\"'\\"):
+            raise SystemExit(
+                f"Cache ACL: basename is not ACL-safe: {name!r}"
+            )
+        if name == "cache" or name == user:
+            raise SystemExit(
+                f"Cache ACL: basename collides with reserved identity: {name!r}"
+            )
+        out.write(
+            f"user {name} on resetpass ~{name}:* resetchannels {cmds}\n"
+        )
 PY
 
   chmod 0600 "${acl_path}"

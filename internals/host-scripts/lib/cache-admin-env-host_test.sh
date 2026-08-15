@@ -56,4 +56,26 @@ for allowed in del unlink exists type expire expireat pexpire pexpireat ttl pttl
 done
 pass "ACL whitelist includes explicit del/exists/expire/ttl-family"
 
+# Intent stop / non-claim: Persist client without claimant → ACL user off (#224).
+mkdir -p "${DATA_ROOT}/clients/alpha" "${DATA_ROOT}/clients/gamma"
+printf 'CERT\n' >"${DATA_ROOT}/clients/alpha/client.crt"
+printf 'CERT\n' >"${DATA_ROOT}/clients/gamma/client.crt"
+printf 'alpha\n' >"${TMP}/claimants-one"
+cache_write_acl_file "${ADMIN_ENV}" "${TMP}/claimants-one" || fail "ACL write with retained non-claimant"
+grep -Fx "user alpha on resetpass ~alpha:* resetchannels ${EXPECTED_CMDS}" "${acl}" \
+  || fail "claimant alpha must stay enabled"
+grep -Eq '^user gamma off$' "${acl}" \
+  || fail "non-claimant with Persist client must be ACL-disabled (off)"
+grep -E '^user gamma on ' "${acl}" >/dev/null \
+  && fail "non-claimant gamma must not be enabled"
+pass "non-claimant Persist client is ACL user off"
+
+# Idle standing (no claimants file): every Persist client user is off.
+cache_write_acl_file "${ADMIN_ENV}" || fail "ACL write idle with Persist clients"
+grep -Eq '^user alpha off$' "${acl}" || fail "idle standing must disable alpha"
+grep -Eq '^user gamma off$' "${acl}" || fail "idle standing must disable gamma"
+grep -E '^user (alpha|gamma) on ' "${acl}" >/dev/null \
+  && fail "idle standing must not leave Workload users enabled"
+pass "idle standing disables Persist client ACL users"
+
 echo "All cache-admin-env-host offline tests passed."
