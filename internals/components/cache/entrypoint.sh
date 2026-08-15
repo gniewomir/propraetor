@@ -1,30 +1,31 @@
-#!/usr/bin/env bash
+#!/bin/sh
 # Cache Valkey entrypoint (Host Component tree; runs inside the container).
 # Copies TLS material to a writable runtime dir (image user cannot read Host 0600
 # keys in place), then execs valkey-server. ADR-0055 / #221.
-set -euo pipefail
+# Uses POSIX sh — valkey alpine may lack bash (exit 127 on #!/usr/bin/env bash).
+set -eu
 
 CERT_SRC=/etc/cache-certs
 CONF_SRC=/etc/valkey
 RUNTIME=/tmp/propraetor-cache
 
-[[ -f "${CERT_SRC}/ca.crt" ]] || {
+[ -f "${CERT_SRC}/ca.crt" ] || {
   echo "cache-entrypoint: missing ${CERT_SRC}/ca.crt" >&2
   exit 1
 }
-[[ -f "${CERT_SRC}/server.crt" ]] || {
+[ -f "${CERT_SRC}/server.crt" ] || {
   echo "cache-entrypoint: missing ${CERT_SRC}/server.crt" >&2
   exit 1
 }
-[[ -f "${CERT_SRC}/server.key" ]] || {
+[ -f "${CERT_SRC}/server.key" ] || {
   echo "cache-entrypoint: missing ${CERT_SRC}/server.key" >&2
   exit 1
 }
-[[ -f "${CONF_SRC}/valkey.conf" ]] || {
+[ -f "${CONF_SRC}/valkey.conf" ] || {
   echo "cache-entrypoint: missing ${CONF_SRC}/valkey.conf" >&2
   exit 1
 }
-[[ -f "${CONF_SRC}/users.acl" ]] || {
+[ -f "${CONF_SRC}/users.acl" ] || {
   echo "cache-entrypoint: missing ${CONF_SRC}/users.acl" >&2
   exit 1
 }

@@ -11,7 +11,8 @@ acceptance_host_session
 [[ -n "${REPO_ROOT:-}" ]] || fail "fixture missing REPO_ROOT (run via ./test.sh acceptance)"
 
 USER_NAME="${PLATFORM_USER:-platform}"
-DATA_ROOT=/host-volume/components/cache
+# Persist interior (ADR-0054): TLS/ACL/admin under components/cache/persist/.
+DATA_ROOT=/host-volume/components/cache/persist
 INTERNALS=/host-volume/components/cache
 ENV_SLUG="${PLATFORM_ENV:-test}"
 ENV_DIR="${REPO_ROOT}/environments/${ENV_SLUG}"
