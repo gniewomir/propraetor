@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Unit tests: Mirror Host half — materialize regardless of Source (#204 / ADR-0053).
-# Seam: ensure-mirror-host.sh (Environment upsert + Source resolve + Provides directories).
+# Unit tests: Mirror Host half — projects via workload_project_to_host (#204 / #228 / ADR-0053).
+# Seam: ensure-mirror-host.sh (shared projection per Workload).
 # Offline: temp Host Volume + staged Workload trees. No SSH / live Host.
 set -euo pipefail
 
@@ -27,6 +27,8 @@ mkdir -p "${HV}" "${STAGE}/lib"
 cp "${REPO_ROOT}/internals/host-scripts/lib/sync-tree-host.sh" "${STAGE}/lib/sync-tree-host.sh"
 cp "${REPO_ROOT}/internals/host-scripts/lib/workload-materialize-host.sh" \
   "${STAGE}/lib/workload-materialize-host.sh"
+cp "${REPO_ROOT}/internals/host-scripts/lib/workload-project-host.sh" \
+  "${STAGE}/lib/workload-project-host.sh"
 cp "${REPO_ROOT}/internals/host-scripts/lib/unit-consumers-host.sh" \
   "${STAGE}/lib/unit-consumers-host.sh"
 cp "${REPO_ROOT}/internals/host-scripts/lib/host-volume-paths-host.sh" \
