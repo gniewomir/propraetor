@@ -1,44 +1,27 @@
 #!/usr/bin/env bash
 # Workload Setup — apply one Workload from the Environment tree on the Host (after Components).
 # Idempotent: identical Host Volume SoT bag (and Intent run unit files when required) → noop (ADR-0033).
-# Recursive opaque-bag SoT sync replaced by Mirror-matching materialize (ADR-0053);
-# then Intent apply.
-# Edge Component Setup gathers Routes from SoT (ADR-0040). Does not wait for ACME issuance.
+# Payload assembly: workload_setup_stage_payload; Host apply: workload_setup_apply (#233).
+# Host delivery remains the SSH adapter. Edge gathers Routes from SoT (ADR-0040).
 # Environment: omitted / --env default|test → workspace default; --env <slug> otherwise (ADR-0019).
 # Usage: ./internals/ensure-workload.sh <workload-name> [--env <slug>]
 # Resolves to environments/<slug>/<name>/ (fail closed). Identity = directory basename (ADR-0024).
 # Optional: PLATFORM_USER=platform
 # Requires: Operator Configuration private key path (PROPRAETOR_PRIVATE_KEY_PATH).
-# ADR-0047 / ADR-0041 / #157.
+# ADR-0047 / ADR-0041 / #157 / #233.
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 STACK_DIR="${REPO_ROOT}/internals/terraform"
 USER_NAME="${PLATFORM_USER:-platform}"
-HOST_SCRIPT="${REPO_ROOT}/internals/host-scripts/ensure-workload-host.sh"
-UNITS_LIB="${REPO_ROOT}/internals/host-scripts/lib/workload-units-host.sh"
-QUADLETS_LIB="${REPO_ROOT}/internals/host-scripts/lib/workload-quadlets-host.sh"
-UNIT_CONSUMERS_LIB="${REPO_ROOT}/internals/host-scripts/lib/unit-consumers-host.sh"
-ENV_HOST_LIB="${REPO_ROOT}/internals/host-scripts/lib/workload-environment-host.sh"
-MANIFEST_LIB="${REPO_ROOT}/internals/host-scripts/lib/workload-manifest-host.sh"
-ARTIFACT_SOURCE_LIB="${REPO_ROOT}/internals/lib/artifact/source.sh"
-ARTIFACT_MANIFEST_LIB="${REPO_ROOT}/internals/lib/artifact/manifest.sh"
-ARTIFACT_PROVIDES_LIB="${REPO_ROOT}/internals/lib/artifact/provides.sh"
-ARTIFACT_BINDING_LIB="${REPO_ROOT}/internals/lib/artifact/binding.sh"
-ARTIFACT_REQUIRES_LIB="${REPO_ROOT}/internals/lib/artifact/requires.sh"
-MATERIALIZE_LIB="${REPO_ROOT}/internals/host-scripts/lib/workload-materialize-host.sh"
-PROJECT_LIB="${REPO_ROOT}/internals/host-scripts/lib/workload-project-host.sh"
-QUADLET_SESSION_LIB="${REPO_ROOT}/internals/host-scripts/lib/quadlet-user-session.sh"
-SYNC_LIB="${REPO_ROOT}/internals/host-scripts/lib/sync-tree-host.sh"
-PATHS_LIB="${REPO_ROOT}/internals/host-scripts/lib/host-volume-paths-host.sh"
 # shellcheck source=lib/cli.sh
 source "${REPO_ROOT}/internals/lib/cli.sh"
 # shellcheck source=lib/artifact/manifest.sh
 source "${REPO_ROOT}/internals/lib/artifact/manifest.sh"
+# shellcheck source=lib/artifact/source.sh
+source "${REPO_ROOT}/internals/lib/artifact/source.sh"
 # shellcheck source=lib/environment/environment.sh
 source "${REPO_ROOT}/internals/lib/environment/environment.sh"
-# shellcheck source=lib/environment/environment-configuration.sh
-source "${REPO_ROOT}/internals/lib/environment/environment-configuration.sh"
 # shellcheck source=lib/ssh.sh
 source "${REPO_ROOT}/internals/lib/ssh.sh"
 # shellcheck source=lib/host-delivery.sh
@@ -47,6 +30,8 @@ source "${REPO_ROOT}/internals/lib/host-delivery.sh"
 source "${REPO_ROOT}/internals/lib/operator/operator-dotenv.sh"
 # shellcheck source=lib/operator/operator-configuration.sh
 source "${REPO_ROOT}/internals/lib/operator/operator-configuration.sh"
+# shellcheck source=lib/workload/setup.sh
+source "${REPO_ROOT}/internals/lib/workload/setup.sh"
 
 operator_dotenv_load "${REPO_ROOT}" || exit 1
 operator_configuration_require private || exit 1
@@ -60,23 +45,8 @@ cli_operator_parse CLI pos:workload:required -- "$@" || {
 environment_activate "${STACK_DIR}" "${CLI_env}" || exit 1
 WL_NAME="${CLI_workload}"
 
-if [[ -z "${WL_NAME}" || "${WL_NAME}" == "." || "${WL_NAME}" == ".." ]] ||
-  [[ "${WL_NAME}" == .* ]] ||
-  [[ "${WL_NAME}" == */* ]] ||
-  [[ "${WL_NAME}" =~ [[:space:]] ]]; then
-  echo "workload name must be a single non-hidden path segment: '${WL_NAME}'" >&2
-  exit 1
-fi
-# Service Network dial name for the Database Component (ADR-0049 / #188).
-if [[ "${WL_NAME}" == "database" ]]; then
-  echo "workload basename 'database' is reserved for the Database Component dial identity" >&2
-  exit 1
-fi
-# Service Network dial name for the Cache Component (ADR-0055 / #221).
-if [[ "${WL_NAME}" == "cache" ]]; then
-  echo "workload basename 'cache' is reserved for the Cache Component dial identity" >&2
-  exit 1
-fi
+# Fail-fast identity before session / stage (same module Host apply uses).
+workload_identity_require "${WL_NAME}" || exit 1
 
 ENV_DIR="$(environments_dir_for "${PLATFORM_ENV}")" || exit 1
 MANIFEST_DIR="${ENV_DIR}/${WL_NAME}"
@@ -91,70 +61,6 @@ MANIFEST_ABS="${MANIFEST_DIR}/manifest.json"
 }
 artifact_manifest_validate "${MANIFEST_ABS}" || exit 1
 artifact_source_tree_gate "${MANIFEST_DIR}" || exit 1
-[[ -f "${HOST_SCRIPT}" ]] || {
-  echo "missing ${HOST_SCRIPT}" >&2
-  exit 1
-}
-[[ -f "${UNITS_LIB}" ]] || {
-  echo "missing ${UNITS_LIB}" >&2
-  exit 1
-}
-[[ -f "${QUADLETS_LIB}" ]] || {
-  echo "missing ${QUADLETS_LIB}" >&2
-  exit 1
-}
-[[ -f "${UNIT_CONSUMERS_LIB}" ]] || {
-  echo "missing ${UNIT_CONSUMERS_LIB}" >&2
-  exit 1
-}
-[[ -f "${ENV_HOST_LIB}" ]] || {
-  echo "missing ${ENV_HOST_LIB}" >&2
-  exit 1
-}
-[[ -f "${MANIFEST_LIB}" ]] || {
-  echo "missing ${MANIFEST_LIB}" >&2
-  exit 1
-}
-[[ -f "${ARTIFACT_SOURCE_LIB}" ]] || {
-  echo "missing ${ARTIFACT_SOURCE_LIB}" >&2
-  exit 1
-}
-[[ -f "${ARTIFACT_MANIFEST_LIB}" ]] || {
-  echo "missing ${ARTIFACT_MANIFEST_LIB}" >&2
-  exit 1
-}
-[[ -f "${ARTIFACT_PROVIDES_LIB}" ]] || {
-  echo "missing ${ARTIFACT_PROVIDES_LIB}" >&2
-  exit 1
-}
-[[ -f "${ARTIFACT_BINDING_LIB}" ]] || {
-  echo "missing ${ARTIFACT_BINDING_LIB}" >&2
-  exit 1
-}
-[[ -f "${ARTIFACT_REQUIRES_LIB}" ]] || {
-  echo "missing ${ARTIFACT_REQUIRES_LIB}" >&2
-  exit 1
-}
-[[ -f "${MATERIALIZE_LIB}" ]] || {
-  echo "missing ${MATERIALIZE_LIB}" >&2
-  exit 1
-}
-[[ -f "${PROJECT_LIB}" ]] || {
-  echo "missing ${PROJECT_LIB}" >&2
-  exit 1
-}
-[[ -f "${QUADLET_SESSION_LIB}" ]] || {
-  echo "missing ${QUADLET_SESSION_LIB}" >&2
-  exit 1
-}
-[[ -f "${SYNC_LIB}" ]] || {
-  echo "missing ${SYNC_LIB}" >&2
-  exit 1
-}
-[[ -f "${PATHS_LIB}" ]] || {
-  echo "missing ${PATHS_LIB}" >&2
-  exit 1
-}
 
 command -v terraform >/dev/null || { echo "terraform not found" >&2; exit 1; }
 command -v ssh >/dev/null || { echo "ssh not found" >&2; exit 1; }
@@ -167,43 +73,7 @@ STAGE="$(umask 077; mktemp -d "${TMPDIR:-/tmp}/platform-ensure-workload-stage.XX
 trap 'rm -rf "${STAGE}"' EXIT
 
 RESOLVED_REMOTE_ROOT="/tmp/platform-ensure-workload"
-BINDING_ABS="${MANIFEST_DIR}/binding.json"
-REQUIRES_ABS="${MANIFEST_DIR}/requires.json"
-WL_SOURCE="$(artifact_source_from_manifest "${MANIFEST_ABS}")" || exit 1
-[[ -f "${BINDING_ABS}" ]] || {
-  echo "binding.json missing in ${MANIFEST_DIR}/" >&2
-  exit 1
-}
-if [[ "${WL_SOURCE}" == "internal" ]]; then
-  [[ -f "${REQUIRES_ABS}" ]] || {
-    echo "requires.json missing in ${MANIFEST_DIR}/" >&2
-    exit 1
-  }
-else
-  REQUIRES_ABS=""
-fi
-environment_configuration_stage_for_setup \
-  "${STAGE}" "${BINDING_ABS}" "${REQUIRES_ABS}" "${ENV_DIR}" "${MANIFEST_DIR}" \
-  "${RESOLVED_REMOTE_ROOT}" || exit 1
-
-cp "${HOST_SCRIPT}" "${STAGE}/ensure-workload-host.sh"
-cp "${UNITS_LIB}" "${STAGE}/workload-units-host.sh"
-cp "${QUADLETS_LIB}" "${STAGE}/workload-quadlets-host.sh"
-cp "${UNIT_CONSUMERS_LIB}" "${STAGE}/unit-consumers-host.sh"
-cp "${ENV_HOST_LIB}" "${STAGE}/workload-environment-host.sh"
-cp "${MANIFEST_LIB}" "${STAGE}/workload-manifest-host.sh"
-cp "${ARTIFACT_SOURCE_LIB}" "${STAGE}/source.sh"
-cp "${ARTIFACT_MANIFEST_LIB}" "${STAGE}/manifest.sh"
-cp "${ARTIFACT_PROVIDES_LIB}" "${STAGE}/provides.sh"
-cp "${ARTIFACT_BINDING_LIB}" "${STAGE}/binding.sh"
-cp "${ARTIFACT_REQUIRES_LIB}" "${STAGE}/requires.sh"
-cp "${MATERIALIZE_LIB}" "${STAGE}/workload-materialize-host.sh"
-cp "${PROJECT_LIB}" "${STAGE}/workload-project-host.sh"
-cp "${QUADLET_SESSION_LIB}" "${STAGE}/quadlet-user-session.sh"
-cp "${SYNC_LIB}" "${STAGE}/sync-tree-host.sh"
-cp "${PATHS_LIB}" "${STAGE}/host-volume-paths-host.sh"
-mkdir -p "${STAGE}/${WL_NAME}"
-cp -a "${MANIFEST_DIR}/." "${STAGE}/${WL_NAME}/"
+workload_setup_stage_payload "${STAGE}" "${RESOLVED_REMOTE_ROOT}" "${MANIFEST_DIR}" || exit 1
 
 host_delivery_run "${STAGE}" "${RESOLVED_REMOTE_ROOT}" \
   "PLATFORM_USER=${USER_NAME} WL_ENV_RESOLVED=${WL_ENV_RESOLVED_REMOTE} bash ${RESOLVED_REMOTE_ROOT}/ensure-workload-host.sh ${RESOLVED_REMOTE_ROOT}/${WL_NAME}"
