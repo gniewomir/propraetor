@@ -5,7 +5,7 @@
 # Orphan Reap (SoT gone) → drop role/db/clients + clear projection in post-workloads.
 # Sourced by Database Setup. Expects ambient after database_setup begin:
 #   DATA_ROOT, CLIENTS_DIR, ADMIN_ENV, HOME_DIR, UNIT_DIR, USER_NAME, WORKLOADS_ROOT
-# Requires: quadlet_user, database_tls_ensure_client, database_write_pg_ident_file,
+# Requires: quadlet_user, component_tls_ensure_client, database_write_pg_ident_file,
 #           database_admin_user_from_env, workload_manifest_intent,
 #           artifact_requires_database.
 
@@ -352,7 +352,7 @@ database_fulfill_declarations() {
 
   while IFS= read -r wl_name; do
     [[ -n "${wl_name}" ]] || continue
-    database_tls_ensure_client "${wl_name}" || {
+    component_tls_ensure_client database "${DATA_ROOT}" "${wl_name}" || {
       rm -f "${sorted_file}"
       return 1
     }

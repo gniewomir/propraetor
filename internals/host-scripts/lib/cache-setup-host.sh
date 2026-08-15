@@ -22,8 +22,8 @@ source "${_cache_setup_lib_dir}/quadlet-user-session.sh"
 source "${_cache_setup_lib_dir}/component-units-host.sh"
 # shellcheck source=component-handoff-host.sh
 source "${_cache_setup_lib_dir}/component-handoff-host.sh"
-# shellcheck source=cache-tls-host.sh
-source "${_cache_setup_lib_dir}/cache-tls-host.sh"
+# shellcheck source=component-tls-host.sh
+source "${_cache_setup_lib_dir}/component-tls-host.sh"
 # shellcheck source=cache-admin-env-host.sh
 source "${_cache_setup_lib_dir}/cache-admin-env-host.sh"
 # shellcheck source=cache-conf-host.sh
@@ -107,9 +107,9 @@ cache_setup() {
   mkdir -p "${DATA_ROOT}" "${DATA_ROOT}/admin" "${DATA_ROOT}/conf" "${DATA_ROOT}/clients"
 
   cache_install_admin_env "${staged_admin_env}" || return 1
-  cache_tls_ensure || return 1
+  component_tls_ensure cache "${DATA_ROOT}" || return 1
   admin_user="$(cache_admin_user_from_env "${ADMIN_ENV}")" || return 1
-  cache_tls_ensure_admin_client "${admin_user}" || return 1
+  component_tls_ensure_admin_client cache "${DATA_ROOT}" "${admin_user}" || return 1
   cache_write_acl_file "${ADMIN_ENV}" || return 1
   cache_write_valkey_conf || return 1
 

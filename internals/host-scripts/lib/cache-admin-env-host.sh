@@ -152,7 +152,7 @@ with open(acl_path, "w", encoding="utf-8") as out:
             out.write(f"user {name} off\n")
     for name in sorted(claimants - set(retained)):
         # Claimant without Persist client yet (ensure order): still emit on-line;
-        # cache_tls_ensure_client runs before this write in fulfill.
+        # component_tls_ensure_client runs before this write in fulfill.
         if any(ch in name for ch in unsafe) or any(ch in name for ch in " \t\r\n/\"'\\"):
             raise SystemExit(
                 f"Cache ACL: basename is not ACL-safe: {name!r}"

@@ -6,7 +6,7 @@
 # in post-workloads.
 # Sourced by Cache Setup. Expects ambient after cache_setup begin:
 #   DATA_ROOT, ADMIN_ENV, HOME_DIR, UNIT_DIR, USER_NAME, WORKLOADS_ROOT
-# Requires: quadlet_user, cache_tls_ensure_client, cache_write_acl_file,
+# Requires: quadlet_user, component_tls_ensure_client, cache_write_acl_file,
 #           cache_admin_user_from_env, declaration converge, artifact_requires_cache.
 
 _cache_fulfill_lib_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -257,7 +257,7 @@ _cache_prepare_claimants() {
 
   while IFS= read -r wl_name; do
     [[ -n "${wl_name}" ]] || continue
-    cache_tls_ensure_client "${wl_name}" || return 1
+    component_tls_ensure_client cache "${DATA_ROOT}" "${wl_name}" || return 1
   done <"${sorted_file}"
 
   cache_write_acl_file "${ADMIN_ENV}" "${sorted_file}" || return 1
