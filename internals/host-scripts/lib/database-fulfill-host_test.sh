@@ -101,16 +101,16 @@ write_claim_tree() {
 }
 
 CLAIM="${TMP}/claim-wl"
-write_claim_tree "${CLAIM}" run '{ "database": true }'
+write_claim_tree "${CLAIM}" run '{ "database": true, "cache": false }'
 [[ "$(database_workload_is_run_claimant "${CLAIM}")" == "1" ]] \
   || fail "Intent run + Requires database true must claim"
-write_claim_tree "${CLAIM}" run '{ "database": false }'
+write_claim_tree "${CLAIM}" run '{ "database": false, "cache": false }'
 [[ "$(database_workload_is_run_claimant "${CLAIM}")" == "0" ]] \
   || fail "Intent run + Requires database false must not claim"
-write_claim_tree "${CLAIM}" stop '{ "database": true }'
+write_claim_tree "${CLAIM}" stop '{ "database": true, "cache": false }'
 [[ "$(database_workload_is_run_claimant "${CLAIM}")" == "0" ]] \
   || fail "Intent stop + Requires database true must not claim"
-write_claim_tree "${CLAIM}" trash '{ "database": true }'
+write_claim_tree "${CLAIM}" trash '{ "database": true, "cache": false }'
 if database_workload_is_run_claimant "${CLAIM}" >/dev/null 2>&1; then
   fail "retired Intent trash must fail closed"
 fi
@@ -120,12 +120,12 @@ pass "Requires database claim is gated on Intent run; trash rejected"
 mkdir -p "${CLAIM}"
 printf '%s\n' '{"intent":"run","source":"internal","database":true}' \
   >"${CLAIM}/manifest.json"
-printf '%s\n' '{ "database": false }' >"${CLAIM}/requires.json"
+printf '%s\n' '{ "database": false, "cache": false }' >"${CLAIM}/requires.json"
 [[ "$(database_workload_is_run_claimant "${CLAIM}")" == "0" ]] \
   || fail "Manifest database:true must not claim when Requires is false"
 pass "Manifest database does not participate in claim"
 
-write_claim_tree "${CLAIM}" run '{ "database": true }'
+write_claim_tree "${CLAIM}" run '{ "database": true, "cache": false }'
 rm -f "${CLAIM}/requires.json"
 if database_workload_is_run_claimant "${CLAIM}" >/dev/null 2>&1; then
   fail "missing Requires must fail closed for Intent-run"

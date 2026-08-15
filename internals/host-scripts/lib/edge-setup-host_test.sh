@@ -16,7 +16,7 @@ plant_bound_route() {
   local wl_dir="$1" fqdn="$2" body="$3"
   mkdir -p "${wl_dir}/routes"
   [[ -f "${wl_dir}/manifest.json" ]] || printf '%s\n' '{"intent":"run"}' >"${wl_dir}/manifest.json"
-  printf '%s\n' '{ "database": false }' >"${wl_dir}/requires.json"
+  printf '%s\n' '{ "database": false, "cache": false }' >"${wl_dir}/requires.json"
   printf '%s\n' "${body}" >"${wl_dir}/routes/fragment.conf"
   printf '%s\n' '{"routes":{"routes/fragment.conf":"test"}}' >"${wl_dir}/provides.json"
   printf '%s\n' "{\"domains\":{\"${fqdn}\":[\"routes/fragment.conf\"]}}" >"${wl_dir}/binding.json"

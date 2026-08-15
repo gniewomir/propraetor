@@ -52,7 +52,7 @@ write_internal_stubs() {
   local tree="$1"
   mkdir -p "${tree}/systemd"
   printf '{}\n' >"${tree}/provides.json"
-  printf '{ "database": false }\n' >"${tree}/requires.json"
+  printf '{ "database": false, "cache": false }\n' >"${tree}/requires.json"
   printf '{}\n' >"${tree}/binding.json"
   printf '[Container]\nImage=localhost/stub\n' >"${tree}/systemd/stub.container"
 }
@@ -189,7 +189,7 @@ cat >"${ZIP_ROOT}/provides.json" <<'EOF'
   }
 }
 EOF
-printf '{ "database": false }\n' >"${ZIP_ROOT}/requires.json"
+printf '{ "database": false, "cache": false }\n' >"${ZIP_ROOT}/requires.json"
 printf 'from-zip-unit\n' >"${ZIP_ROOT}/systemd/zippy.container"
 printf 'from-zip-www\n' >"${ZIP_ROOT}/www/index.html"
 (cd "${ZIP_ROOT}" && zip -qr "${ZIP_DIR}/artifact.zip" .)

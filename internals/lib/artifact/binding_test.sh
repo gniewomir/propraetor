@@ -73,7 +73,8 @@ EOF
 cat >"${REQUIRES}" <<'EOF'
 {
   "environment": { "API_KEY": "key", "APP_URL": "url" },
-  "database": false
+  "database": false,
+  "cache": false
 }
 EOF
 cat >"${BINDING}" <<'EOF'
@@ -188,7 +189,7 @@ cat >"${PROVIDES}" <<'EOF'
 { "directories": { "systemd": "./systemd" } }
 EOF
 cat >"${REQUIRES}" <<'EOF'
-{ "environment": {}, "database": true }
+{ "environment": {}, "database": true, "cache": false }
 EOF
 cat >"${BINDING}" <<'EOF'
 { "domains": {}, "environment": {} }
@@ -204,7 +205,8 @@ EOF
 cat >"${REQUIRES}" <<'EOF'
 {
   "environment": { "API_KEY": "key", "APP_URL": "url" },
-  "database": false
+  "database": false,
+  "cache": false
 }
 EOF
 cat >"${BINDING}" <<'EOF'
@@ -223,7 +225,7 @@ got="$(artifact_binding_environment_remap "${BINDING}" "${REQUIRES}")" \
 pass "environment remap prints bag=Requires pairs"
 
 cat >"${REQUIRES}" <<'EOF'
-{ "environment": {}, "database": false }
+{ "environment": {}, "database": false, "cache": false }
 EOF
 cat >"${BINDING}" <<'EOF'
 { "environment": {} }
@@ -234,7 +236,7 @@ got="$(artifact_binding_environment_remap "${BINDING}" "${REQUIRES}")" \
 pass "empty Requires environment remaps to no pairs"
 
 cat >"${REQUIRES}" <<'EOF'
-{ "environment": { "API_KEY": "key" }, "database": false }
+{ "environment": { "API_KEY": "key" }, "database": false, "cache": false }
 EOF
 cat >"${BINDING}" <<'EOF'
 { "environment": {} }

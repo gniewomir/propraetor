@@ -22,7 +22,7 @@ cat >"${TREE}/manifest.json" <<'EOF'
 EOF
 
 # Zip Environment must not already hold Artifact contracts (fail before fetch).
-printf '{ "database": false }\n' >"${TREE}/requires.json"
+printf '{ "database": false, "cache": false }\n' >"${TREE}/requires.json"
 if err="$(workload_materialize_tree "${TREE}" "${OUT}" 2>&1)"; then
   fail "zip Environment requires.json must fail closed before zip obtain"
 fi
@@ -46,7 +46,7 @@ PATH_TREE="${TMP}/path-wl"
 PATH_ART="${TMP}/path-art"
 mkdir -p "${PATH_ART}/www" "${PATH_ART}/systemd" "${PATH_TREE}"
 printf '{ "directories": { "www": "static", "systemd": "units" } }\n' >"${PATH_ART}/provides.json"
-printf '{ "database": false }\n' >"${PATH_ART}/requires.json"
+printf '{ "database": false, "cache": false }\n' >"${PATH_ART}/requires.json"
 printf 'from-path-zip\n' >"${PATH_ART}/www/index.html"
 printf '[Container]\nImage=localhost/path\n' >"${PATH_ART}/systemd/path.container"
 (cd "${PATH_ART}" && zip -qr "${PATH_TREE}/artifact.zip" .)
@@ -72,7 +72,7 @@ WRAP_TREE="${TMP}/wrap-wl"
 WRAP_ART="${TMP}/wrap-art"
 mkdir -p "${WRAP_ART}/bundle/www" "${WRAP_ART}/bundle/systemd" "${WRAP_TREE}"
 printf '{ "directories": { "www": "static", "systemd": "units" } }\n' >"${WRAP_ART}/bundle/provides.json"
-printf '{ "database": false }\n' >"${WRAP_ART}/bundle/requires.json"
+printf '{ "database": false, "cache": false }\n' >"${WRAP_ART}/bundle/requires.json"
 printf 'from-peel\n' >"${WRAP_ART}/bundle/www/index.html"
 printf '[Container]\nImage=localhost/peel\n' >"${WRAP_ART}/bundle/systemd/peel.container"
 (cd "${WRAP_ART}" && zip -qr "${WRAP_TREE}/wrapped.zip" bundle)
@@ -105,7 +105,7 @@ cat >"${PERS_TREE}/manifest.json" <<'EOF'
 { "intent": "run", "source": "internal" }
 EOF
 printf '{ "directories": { "www": "www" } }\n' >"${PERS_TREE}/provides.json"
-printf '{ "database": false }\n' >"${PERS_TREE}/requires.json"
+printf '{ "database": false, "cache": false }\n' >"${PERS_TREE}/requires.json"
 mkdir -p "${PERS_TREE}/www"
 if err="$(workload_materialize_tree "${PERS_TREE}" "${OUT}" 2>&1)"; then
   fail "Environment persist/ must fail closed"
@@ -124,7 +124,7 @@ cat >"${MERGE_ENV}/manifest.json" <<'MAN'
 MAN
 printf '[Container]\nImage=localhost/env\n' >"${MERGE_ENV}/systemd/shared.container"
 printf '{ "directories": { "systemd": "units" } }\n' >"${MERGE_ART}/provides.json"
-printf '{ "database": false }\n' >"${MERGE_ART}/requires.json"
+printf '{ "database": false, "cache": false }\n' >"${MERGE_ART}/requires.json"
 printf '[Container]\nImage=localhost/art\n' >"${MERGE_ART}/systemd/shared.container"
 (cd "${MERGE_ART}" && zip -qr "${MERGE_ENV}/artifact.zip" .)
 rm -rf "${OUT}"
@@ -138,7 +138,7 @@ Q_TREE="${TMP}/quadlets-wl"
 mkdir -p "${Q_TREE}/quadlets" "${Q_TREE}/systemd"
 printf '{}\n' >"${Q_TREE}/binding.json"
 printf '{}\n' >"${Q_TREE}/provides.json"
-printf '{ "database": false }\n' >"${Q_TREE}/requires.json"
+printf '{ "database": false, "cache": false }\n' >"${Q_TREE}/requires.json"
 cat >"${Q_TREE}/manifest.json" <<'MAN'
 { "intent": "run", "source": "internal" }
 MAN

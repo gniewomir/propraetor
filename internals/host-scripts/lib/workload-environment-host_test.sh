@@ -94,7 +94,7 @@ pass "Orphan Reap-style clear"
 MAT="${TMP}/mat-wl"
 mkdir -p "${MAT}"
 printf '{}\n' >"${MAT}/binding.json"
-printf '{ "database": false }\n' >"${MAT}/requires.json"
+printf '{ "database": false, "cache": false }\n' >"${MAT}/requires.json"
 environment_configuration_fulfill_materialized "${MAT}" \
   || fail "empty Binding and Requires environment must fulfill"
 pass "fulfill empty Binding/Requires"
@@ -103,7 +103,7 @@ cat >"${MAT}/binding.json" <<'EOF'
 { "environment": { "BAG_A": "PROC_A" } }
 EOF
 cat >"${MAT}/requires.json" <<'EOF'
-{ "environment": { "PROC_A": "a" }, "database": false }
+{ "environment": { "PROC_A": "a" }, "database": false, "cache": false }
 EOF
 if environment_configuration_fulfill_materialized "${MAT}" >/dev/null 2>&1; then
   fail "non-empty Requires environment without .container must fail closed"

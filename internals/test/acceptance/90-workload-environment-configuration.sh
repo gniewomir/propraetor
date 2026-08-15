@@ -78,7 +78,8 @@ write_env_remap() {
     "APP_TOKEN": "process token",
     "APP_MODE": "process mode"
   },
-  "database": false
+  "database": false,
+  "cache": false
 }
 EOF
   cat >"${dir}/binding.json" <<'EOF'
@@ -147,7 +148,8 @@ write_thin_manifest "${FIX_DIR}/${WL}"
 cat >"${FIX_DIR}/${WL}/requires.json" <<'EOF'
 {
   "environment": { "APP_TOKEN": "process token" },
-  "database": false
+  "database": false,
+  "cache": false
 }
 EOF
 cat >"${FIX_DIR}/${WL}/binding.json" <<'EOF'
@@ -220,7 +222,8 @@ write_thin_manifest "${FIX_DIR}/${WL2}"
 cat >"${FIX_DIR}/${WL2}/requires.json" <<'EOF'
 {
   "environment": { "APP_TOKEN": "process token" },
-  "database": false
+  "database": false,
+  "cache": false
 }
 EOF
 cat >"${FIX_DIR}/${WL2}/binding.json" <<'EOF'

@@ -126,7 +126,7 @@ EOF
 printf '{}\n' >"${ZIP_TREE}/binding.json"
 artifact_source_environment_tree_gate "${ZIP_TREE}" \
   || fail "zip Environment Manifest+Binding must pass"
-printf '{ "database": false }\n' >"${ZIP_TREE}/requires.json"
+printf '{ "database": false, "cache": false }\n' >"${ZIP_TREE}/requires.json"
 if artifact_source_environment_tree_gate "${ZIP_TREE}" >/dev/null 2>&1; then
   fail "zip Environment requires.json must fail closed"
 fi
@@ -161,7 +161,7 @@ cat >"${INT_TREE}/manifest.json" <<'EOF'
 EOF
 printf '{}\n' >"${INT_TREE}/binding.json"
 printf '{}\n' >"${INT_TREE}/provides.json"
-printf '{ "database": false }\n' >"${INT_TREE}/requires.json"
+printf '{ "database": false, "cache": false }\n' >"${INT_TREE}/requires.json"
 artifact_source_environment_tree_gate "${INT_TREE}" \
   || fail "internal Environment Artifact contracts must pass"
 pass "internal Environment Artifact contracts allowed"
@@ -208,7 +208,7 @@ EXTRACT_SRC="${TMP}/extract-src"
 EXTRACT_DEST="${TMP}/extract-dest"
 mkdir -p "${EXTRACT_SRC}/wrapper/www"
 printf '{}\n' >"${EXTRACT_SRC}/wrapper/provides.json"
-printf '{ "database": false }\n' >"${EXTRACT_SRC}/wrapper/requires.json"
+printf '{ "database": false, "cache": false }\n' >"${EXTRACT_SRC}/wrapper/requires.json"
 printf 'from-wrapper\n' >"${EXTRACT_SRC}/wrapper/www/index.html"
 (cd "${EXTRACT_SRC}" && zip -qr "${TMP}/wrapped.zip" wrapper)
 rm -rf "${EXTRACT_DEST}"
@@ -224,7 +224,7 @@ pass "zip extract peels sole wrapper with Provides"
 
 mkdir -p "${EXTRACT_SRC}/flat"
 printf '{}\n' >"${EXTRACT_SRC}/flat/provides.json"
-printf '{ "database": false }\n' >"${EXTRACT_SRC}/flat/requires.json"
+printf '{ "database": false, "cache": false }\n' >"${EXTRACT_SRC}/flat/requires.json"
 printf 'flat\n' >"${EXTRACT_SRC}/flat/readme.txt"
 (cd "${EXTRACT_SRC}/flat" && zip -qr "${TMP}/flat.zip" .)
 rm -rf "${EXTRACT_DEST}"

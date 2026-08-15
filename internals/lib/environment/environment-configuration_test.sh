@@ -22,7 +22,7 @@ mkdir -p "${ENV_DIR}" "${TREE}"
 
 write_empty_contract() {
   printf '{}\n' >"${BINDING}"
-  printf '{ "database": false }\n' >"${REQUIRES}"
+  printf '{ "database": false, "cache": false }\n' >"${REQUIRES}"
 }
 
 write_remap() {
@@ -40,7 +40,8 @@ EOF
     "PROC_A": "process A",
     "PROC_B": "process B"
   },
-  "database": false
+  "database": false,
+  "cache": false
 }
 EOF
 }
@@ -92,7 +93,8 @@ EOF
 cat >"${REQUIRES}" <<'EOF'
 {
   "environment": { "ROOT_DB_USER": "must not inject", "PROC_B": "b" },
-  "database": false
+  "database": false,
+  "cache": false
 }
 EOF
 if environment_configuration_remap "${BINDING}" "${REQUIRES}" >/dev/null 2>&1; then
@@ -260,7 +262,8 @@ EOF
 cat >"${REQUIRES}" <<'EOF'
 {
   "environment": { "PROC_A": "a", "PROC_B": "b" },
-  "database": false
+  "database": false,
+  "cache": false
 }
 EOF
 printf 'ROOT_DB_USER=admin\nBAG_B=x\n' >"${ENV_DIR}/.env"
@@ -296,7 +299,7 @@ pass "module stage_for_setup empty Requires environment → inactive"
 
 # fail-closed shapes must surface as non-zero from stage_for_setup
 printf '{ "environment": { "BAG": 1 } }\n' >"${BINDING}"
-printf '{ "database": false }\n' >"${REQUIRES}"
+printf '{ "database": false, "cache": false }\n' >"${REQUIRES}"
 if environment_configuration_stage_for_setup \
   "${STAGE_DIR}" "${BINDING}" "${REQUIRES}" "${ENV_DIR}" "${WL_TREE}" \
   "/tmp/platform-ensure-workload" >/dev/null 2>&1; then

@@ -27,7 +27,7 @@ trap cleanup_art EXIT
 
 mkdir -p "${ART}/www"
 printf '{ "directories": { "www": "static" } }\n' >"${ART}/provides.json"
-printf '{ "database": false }\n' >"${ART}/requires.json"
+printf '{ "database": false, "cache": false }\n' >"${ART}/requires.json"
 printf 'from-acceptance-path-zip\n' >"${ART}/www/index.html"
 mkdir -p "${FIX_DIR}/${WL}"
 (cd "${ART}" && zip -qr "${FIX_DIR}/${WL}/artifact.zip" .)

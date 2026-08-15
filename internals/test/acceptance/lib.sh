@@ -442,14 +442,14 @@ acceptance_write_artifact_stubs() {
   mkdir -p "${tree}"
   printf '{}\n' >"${tree}/provides.json"
   printf '{}\n' >"${tree}/binding.json"
-  printf '{ "database": false }\n' >"${tree}/requires.json"
+  printf '{ "database": false, "cache": false }\n' >"${tree}/requires.json"
 }
 
 # Artifact stubs with Requires database: true (Database Component claimant).
 acceptance_write_database_claim() {
   local tree="${1:?acceptance_write_database_claim: Workload tree required}"
   acceptance_write_artifact_stubs "${tree}"
-  printf '{ "database": true }\n' >"${tree}/requires.json"
+  printf '{ "database": true, "cache": false }\n' >"${tree}/requires.json"
 }
 
 # Fail closed unless TREE is a thin Manifest + Provides + Requires + Binding (ADR-0053).

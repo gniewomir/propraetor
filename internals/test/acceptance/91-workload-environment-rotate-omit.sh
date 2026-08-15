@@ -41,7 +41,8 @@ cat >"${FIX_DIR}/${WL}/requires.json" <<'EOF'
     "APP_TOKEN": "process token",
     "APP_MODE": "process mode"
   },
-  "database": false
+  "database": false,
+  "cache": false
 }
 EOF
 cat >"${FIX_DIR}/${WL}/binding.json" <<'EOF'
@@ -112,7 +113,8 @@ pass "empty Requires environment clears Environment Configuration from container
 cat >"${FIX_DIR}/${WL}/requires.json" <<'EOF'
 {
   "environment": { "APP_TOKEN": "process token" },
-  "database": false
+  "database": false,
+  "cache": false
 }
 EOF
 cat >"${FIX_DIR}/${WL}/binding.json" <<'EOF'

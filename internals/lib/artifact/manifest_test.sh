@@ -75,6 +75,12 @@ if artifact_manifest_validate "${MANIFEST}" >/dev/null 2>&1; then
   fail "Manifest database must fail closed"
 fi
 cat >"${MANIFEST}" <<'EOF'
+{ "intent": "run", "source": "internal", "cache": true }
+EOF
+if artifact_manifest_validate "${MANIFEST}" >/dev/null 2>&1; then
+  fail "Manifest cache must fail closed"
+fi
+cat >"${MANIFEST}" <<'EOF'
 { "intent": "run", "source": "internal", "name": "x" }
 EOF
 if artifact_manifest_validate "${MANIFEST}" >/dev/null 2>&1; then
@@ -99,11 +105,11 @@ fi
 pass "non-object Manifest fails closed"
 
 # --- no dual-read of retired Manifest keys ---
-if grep -E '\[.environment.\]|\[.database.\]|m\.get\("environment"\)|m\.get\("database"\)' \
+if grep -E '\[.environment.\]|\[.database.\]|\[.cache.\]|m\.get\("environment"\)|m\.get\("database"\)|m\.get\("cache"\)' \
     "${REPO_ROOT}/internals/lib/artifact/manifest.sh"; then
-  fail "Manifest allowlist lib must not dual-read environment/database"
+  fail "Manifest allowlist lib must not dual-read environment/database/cache"
 fi
-pass "no Manifest environment/database dual-read"
+pass "no Manifest environment/database/cache dual-read"
 
 # --- committed Environment Workloads are structurally valid ---
 # shellcheck source=binding.sh

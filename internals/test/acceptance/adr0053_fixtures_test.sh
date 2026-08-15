@@ -63,6 +63,16 @@ if (acceptance_assert_artifact_tree "${TMP}/retired-db" "retired-db") >/dev/null
 fi
 pass "retired Manifest database fails artifact-tree assert"
 
+mkdir -p "${TMP}/retired-cache"
+acceptance_write_artifact_stubs "${TMP}/retired-cache"
+cat >"${TMP}/retired-cache/manifest.json" <<'EOF'
+{ "intent": "run", "source": "internal", "cache": true }
+EOF
+if (acceptance_assert_artifact_tree "${TMP}/retired-cache" "retired-cache") >/dev/null 2>&1; then
+  fail "Manifest cache must fail artifact-tree assert"
+fi
+pass "retired Manifest cache fails artifact-tree assert"
+
 mkdir -p "${TMP}/ok"
 acceptance_write_artifact_stubs "${TMP}/ok"
 cat >"${TMP}/ok/manifest.json" <<'EOF'

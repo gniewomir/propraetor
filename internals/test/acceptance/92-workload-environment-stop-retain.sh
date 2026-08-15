@@ -47,7 +47,8 @@ EOF
   cat >"${FIX_DIR}/${name}/requires.json" <<'EOF'
 {
   "environment": { "APP_TOKEN": "process token" },
-  "database": false
+  "database": false,
+  "cache": false
 }
 EOF
   cat >"${FIX_DIR}/${name}/binding.json" <<'EOF'

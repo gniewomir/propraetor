@@ -1,5 +1,6 @@
 {
   "database": false,
+  "cache": false,
   "environment": {
     "EXAMPLE_GREETING": "Greeting exposed to the example app process",
     "EXAMPLE_MODE": "Mode exposed to the example app process"

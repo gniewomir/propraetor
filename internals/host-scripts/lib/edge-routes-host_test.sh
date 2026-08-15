@@ -24,7 +24,7 @@ plant_bound_route() {
   local rel="${4:-routes/fragment.conf}"
   mkdir -p "${wl_dir}/$(dirname "${rel}")"
   [[ -f "${wl_dir}/manifest.json" ]] || printf '%s\n' '{"intent":"run"}' >"${wl_dir}/manifest.json"
-  printf '%s\n' '{ "database": false }' >"${wl_dir}/requires.json"
+  printf '%s\n' '{ "database": false, "cache": false }' >"${wl_dir}/requires.json"
   printf '%s\n' "${body}" >"${wl_dir}/${rel}"
   cat >"${wl_dir}/provides.json" <<EOF
 { "routes": { "${rel}": "test fragment" } }
@@ -38,7 +38,7 @@ plant_zero_routes() {
   local wl_dir="$1"
   mkdir -p "${wl_dir}"
   [[ -f "${wl_dir}/manifest.json" ]] || printf '%s\n' '{"intent":"run"}' >"${wl_dir}/manifest.json"
-  printf '%s\n' '{ "database": false }' >"${wl_dir}/requires.json"
+  printf '%s\n' '{ "database": false, "cache": false }' >"${wl_dir}/requires.json"
   printf '%s\n' '{}' >"${wl_dir}/provides.json"
   printf '%s\n' '{}' >"${wl_dir}/binding.json"
 }
@@ -205,7 +205,7 @@ ORD="${WL_ROOT}/ordered"
 rm -rf "${ORD}"
 mkdir -p "${ORD}/routes"
 printf '%s\n' '{"intent":"run"}' >"${ORD}/manifest.json"
-printf '%s\n' '{ "database": false }' >"${ORD}/requires.json"
+printf '%s\n' '{ "database": false, "cache": false }' >"${ORD}/requires.json"
 printf '%s\n' 'location /first { return 200 "1"; }' >"${ORD}/routes/first.conf"
 printf '%s\n' 'location /second { return 200 "2"; }' >"${ORD}/routes/second.conf"
 cat >"${ORD}/provides.json" <<'EOF'
