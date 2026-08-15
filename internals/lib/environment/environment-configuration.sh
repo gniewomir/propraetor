@@ -1,34 +1,33 @@
 #!/usr/bin/env bash
-# Environment Configuration module for Workload Setup / Orphan Reap (ADR-0035 / ADR-0053 / #201).
-# Sourced by Workload Setup and offline tests — not an operator entrypoint.
+# Environment Configuration module for Workload Setup / Orphan Reap
+# (ADR-0035 / ADR-0053 / #230). Sourced by Workload Setup and offline tests —
+# not an operator entrypoint.
 #
-# Public interface (one outcome chain — install or clear):
+# Public interface (three outcomes only):
 #   environment_configuration_stage_for_setup STAGE BINDING REQUIRES ENV_DIR TREE REMOTE_ROOT
 #     Resolve+gate into STAGE/environment.resolved; sets WL_ENV_ACTIVE and
 #     WL_ENV_RESOLVED_REMOTE (under REMOTE_ROOT when active; empty when inactive).
-#     REQUIRES may be empty (zip Setup: Binding-only remap; skip Environment-tree
-#     containers gate — Host full-fulfills after materialize).
-#   environment_configuration_apply_resolved WL_NAME RESOLVED_SRC
-#     Host half: empty/unset → clear EnvironmentFile/drop-ins; else install from RESOLVED_SRC.
-#   environment_configuration_clear WL_NAME
-#     Orphan Reap clear path (same Host half as apply_resolved with empty src).
+#     REQUIRES may be empty (zip Setup: Binding-only select; skip Environment-tree
+#     containers gate — Host fulfill-after-materialize full-fulfills later).
+#   environment_configuration_fulfill_after_materialize TREE
+#     Host half (defined in workload-environment-host.sh).
+#   environment_configuration_apply_or_clear WL_NAME [RESOLVED_SRC]
+#     Host half: empty/unset → clear; else install from RESOLVED_SRC.
 #
-# Offline tests exercise stage_for_setup → apply_resolved (REMOTE_ROOT may be the local
-# STAGE so WL_ENV_RESOLVED_REMOTE is a local path). prepare / install_host are internals.
-# There is no separate materialize public path.
+# Binding remap vs select, bag/install details, reserved ROOT_*, and containers
+# gate timing stay inside. Offline tests exercise the three outcomes
+# (REMOTE_ROOT may be the local STAGE so WL_ENV_RESOLVED_REMOTE is a local path).
 
 _ENVCFG_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# shellcheck source=environment-configuration-declaration.sh
-source "${_ENVCFG_LIB_DIR}/environment-configuration-declaration.sh"
 # shellcheck source=environment-dotenv.sh
 source "${_ENVCFG_LIB_DIR}/environment-dotenv.sh"
 # shellcheck source=../../host-scripts/lib/workload-environment-host.sh
 source "${_ENVCFG_LIB_DIR}/../../host-scripts/lib/workload-environment-host.sh"
 
-# Resolve Binding remaps of Requires environment names from the Environment
-# dotenv bag (.env ← .env.override) with shell overrides (on bag keys) into
-# OUTFILE as Requires_name=value. Empty remap → remove OUTFILE, WL_ENV_ACTIVE=0.
-# Prints WL_ENV_ACTIVE=0|1 on stdout for the caller to eval.
+# Internal: resolve Binding remaps of Requires environment names from the
+# Environment dotenv bag (.env ← .env.override) with shell overrides (on bag
+# keys) into OUTFILE as Requires_name=value. Empty remap → remove OUTFILE,
+# WL_ENV_ACTIVE=0. Prints WL_ENV_ACTIVE=0|1 on stdout for the caller to eval.
 environment_configuration_resolve() {
   local binding="${1:?Binding path required}"
   local requires="${2-}"
@@ -111,7 +110,7 @@ PY
   return 0
 }
 
-# Adapter internal: resolve + gate once. Writes OUTFILE when active.
+# Internal: resolve + gate once. Writes OUTFILE when active.
 # Prints WL_ENV_ACTIVE=0|1 on stdout for eval.
 environment_configuration_prepare() {
   local binding="${1:?Binding path required}"
@@ -131,7 +130,7 @@ environment_configuration_prepare() {
   printf '%s\n' "${resolve_out}"
 }
 
-# SSH staging adapter for Workload Setup: prepare into STAGE/environment.resolved
+# Outcome: SSH staging for Workload Setup — prepare into STAGE/environment.resolved
 # and set WL_ENV_ACTIVE plus WL_ENV_RESOLVED_REMOTE (under REMOTE_ROOT when active).
 # No stdout assignment protocol — callers read the globals after a successful return.
 environment_configuration_stage_for_setup() {

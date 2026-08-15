@@ -32,7 +32,7 @@ quadlet_user_session_begin
 
 while IFS= read -r WL_NAME; do
   [[ -n "${WL_NAME}" ]] || continue
-  environment_configuration_clear "${WL_NAME}"
+  environment_configuration_apply_or_clear "${WL_NAME}"
   workload_units_purge "${WL_NAME}"
   # Whole owner tree (SoT + nested Persist).
   rm -rf "${WORKLOADS_ROOT:?}/${WL_NAME}"
