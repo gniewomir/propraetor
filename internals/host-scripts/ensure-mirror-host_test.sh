@@ -24,17 +24,10 @@ trap cleanup EXIT
 HV="${TMP}/host-volume"
 STAGE="${TMP}/stage"
 mkdir -p "${HV}" "${STAGE}/lib"
-cp "${REPO_ROOT}/internals/host-scripts/lib/sync-tree-host.sh" "${STAGE}/lib/sync-tree-host.sh"
-cp "${REPO_ROOT}/internals/host-scripts/lib/workload-materialize-host.sh" \
-  "${STAGE}/lib/workload-materialize-host.sh"
-cp "${REPO_ROOT}/internals/host-scripts/lib/workload-project-host.sh" \
-  "${STAGE}/lib/workload-project-host.sh"
-cp "${REPO_ROOT}/internals/host-scripts/lib/unit-consumers-host.sh" \
-  "${STAGE}/lib/unit-consumers-host.sh"
-cp "${REPO_ROOT}/internals/host-scripts/lib/host-volume-paths-host.sh" \
-  "${STAGE}/lib/host-volume-paths-host.sh"
-cp "${REPO_ROOT}/internals/lib/artifact/source.sh" "${STAGE}/lib/source.sh"
-cp "${REPO_ROOT}/internals/lib/artifact/provides.sh" "${STAGE}/lib/provides.sh"
+# shellcheck source=../lib/workload/project-ship.sh
+source "${REPO_ROOT}/internals/lib/workload/project-ship.sh"
+workload_project_stage_ship_inventory "${STAGE}/lib" \
+  || fail "projection ship inventory must stage Mirror libs"
 
 cp "${HOST_SCRIPT}" "${TMP}/mirror-run.sh"
 chmod +x "${TMP}/mirror-run.sh"

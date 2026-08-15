@@ -56,17 +56,16 @@ grep -Fq '</dev/null' "${INTERNALS}/ensure-workloads.sh" \
   || fail "ensure-workloads must close child stdin so discovery names are not stolen"
 pass "ensure-workloads composes discovery + singular ensure-workload"
 
-# Flat Host stage must ship every lib ensure-workload-host sources from HERE (#157 / ADR-0052 regress).
+# Host entry sources apply module from HERE; stage_payload must ship it (#157 / #233).
 HOST_SH="${HOST_SCRIPTS}/ensure-workload-host.sh"
-ENSURE_SH="${INTERNALS}/ensure-workload.sh"
-while IFS= read -r lib; do
-  [[ -n "${lib}" ]] || continue
-  grep -Eq "cp \"\\\$\{[A-Z_]+\}\" \"\\\$\{STAGE\}/${lib}\"" "${ENSURE_SH}" \
-    || grep -Fq "\"\${STAGE}/${lib}\"" "${ENSURE_SH}" \
-    || fail "ensure-workload.sh must stage ${lib} (sourced by ensure-workload-host from HERE)"
-done < <(grep -E '^\s*source "\$\{HERE\}/[^"]+\.sh"' "${HOST_SH}" \
-  | sed -E 's/.*source "\$\{HERE\}\/([^"]+\.sh)".*/\1/')
-pass "ensure-workload stages every HERE-sourced host lib"
+SETUP_SH="${REPO_ROOT}/internals/lib/workload/setup.sh"
+grep -Fq 'workload_setup_apply' "${HOST_SH}" \
+  || fail "ensure-workload-host must call workload_setup_apply"
+grep -E '^\s*source "\$\{HERE\}/workload-setup-host\.sh"' "${HOST_SH}" \
+  || fail "ensure-workload-host must source workload-setup-host.sh from HERE"
+grep -Fq 'workload-setup-host.sh' "${SETUP_SH}" \
+  || fail "stage_payload must ship workload-setup-host.sh"
+pass "Host entry + stage_payload agree on apply module ship"
 
 # Offline batch loop: child that reads stdin must not drop remaining names
 FAKE_BIN="${TMP}/fake-bin"
