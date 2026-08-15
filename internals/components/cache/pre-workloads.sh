@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Component Setup pre-workloads for the Cache (ADR-0055 / #221).
-# Standing Component on Service Network dial name `cache` (idle OK).
+# Component Setup pre-workloads for the Cache (ADR-0055 / #221 / #222).
+# Standing Component + Intent-run Requires cache:true gather/create/publish.
 # Runs on the Host only. Invoked by ensure-components with slot pre-workloads.
 set -euo pipefail
 

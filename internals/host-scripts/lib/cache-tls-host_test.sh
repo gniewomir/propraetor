@@ -46,4 +46,14 @@ grep -Eqi 'CN|admin|match' "${TMP}/err-cn" \
   || fail "CN mismatch rejection unclear: $(cat "${TMP}/err-cn")"
 pass "admin client CN mismatch fails closed"
 
+cache_tls_ensure_client "alpha" || fail "client ensure should succeed"
+[[ -f "${DATA_ROOT}/clients/alpha/client.crt" ]] || fail "expected client.crt"
+cn="$(openssl x509 -noout -subject -in "${DATA_ROOT}/clients/alpha/client.crt" | sed -n 's/.*CN *= *//p')"
+[[ "${cn}" == "alpha" ]] || fail "expected CN=alpha, got '${cn}'"
+cp "${DATA_ROOT}/clients/alpha/client.crt" "${TMP}/wl-client.crt.bak"
+cache_tls_ensure_client "alpha" || fail "second client ensure should noop"
+cmp -s "${TMP}/wl-client.crt.bak" "${DATA_ROOT}/clients/alpha/client.crt" \
+  || fail "create-if-missing must not replace existing Workload client cert"
+pass "Workload client cert CN=basename create-if-missing"
+
 echo "All cache-tls-host offline tests passed."

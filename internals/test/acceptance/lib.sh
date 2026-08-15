@@ -452,6 +452,13 @@ acceptance_write_database_claim() {
   printf '{ "database": true, "cache": false }\n' >"${tree}/requires.json"
 }
 
+# Artifact stubs with Requires cache: true (Cache Component claimant).
+acceptance_write_cache_claim() {
+  local tree="${1:?acceptance_write_cache_claim: Workload tree required}"
+  acceptance_write_artifact_stubs "${tree}"
+  printf '{ "database": false, "cache": true }\n' >"${tree}/requires.json"
+}
+
 # Fail closed unless TREE is a thin Manifest + Provides + Requires + Binding (ADR-0053).
 # Does not require Domain want-list (teaching examples bind FQDNs per Environment).
 # Args: tree [label]
@@ -533,6 +540,13 @@ ensure_edge_route_fulfillment() {
 # Workload Setup syncs SoT only; create/publish is Database Component Setup.
 ensure_database_fulfillment() {
   [[ -n "${REPO_ROOT:-}" ]] || fail "ensure_database_fulfillment: REPO_ROOT required"
+  "${REPO_ROOT}/internals/ensure-components.sh" pre-workloads --env "${PLATFORM_ENV:-test}"
+}
+
+# Re-run Component Setup pre-workloads so Cache gathers Declarations (ADR-0055 / #222).
+# Workload Setup syncs SoT only; create/publish is Cache Component Setup.
+ensure_cache_fulfillment() {
+  [[ -n "${REPO_ROOT:-}" ]] || fail "ensure_cache_fulfillment: REPO_ROOT required"
   "${REPO_ROOT}/internals/ensure-components.sh" pre-workloads --env "${PLATFORM_ENV:-test}"
 }
 

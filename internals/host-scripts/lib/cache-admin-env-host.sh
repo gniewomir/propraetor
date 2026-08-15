@@ -48,13 +48,24 @@ cache_admin_user_from_env() {
   printf '%s\n' "${user}"
 }
 
-# Write Persist ACL file: default off + admin user (SHA-256 hash form).
-# Idle standing (#221): no Workload ACL users yet.
-# Args: env_file [acl_path]
+# Workload ACL command whitelist (ADR-0055 / spike): type categories + explicit
+# keyspace verbs; never +@keyspace (admits SCAN/KEYS/FLUSH*).
+# Printed as a single ACL rule fragment after "user <name> on resetpass …".
+cache_workload_acl_commands() {
+  printf '%s' \
+    '-@all +@string +@hash +@list +@set +@sortedset +ping +del +unlink +exists +type +expire +expireat +pexpire +pexpireat +ttl +pttl +persist +touch'
+}
+
+# Write Persist ACL file: default off + admin (+ optional Intent-run claimants).
+# Idle standing (#221): omit claimants_file. Claim fulfill (#222): pass sorted
+# basenames file — cert-only users (resetpass, ~basename:*, whitelist).
+# Args: env_file [claimants_file]
 cache_write_acl_file() {
   local env_file="${1:?cache_write_acl_file: EnvironmentFile required}"
-  local acl_path="${2:-${DATA_ROOT}/conf/users.acl}"
+  local claimants_file="${2:-}"
+  local acl_path="${DATA_ROOT}/conf/users.acl"
   local conf_dir
+  local cmds
 
   [[ -f "${env_file}" ]] || {
     echo "cache_write_acl_file: missing ${env_file}" >&2
@@ -67,12 +78,13 @@ cache_write_acl_file() {
 
   conf_dir="$(dirname "${acl_path}")"
   mkdir -p "${conf_dir}"
+  cmds="$(cache_workload_acl_commands)"
 
-  python3 - "${env_file}" "${acl_path}" <<'PY' || return 1
+  python3 - "${env_file}" "${acl_path}" "${claimants_file}" "${cmds}" <<'PY' || return 1
 import hashlib
 import sys
 
-env_path, acl_path = sys.argv[1], sys.argv[2]
+env_path, acl_path, claimants_path, cmds = sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4]
 vals = {}
 with open(env_path, encoding="utf-8") as f:
     for raw in f:
@@ -90,10 +102,28 @@ if any(ch in user for ch in " \t\r\n/\"'\\"):
 if any(ch in password for ch in " \t\r\n"):
     raise SystemExit("Cache admin password must not contain whitespace")
 
+unsafe = set("*?[]:")
 pw_hash = hashlib.sha256(password.encode("utf-8")).hexdigest()
 with open(acl_path, "w", encoding="utf-8") as out:
     out.write("user default off\n")
     out.write(f"user {user} on #{pw_hash} ~* &* +@all\n")
+    if claimants_path:
+        with open(claimants_path, encoding="utf-8") as cf:
+            for raw in cf:
+                name = raw.rstrip("\n")
+                if not name:
+                    continue
+                if any(ch in name for ch in unsafe) or any(ch in name for ch in " \t\r\n/\"'\\"):
+                    raise SystemExit(
+                        f"Cache ACL: basename is not ACL-safe: {name!r}"
+                    )
+                if name == "cache" or name == user:
+                    raise SystemExit(
+                        f"Cache ACL: basename collides with reserved identity: {name!r}"
+                    )
+                out.write(
+                    f"user {name} on resetpass ~{name}:* resetchannels {cmds}\n"
+                )
 PY
 
   chmod 0600 "${acl_path}"

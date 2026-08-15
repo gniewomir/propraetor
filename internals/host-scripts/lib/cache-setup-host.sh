@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
-# Deep Cache Component Setup (ADR-0055 / #221).
+# Deep Cache Component Setup (ADR-0055 / #221 / #222).
 # Sourced by Cache pre-workloads.sh / post-workloads.sh.
 # Standing Component: TLS interior, ACL (default off + admin), admin client cert,
 # Valkey on Service Network dial name `cache`, idle allowed with zero claimants.
-# Claim fulfill/publish and Orphan Reap are later siblings (#222+); slots still run.
+# pre-workloads gathers Intent-run Requires cache:true and publishes bindings (#222).
+# Orphan Reap remains a later sibling (#225); Intent-stop ACL disable is #224.
 #
 # Ambient (optional overrides for offline tests):
 #   USER_NAME, DATA_ROOT, WORKLOADS_ROOT
@@ -27,6 +28,8 @@ source "${_cache_setup_lib_dir}/cache-tls-host.sh"
 source "${_cache_setup_lib_dir}/cache-admin-env-host.sh"
 # shellcheck source=cache-conf-host.sh
 source "${_cache_setup_lib_dir}/cache-conf-host.sh"
+# shellcheck source=cache-fulfill-host.sh
+source "${_cache_setup_lib_dir}/cache-fulfill-host.sh"
 
 # Wait until Valkey accepts TLS PING inside the cache-valkey container.
 # Covers cold image pull; fails closed as soon as the unit is "failed".
@@ -142,11 +145,12 @@ cache_setup() {
   }
 }
 
-# Standing ensure before Workload apps start (fulfill later sibling).
+# Standing ensure + Declaration fulfill/publish before Workload apps start.
 cache_setup_pre_workloads() {
   local component_tree="${1:?cache_setup_pre_workloads: component tree required}"
   local staged_admin_env="${2:-}"
   cache_setup "${component_tree}" "${staged_admin_env}" || return 1
+  cache_fulfill_declarations || return 1
 }
 
 # Standing ensure after Workloads (orphan reap later sibling).

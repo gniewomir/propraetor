@@ -133,3 +133,65 @@ cache_tls_ensure_admin_client() {
     chown -R "${USER_NAME}:${USER_NAME}" "${admin_dir}" 2>/dev/null || true
   fi
 }
+
+# Create-if-missing Workload client certificate (CN = basename).
+# Writes under DATA_ROOT/clients/<basename>/{client.crt,client.key}.
+# Args: basename
+cache_tls_ensure_client() {
+  local basename="${1:?cache_tls_ensure_client: basename required}"
+  local ca_crt="${DATA_ROOT}/ca/ca.crt"
+  local ca_key="${DATA_ROOT}/ca/ca.key"
+  local client_dir="${DATA_ROOT}/clients/${basename}"
+  local client_crt="${client_dir}/client.crt"
+  local client_key="${client_dir}/client.key"
+  local tmp extfile serial csr
+
+  [[ -f "${ca_crt}" && -f "${ca_key}" ]] || {
+    echo "Cache TLS: CA missing; call cache_tls_ensure first" >&2
+    return 1
+  }
+
+  if [[ "${basename}" =~ [[:space:]/] ]]; then
+    echo "Cache TLS: basename is not a simple CN: '${basename}'" >&2
+    return 1
+  fi
+
+  mkdir -p "${client_dir}"
+  if [[ -f "${client_crt}" && -f "${client_key}" ]]; then
+    if [[ -n "${USER_NAME:-}" ]]; then
+      chown -R "${USER_NAME}:${USER_NAME}" "${client_dir}" 2>/dev/null || true
+    fi
+    return 0
+  fi
+
+  echo "Cache TLS: creating client certificate CN=${basename}" >&2
+  tmp="$(mktemp -d "${TMPDIR:-/tmp}/platform-cache-client-tls.XXXXXX")"
+  extfile="${tmp}/client.ext"
+  serial="${tmp}/ca.srl"
+  csr="${tmp}/client.csr"
+  printf '%s\n' \
+    "basicConstraints=CA:FALSE" \
+    "keyUsage=digitalSignature" \
+    "extendedKeyUsage=clientAuth" >"${extfile}"
+  openssl req -newkey rsa:4096 -sha256 -nodes \
+    -keyout "${client_key}" -out "${csr}" \
+    -subj "/CN=${basename}" \
+    || {
+      rm -rf "${tmp}"
+      return 1
+    }
+  openssl x509 -req -in "${csr}" -CA "${ca_crt}" -CAkey "${ca_key}" \
+    -CAserial "${serial}" -CAcreateserial \
+    -out "${client_crt}" -days 3650 -sha256 -extfile "${extfile}" \
+    || {
+      rm -rf "${tmp}"
+      return 1
+    }
+  rm -rf "${tmp}"
+  chmod 0600 "${client_key}"
+  chmod 0644 "${client_crt}"
+
+  if [[ -n "${USER_NAME:-}" ]]; then
+    chown -R "${USER_NAME}:${USER_NAME}" "${client_dir}" 2>/dev/null || true
+  fi
+}
