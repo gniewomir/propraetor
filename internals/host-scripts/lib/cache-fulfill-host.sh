@@ -7,7 +7,8 @@
 # Sourced by Cache Setup. Expects ambient after cache_standing_ensure begin:
 #   DATA_ROOT, ADMIN_ENV, HOME_DIR, UNIT_DIR, USER_NAME, WORKLOADS_ROOT
 # Requires: quadlet_user, component_tls_ensure_client, cache_write_acl_file,
-#           cache_admin_user_from_env, declaration converge, artifact_requires_cache.
+#           cache_acl_file_remove_user, cache_admin_user_from_env, declaration
+#           converge, artifact_requires_cache.
 
 _cache_fulfill_lib_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=declaration-converge-host.sh
@@ -210,14 +211,17 @@ cache_delete_prefix_keys_best_effort() {
     >/dev/null 2>&1 || true
 }
 
-# Full drop for one basename: best-effort prefix keys, DELUSER, unpublish, rm clients.
-# Runtime DELUSER before rm clients so a failed DELUSER remains selectable on retry (#225).
+# Full drop for one basename: best-effort prefix keys, DELUSER, Persist ACL line,
+# unpublish, rm clients. Runtime DELUSER before rm clients so a failed DELUSER
+# remains selectable on retry (#225). Persist ACL strip is required after #232
+# (no post-workloads re-fulfill to rewrite users.acl).
 cache_drop_fulfillment() {
   local wl_name="${1:?cache_drop_fulfillment: workload name required}"
   local client_dir="${DATA_ROOT}/clients/${wl_name}"
 
   cache_delete_prefix_keys_best_effort "${wl_name}"
   cache_acl_deluser "${wl_name}" || return 1
+  cache_acl_file_remove_user "${wl_name}" || return 1
   cache_unpublish_binding "${wl_name}" || return 1
   rm -rf "${client_dir}"
   echo "Cache: dropped fulfillment for Workload '${wl_name}'" >&2
