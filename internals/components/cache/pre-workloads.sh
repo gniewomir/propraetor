@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Component Setup pre-workloads for the Cache (ADR-0055 / #221 / #222 / #224).
+# Component Setup pre-workloads for the Cache (ADR-0055 / #221 / #222 / #224 / #225).
 # Standing Component + Intent-run gather/create/publish; stop unpublish+disable.
 # Runs on the Host only. Invoked by ensure-components with slot pre-workloads.
 set -euo pipefail

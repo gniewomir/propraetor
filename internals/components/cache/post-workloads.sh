@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Component Setup post-workloads for the Cache (ADR-0055 / #221 / #224).
-# Standing ensure + idempotent fulfill/unpublish/disable (Orphan Reap is #225).
+# Component Setup post-workloads for the Cache (ADR-0055 / #221 / #224 / #225).
+# Standing ensure + Orphan drop (DELUSER/clients/keys) + fulfill/unpublish/disable.
 # Runs on the Host only. Invoked by ensure-components with slot post-workloads.
 set -euo pipefail
 

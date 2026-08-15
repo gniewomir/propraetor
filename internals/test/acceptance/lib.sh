@@ -556,3 +556,10 @@ ensure_database_post_workloads() {
   [[ -n "${REPO_ROOT:-}" ]] || fail "ensure_database_post_workloads: REPO_ROOT required"
   "${REPO_ROOT}/internals/ensure-components.sh" post-workloads --env "${PLATFORM_ENV:-test}"
 }
+
+# Re-run Component Setup post-workloads so Cache drops Orphan fulfillment (ADR-0055 / #225).
+# Orphan Reap removes SoT only; ACL user/client/prefix drop is Cache Component Setup.
+ensure_cache_post_workloads() {
+  [[ -n "${REPO_ROOT:-}" ]] || fail "ensure_cache_post_workloads: REPO_ROOT required"
+  "${REPO_ROOT}/internals/ensure-components.sh" post-workloads --env "${PLATFORM_ENV:-test}"
+}

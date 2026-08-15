@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
-# Cache Declaration gather + fulfill (ADR-0055 / #222 / #224).
+# Cache Declaration gather + fulfill (ADR-0055 / #222 / #224 / #225).
 # Intent-run + Requires cache:true → ACL user / client cert + published binding.
-# Non-claimants → unpublish binding + ACL user `off`; durable clients until Orphan Reap (#225).
+# Non-claimants → unpublish binding + ACL user `off`; durable clients until Orphan Reap.
+# Orphan Reap (SoT gone) → DELUSER, best-effort prefix keys, clients + clear projection
+# in post-workloads.
 # Sourced by Cache Setup. Expects ambient after cache_setup begin:
 #   DATA_ROOT, ADMIN_ENV, HOME_DIR, UNIT_DIR, USER_NAME, WORKLOADS_ROOT
 # Requires: quadlet_user, cache_tls_ensure_client, cache_write_acl_file,
@@ -111,7 +113,7 @@ EOF
 }
 
 # Clear published binding + Setup-owned drop-ins for one Workload (Intent stop / non-claim).
-# Retains Host Volume client material until Orphan Reap (#225); ACL disable is via
+# Retains Host Volume client material until Orphan Reap; ACL disable is via
 # cache_write_acl_file (user off) on the same fulfill pass.
 # When SoT is already gone, clears the binding dir and conventional drop-in leftover.
 cache_unpublish_binding() {
@@ -147,15 +149,20 @@ cache_unpublish_binding() {
   fi
 }
 
+# Read admin password from ADMIN_ENV (never prints; caller must not echo).
+_cache_admin_password_from_env() {
+  local line
+  line="$(grep -E '^CACHE_ADMIN_PASSWORD=' "${ADMIN_ENV}" | head -n1)" || true
+  printf '%s' "${line#CACHE_ADMIN_PASSWORD=}"
+}
+
 # Reload Valkey ACL from Persist (entrypoint copies aclfile to a runtime path).
 cache_acl_reload() {
   local admin_user=""
   local admin_pass=""
-  local line
 
   admin_user="$(cache_admin_user_from_env "${ADMIN_ENV}")" || return 1
-  line="$(grep -E '^CACHE_ADMIN_PASSWORD=' "${ADMIN_ENV}" | head -n1)" || true
-  admin_pass="${line#CACHE_ADMIN_PASSWORD=}"
+  admin_pass="$(_cache_admin_password_from_env)"
   [[ -n "${admin_pass}" ]] || {
     echo "Cache: admin password missing for ACL reload" >&2
     return 1
@@ -178,6 +185,131 @@ cache_acl_reload() {
     echo "Cache: ACL LOAD failed" >&2
     return 1
   }
+}
+
+# Drop ACL user named by basename (idempotent when already absent).
+cache_acl_deluser() {
+  local basename="${1:?cache_acl_deluser: basename required}"
+  local admin_user=""
+  local admin_pass=""
+
+  admin_user="$(cache_admin_user_from_env "${ADMIN_ENV}")" || return 1
+  admin_pass="$(_cache_admin_password_from_env)"
+  [[ -n "${admin_pass}" ]] || {
+    echo "Cache: admin password missing for ACL DELUSER" >&2
+    return 1
+  }
+
+  quadlet_user env "HOME=${HOME_DIR}" \
+    "CACHE_ACL_USER=${admin_user}" "CACHE_ACL_PASS=${admin_pass}" \
+    "CACHE_DELUSER=${basename}" bash -c \
+    "cd \"\$HOME\" && podman exec \
+      -e CACHE_ACL_USER -e CACHE_ACL_PASS -e CACHE_DELUSER \
+      cache-valkey \
+      valkey-cli --tls \
+        --cacert /etc/cache-certs/ca.crt \
+        --cert /etc/cache-certs/admin.crt \
+        --key /etc/cache-certs/admin.key \
+        --user \"\$CACHE_ACL_USER\" \
+        -a \"\$CACHE_ACL_PASS\" \
+        ACL DELUSER \"\$CACHE_DELUSER\"" \
+    >/dev/null || {
+    echo "Cache: ACL DELUSER failed for '${basename}'" >&2
+    return 1
+  }
+}
+
+# Best-effort delete of keys under basename: (admin KEYS + UNLINK). Never fail closed.
+# Admin has +@all; KEYS is acceptable for one-tenant Orphan Reap cleanup.
+cache_delete_prefix_keys_best_effort() {
+  local basename="${1:?cache_delete_prefix_keys_best_effort: basename required}"
+  local admin_user=""
+  local admin_pass=""
+
+  admin_user="$(cache_admin_user_from_env "${ADMIN_ENV}" 2>/dev/null)" || return 0
+  admin_pass="$(_cache_admin_password_from_env)"
+  [[ -n "${admin_pass}" ]] || return 0
+
+  quadlet_user env "HOME=${HOME_DIR}" \
+    "CACHE_ACL_USER=${admin_user}" "CACHE_ACL_PASS=${admin_pass}" \
+    "CACHE_MATCH=${basename}:*" bash -c \
+    "cd \"\$HOME\" && podman exec \
+      -e CACHE_ACL_USER -e CACHE_ACL_PASS -e CACHE_MATCH \
+      cache-valkey \
+      sh -c '
+        cli() {
+          valkey-cli --tls \
+            --cacert /etc/cache-certs/ca.crt \
+            --cert /etc/cache-certs/admin.crt \
+            --key /etc/cache-certs/admin.key \
+            --user \"\$CACHE_ACL_USER\" \
+            -a \"\$CACHE_ACL_PASS\" \
+            \"\$@\"
+        }
+        keys=\$(cli --raw KEYS \"\$CACHE_MATCH\") || exit 0
+        [ -z \"\$keys\" ] && exit 0
+        printf \"%s\\n\" \"\$keys\" | while IFS= read -r k; do
+          [ -n \"\$k\" ] || continue
+          cli UNLINK \"\$k\" >/dev/null || true
+        done
+      '" \
+    >/dev/null 2>&1 || true
+}
+
+# Full drop for one basename: best-effort prefix keys, DELUSER, unpublish, rm clients.
+# Runtime DELUSER before rm clients so a failed DELUSER remains selectable on retry (#225).
+cache_drop_fulfillment() {
+  local wl_name="${1:?cache_drop_fulfillment: workload name required}"
+  local client_dir="${DATA_ROOT}/clients/${wl_name}"
+
+  cache_delete_prefix_keys_best_effort "${wl_name}"
+  cache_acl_deluser "${wl_name}" || return 1
+  cache_unpublish_binding "${wl_name}" || return 1
+  rm -rf "${client_dir}"
+  echo "Cache: dropped fulfillment for Workload '${wl_name}'" >&2
+}
+
+# Print client basenames under CLIENTS_DIR whose Workload SoT Manifest is gone.
+# Pure selection helper (offline-testable); one basename per line, sorted.
+cache_absent_client_basenames() {
+  local clients_dir="${1:-${CLIENTS_DIR-}}"
+  local workloads_root="${2:-${WORKLOADS_ROOT-}}"
+  local d name
+
+  if [[ -z "${clients_dir}" ]]; then
+    echo "cache_absent_client_basenames: clients dir required" >&2
+    return 1
+  fi
+  if [[ -z "${workloads_root}" ]]; then
+    echo "cache_absent_client_basenames: workloads root required" >&2
+    return 1
+  fi
+  [[ -d "${clients_dir}" ]] || return 0
+
+  for d in "${clients_dir}"/*; do
+    [[ -d "${d}" ]] || continue
+    name="$(basename "${d}")"
+    if [[ ! -f "${workloads_root}/${name}/manifest.json" ]]; then
+      printf '%s\n' "${name}"
+    fi
+  done | LC_ALL=C sort -u
+}
+
+# post-workloads: DELUSER + keys + clients + clear projection for Orphan-absent basenames.
+cache_drop_absent_fulfillments() {
+  local workloads_root="${1:-${WORKLOADS_ROOT-}}"
+  local clients_dir="${CLIENTS_DIR:-${DATA_ROOT}/clients}"
+  local wl_name
+
+  if [[ -z "${workloads_root}" ]]; then
+    echo "cache_drop_absent_fulfillments: workloads root required" >&2
+    return 1
+  fi
+
+  while IFS= read -r wl_name; do
+    [[ -n "${wl_name}" ]] || continue
+    cache_drop_fulfillment "${wl_name}" || return 1
+  done < <(cache_absent_client_basenames "${clients_dir}" "${workloads_root}")
 }
 
 # True if basename is listed in the sorted claimants file.
