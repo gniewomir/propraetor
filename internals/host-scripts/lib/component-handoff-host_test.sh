@@ -24,6 +24,8 @@ root="$(component_handoff_root)"
   || fail "acme env path wrong"
 [[ "$(component_handoff_database_admin_env)" == "${root}/database-admin.env" ]] \
   || fail "database admin path wrong"
+[[ "$(component_handoff_cache_admin_env)" == "${root}/cache-admin.env" ]] \
+  || fail "cache admin path wrong"
 pass "path helpers resolve under Host Volume handoff root"
 
 # --- require ACME fails closed when missing ---
@@ -83,6 +85,28 @@ fi
 grep -Eqi 'Database admin|missing' "${TMP}/err-db" \
   || fail "db admin rejection unclear: $(cat "${TMP}/err-db")"
 pass "install_database_admin fails closed on missing stage"
+
+# --- install Cache admin ---
+printf '%s\n' 'CACHE_ADMIN_USER=cacheadmin' 'CACHE_ADMIN_PASSWORD=secret' \
+  >"${STAGE}/cache-admin.env"
+component_handoff_install_cache_admin "${STAGE}/cache-admin.env" \
+  || fail "install_cache_admin failed"
+[[ -f "$(component_handoff_cache_admin_env)" ]] || fail "cache admin not installed"
+grep -Fq 'CACHE_ADMIN_USER=cacheadmin' "$(component_handoff_cache_admin_env)" \
+  || fail "cache admin content wrong"
+mode="$(stat -f %Lp "$(component_handoff_cache_admin_env)" 2>/dev/null \
+  || stat -c %a "$(component_handoff_cache_admin_env)")"
+[[ "${mode}" == "600" ]] || fail "cache admin mode want 600, got ${mode}"
+pass "install_cache_admin writes 0600 EnvironmentFile"
+
+# --- install Cache admin fails closed on missing stage ---
+if component_handoff_install_cache_admin "${STAGE}/missing-cache.env" \
+  2>"${TMP}/err-cache"; then
+  fail "install_cache_admin must fail on missing stage"
+fi
+grep -Eqi 'Cache admin|missing' "${TMP}/err-cache" \
+  || fail "cache admin rejection unclear: $(cat "${TMP}/err-cache")"
+pass "install_cache_admin fails closed on missing stage"
 
 # --- no /tmp/platform-* in this module ---
 if grep -E '/tmp/platform-' \

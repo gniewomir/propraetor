@@ -162,6 +162,25 @@ if "${REPO_ROOT}/internals/ensure-workload.sh" "${WL}" --env "${ENV_SLUG}" >/dev
 fi
 pass "ROOT_DB_USER remapped into a Workload fails closed"
 
+# --- ROOT_CACHE_* remapped into a Workload fails closed ---
+write_thin_manifest "${FIX_DIR}/${WL}"
+cat >"${FIX_DIR}/${WL}/requires.json" <<'EOF'
+{
+  "environment": { "APP_TOKEN": "process token" },
+  "database": false,
+  "cache": false
+}
+EOF
+cat >"${FIX_DIR}/${WL}/binding.json" <<'EOF'
+{ "environment": { "ROOT_CACHE_USER": "APP_TOKEN" } }
+EOF
+printf '{}\n' >"${FIX_DIR}/${WL}/provides.json"
+printf 'ROOT_CACHE_USER=admin\n' >"${ENV_FILE}"
+if "${REPO_ROOT}/internals/ensure-workload.sh" "${WL}" --env "${ENV_SLUG}" >/dev/null 2>&1; then
+  fail "ROOT_CACHE_USER remapped into a Workload must fail closed"
+fi
+pass "ROOT_CACHE_USER remapped into a Workload fails closed"
+
 # --- invalid dotenv fails ---
 write_thin_manifest "${FIX_DIR}/${WL}"
 write_env_remap "${FIX_DIR}/${WL}"

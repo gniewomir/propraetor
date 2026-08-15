@@ -54,6 +54,11 @@ if [[ "${WL_NAME}" == "database" ]]; then
   echo "workload basename 'database' is reserved for the Database Component dial identity" >&2
   exit 1
 fi
+# Service Network dial name for the Cache Component (ADR-0055 / #221).
+if [[ "${WL_NAME}" == "cache" ]]; then
+  echo "workload basename 'cache' is reserved for the Cache Component dial identity" >&2
+  exit 1
+fi
 
 # Nested Persist under this owner (ADR-0054).
 WL_PERSIST="$(host_volume_workload_persist "${WL_NAME}")"

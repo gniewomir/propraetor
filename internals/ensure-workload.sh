@@ -71,6 +71,11 @@ if [[ "${WL_NAME}" == "database" ]]; then
   echo "workload basename 'database' is reserved for the Database Component dial identity" >&2
   exit 1
 fi
+# Service Network dial name for the Cache Component (ADR-0055 / #221).
+if [[ "${WL_NAME}" == "cache" ]]; then
+  echo "workload basename 'cache' is reserved for the Cache Component dial identity" >&2
+  exit 1
+fi
 
 ENV_DIR="$(environments_dir_for "${PLATFORM_ENV}")" || exit 1
 MANIFEST_DIR="${ENV_DIR}/${WL_NAME}"

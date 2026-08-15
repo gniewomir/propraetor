@@ -178,6 +178,44 @@ printf '%s\n' "${order}" | grep -Fxq 'database-pre' || fail "database-pre missin
   || fail "Database admin handoff missing when Database selected"
 pass "ensure-components runs Edge and Database Setup in one slot"
 
+# --- missing staged Cache admin EnvironmentFile fails closed when Cache selected ---
+printf '%s\n' 'CACHE_ADMIN_USER=cacheadmin' 'CACHE_ADMIN_PASSWORD=secret' >"${TMP}/platform-cache-admin.env"
+mkdir -p "${TMP}/cache"
+cat >"${TMP}/cache/pre-workloads.sh" <<EOF
+#!/usr/bin/env bash
+set -euo pipefail
+printf '%s\\n' "cache-pre" >>"${TMP}/setup.order"
+EOF
+chmod +x "${TMP}/cache/pre-workloads.sh"
+cat >"${TMP}/cache/post-workloads.sh" <<EOF
+#!/usr/bin/env bash
+set -euo pipefail
+printf '%s\\n' "cache-post" >>"${TMP}/setup.order"
+EOF
+chmod +x "${TMP}/cache/post-workloads.sh"
+mv "${TMP}/platform-cache-admin.env" "${TMP}/platform-cache-admin.env.bak"
+if bash "${TMP}/ensure-run.sh" "${USER_NAME}" pre-workloads --component cache 2>"${TMP}/stderr-cache-admin"; then
+  fail "missing platform-cache-admin.env must fail closed when Cache is selected"
+fi
+grep -Eqi 'Cache admin|platform-cache-admin' "${TMP}/stderr-cache-admin" \
+  || fail "missing Cache admin rejection unclear: $(cat "${TMP}/stderr-cache-admin")"
+mv "${TMP}/platform-cache-admin.env.bak" "${TMP}/platform-cache-admin.env"
+pass "missing staged Cache admin EnvironmentFile fails closed"
+
+# --- Cache Component runs beside Edge when both selected ---
+: >"${TMP}/setup.order"
+bash "${TMP}/ensure-run.sh" "${USER_NAME}" pre-workloads --component edge --component cache \
+  2>"${TMP}/stderr-edge-cache" \
+  || fail "ensure-run with edge+cache failed: $(cat "${TMP}/stderr-edge-cache")"
+order="$(cat "${TMP}/setup.order")"
+printf '%s\n' "${order}" | grep -Fxq 'edge-pre' || fail "edge-pre missing in edge+cache run: ${order}"
+printf '%s\n' "${order}" | grep -Fxq 'cache-pre' || fail "cache-pre missing in edge+cache run: ${order}"
+[[ -f "${HV}/components/cache/pre-workloads.sh" ]] \
+  || fail "cache pre-workloads.sh not installed"
+[[ -f "${HV}/components/handoff/cache-admin.env" ]] \
+  || fail "Cache admin handoff missing when Cache selected"
+pass "ensure-components runs Edge and Cache Setup in one slot"
+
 # --- post-workloads runs the post script only ---
 : >"${TMP}/setup.order"
 bash "${TMP}/ensure-run.sh" "${USER_NAME}" post-workloads --component edge 2>"${TMP}/stderr-post" \

@@ -1,0 +1,22 @@
+[Unit]
+Description=Propraetor Cache Valkey
+After=network-online.target
+
+[Container]
+Image=docker.io/valkey/valkey:9.1-alpine
+ContainerName=cache-valkey
+Pod=cache.pod
+Entrypoint=/usr/local/bin/cache-entrypoint.sh
+Volume=../entrypoint.sh:/usr/local/bin/cache-entrypoint.sh:ro
+Volume=../persist/ca/ca.crt:/etc/cache-certs/ca.crt:ro
+Volume=../persist/server/server.crt:/etc/cache-certs/server.crt:ro
+Volume=../persist/server/server.key:/etc/cache-certs/server.key:ro
+Volume=../persist/admin/client.crt:/etc/cache-certs/admin.crt:ro
+Volume=../persist/admin/client.key:/etc/cache-certs/admin.key:ro
+Volume=../persist/conf:/etc/valkey:ro
+
+[Service]
+Restart=on-failure
+
+[Install]
+WantedBy=default.target

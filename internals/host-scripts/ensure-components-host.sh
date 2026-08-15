@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # Host-local half of ensure-components. Invoked after Host delivery unpacks the stage.
 # Installs staged Component trees onto the Host Volume, places ACME want-list /
-# ACME EnvironmentFile (and Database admin EnvironmentFile when Database is selected)
+# ACME EnvironmentFile (and Database/Cache admin EnvironmentFiles when selected)
 # into the Component Setup handoff root on the Host Volume, ships host-scripts, then
 # applies one Component Setup slot (pre-workloads | post-workloads) — ADR-0043 /
-# ADR-0040 / ADR-0010 / ADR-0054 / ADR-0045 / ADR-0049 / #181 / #188 / #215.
+# ADR-0040 / ADR-0010 / ADR-0054 / ADR-0045 / ADR-0049 / ADR-0055 / #181 / #188 / #215 / #221.
 # Does not install Fabric. No combined "full" mode.
 # Usage:
 #   ensure-components-host.sh <platform-user> <pre-workloads|post-workloads> [--component <name>]...
@@ -63,13 +63,17 @@ HOST_SCRIPTS_ROOT="$(host_volume_host_scripts_root)"
 WANT_STAGE="${HERE}/platform-acme-want-list"
 ACME_ENV_STAGE="${HERE}/platform-acme.env"
 DB_ADMIN_STAGE="${HERE}/platform-database-admin.env"
+CACHE_ADMIN_STAGE="${HERE}/platform-cache-admin.env"
 SETUP_SCRIPT="${SLOT}.sh"
 
 need_database=0
+need_cache=0
 for name in "${COMPONENTS[@]}"; do
   if [[ "${name}" == "database" ]]; then
     need_database=1
-    break
+  fi
+  if [[ "${name}" == "cache" ]]; then
+    need_cache=1
   fi
 done
 
@@ -85,6 +89,9 @@ mkdir -p \
 component_handoff_install_acme "${WANT_STAGE}" "${ACME_ENV_STAGE}"
 if [[ "${need_database}" == "1" ]]; then
   component_handoff_install_database_admin "${DB_ADMIN_STAGE}"
+fi
+if [[ "${need_cache}" == "1" ]]; then
+  component_handoff_install_cache_admin "${CACHE_ADMIN_STAGE}"
 fi
 
 # Host-executable helpers ship under host-scripts/ (ADR-0054).

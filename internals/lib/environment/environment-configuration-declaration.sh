@@ -8,7 +8,8 @@
 #   When REQUIRES is set: full-fulfill Binding.environment onto Requires.environment.
 #   When omitted: Binding.environment only (zip Setup; Host full-fulfills later).
 #   Print bag_key=Requires_name one per line (Requires-name order). Empty
-#   environment → no lines. ROOT_DB_* bag keys or RHS names fail closed (ADR-0049).
+#   environment → no lines. ROOT_DB_* / ROOT_CACHE_* bag keys or RHS names fail
+#   closed (ADR-0049 / ADR-0055).
 #
 # environment_configuration_require_containers TREE ACTIVE
 #   When ACTIVE=1, fail closed unless TREE/systemd/*.container exists.
@@ -39,13 +40,23 @@ environment_configuration_remap() {
   python3 - "${pairs}" <<'PY' || return 1
 import sys
 
-reserved = ("ROOT_DB_USER", "ROOT_DB_PASSWORD")
+reserved = (
+    "ROOT_DB_USER",
+    "ROOT_DB_PASSWORD",
+    "ROOT_CACHE_USER",
+    "ROOT_CACHE_PASSWORD",
+)
 for line in sys.argv[1].splitlines():
     if not line or "=" not in line:
         continue
     bag_key, _, req_name = line.partition("=")
     if bag_key in reserved or req_name in reserved:
         name = bag_key if bag_key in reserved else req_name
+        if name.startswith("ROOT_CACHE_"):
+            raise SystemExit(
+                f"Binding must not remap Cache admin credential {name} into a "
+                "Workload (ADR-0055)"
+            )
         raise SystemExit(
             f"Binding must not remap Database admin credential {name} into a "
             "Workload (ADR-0049)"

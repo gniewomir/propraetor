@@ -79,6 +79,23 @@ if environment_configuration_remap "${BINDING}" "${REQUIRES}" >/dev/null 2>&1; t
 fi
 pass "ROOT_DB_USER remapped into a Workload fails closed"
 
+# Reserved Cache admin credentials must not be Binding-remapped (ADR-0055 / #221).
+cat >"${BINDING}" <<'EOF'
+{ "environment": { "ROOT_CACHE_USER": "PROC_A", "BAG_B": "PROC_B" } }
+EOF
+if environment_configuration_remap "${BINDING}" "${REQUIRES}" >/dev/null 2>&1; then
+  fail "ROOT_CACHE_USER remapped into a Workload must fail closed"
+fi
+pass "ROOT_CACHE_USER remapped into a Workload fails closed"
+
+cat >"${BINDING}" <<'EOF'
+{ "environment": { "BAG_A": "PROC_A", "ROOT_CACHE_PASSWORD": "PROC_B" } }
+EOF
+if environment_configuration_remap "${BINDING}" "${REQUIRES}" >/dev/null 2>&1; then
+  fail "ROOT_CACHE_PASSWORD remapped into a Workload must fail closed"
+fi
+pass "ROOT_CACHE_PASSWORD remapped into a Workload fails closed"
+
 cat >"${BINDING}" <<'EOF'
 { "environment": { "BAG_A": "PROC_A", "ROOT_DB_PASSWORD": "PROC_B" } }
 EOF

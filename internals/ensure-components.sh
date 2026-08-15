@@ -11,12 +11,13 @@
 # Optional: PLATFORM_USER=platform
 # Requires: Operator Configuration private key path (PROPRAETOR_PRIVATE_KEY_PATH).
 # Requires: Database admin credentials ROOT_DB_USER / ROOT_DB_PASSWORD (Environment .env or shell).
+# Requires: Cache admin credentials ROOT_CACHE_USER / ROOT_CACHE_PASSWORD (Environment .env or shell).
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 STACK_DIR="${REPO_ROOT}/internals/terraform"
 USER_NAME="${PLATFORM_USER:-platform}"
-COMPONENTS=(edge database)
+COMPONENTS=(edge database cache)
 HOST_SCRIPT="${REPO_ROOT}/internals/host-scripts/ensure-components-host.sh"
 # shellcheck source=lib/cli.sh
 source "${REPO_ROOT}/internals/lib/cli.sh"
@@ -28,6 +29,8 @@ source "${REPO_ROOT}/internals/lib/domains/domains.sh"
 source "${REPO_ROOT}/internals/lib/acme/acme.sh"
 # shellcheck source=lib/database/database-admin-credentials.sh
 source "${REPO_ROOT}/internals/lib/database/database-admin-credentials.sh"
+# shellcheck source=lib/cache/cache-admin-credentials.sh
+source "${REPO_ROOT}/internals/lib/cache/cache-admin-credentials.sh"
 # shellcheck source=lib/ssh.sh
 source "${REPO_ROOT}/internals/lib/ssh.sh"
 # shellcheck source=lib/host-delivery.sh
@@ -105,6 +108,12 @@ acme_config_dotenv_for "${PLATFORM_ENV}" >"${STAGE}/platform-acme.env"
 database_admin_credentials_dotenv_for \
   "$(environments_dir_for "${PLATFORM_ENV}")" \
   "${STAGE}/platform-database-admin.env"
+
+# Cache admin credentials (ADR-0055 / #221): Environment .env + shell → Persist EnvironmentFile.
+# Not Environment Configuration — never remapped by Binding into Workloads.
+cache_admin_credentials_dotenv_for \
+  "$(environments_dir_for "${PLATFORM_ENV}")" \
+  "${STAGE}/platform-cache-admin.env"
 
 cp -a "${REPO_ROOT}/internals/host-scripts/lib" "${STAGE}/lib"
 # Host gather reuses Artifact contract libs (ADR-0053 / #202 / #203).

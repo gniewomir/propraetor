@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Component Setup input handoff (Host Volume contract).
-# ensure-components places operator-staged ACME / Database admin files here;
-# Edge and Database Setup read these paths — not ephemeral /tmp handoff strings.
-# Sourced by ensure-components-host and by Edge/Database Setup when resolving
+# ensure-components places operator-staged ACME / Database / Cache admin files here;
+# Edge, Database, and Cache Setup read these paths — not ephemeral /tmp handoff strings.
+# Sourced by ensure-components-host and by Component Setup when resolving
 # default stage paths. Ambient: HV_ROOT (via host_volume_* path vocabulary).
 
 _component_handoff_lib_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -24,6 +24,10 @@ component_handoff_acme_env() {
 
 component_handoff_database_admin_env() {
   printf '%s\n' "$(component_handoff_root)/database-admin.env"
+}
+
+component_handoff_cache_admin_env() {
+  printf '%s\n' "$(component_handoff_root)/cache-admin.env"
 }
 
 # Fail closed if ACME handoff files are missing before Edge Component Setup.
@@ -72,6 +76,21 @@ component_handoff_install_database_admin() {
   dst="$(component_handoff_database_admin_env)"
   [[ -f "${src}" ]] || {
     echo "ensure-components: staged Database admin EnvironmentFile missing at ${src}" >&2
+    return 1
+  }
+  mkdir -p "${root}"
+  install -m 0600 "${src}" "${dst}"
+}
+
+# Install operator-staged Cache admin EnvironmentFile into the handoff root.
+# Args: staged_admin_env
+component_handoff_install_cache_admin() {
+  local src="${1:?component_handoff_install_cache_admin: staged EnvironmentFile required}"
+  local root dst
+  root="$(component_handoff_root)"
+  dst="$(component_handoff_cache_admin_env)"
+  [[ -f "${src}" ]] || {
+    echo "ensure-components: staged Cache admin EnvironmentFile missing at ${src}" >&2
     return 1
   }
   mkdir -p "${root}"

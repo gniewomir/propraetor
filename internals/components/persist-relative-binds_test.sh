@@ -11,6 +11,7 @@ pass() { echo "PASS: $*"; }
 trees=(
   "${REPO_ROOT}/internals/components/edge/systemd"
   "${REPO_ROOT}/internals/components/database/systemd"
+  "${REPO_ROOT}/internals/components/cache/systemd"
   "${REPO_ROOT}/environments/example/hello-service/systemd"
   "${REPO_ROOT}/environments/example/static-site/systemd"
   "${REPO_ROOT}/environments/example/env-config/systemd"
@@ -60,4 +61,10 @@ grep -Eq '^EnvironmentFile=/host-volume/components/database/persist/admin/enviro
 grep -Eq '^EnvironmentFile=/host-volume/components/edge/persist/acme/environment$' \
   "${REPO_ROOT}/internals/components/edge/systemd/edge-acme.service" \
   || fail "native edge-acme.service EnvironmentFile must stay absolute on Host Volume"
+# Cache admin EnvironmentFile lives on Persist for Setup/operator use; Valkey unit
+# does not mount it (ACL file is the engine contract).
+if grep -Eq '^EnvironmentFile=' \
+  "${REPO_ROOT}/internals/components/cache/systemd/cache-valkey.container"; then
+  fail "cache-valkey must not EnvironmentFile= admin credentials into the engine"
+fi
 pass "EnvironmentFile= stays absolute on Host Volume"
