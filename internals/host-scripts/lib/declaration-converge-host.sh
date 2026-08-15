@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Shared Declaration claim lifecycle (gather → prepare → publish/unpublish → orphan).
-# Component adapters (Cache ACL now; Database role/db in #231) supply hooks.
+# Component adapters (Cache ACL; Database role/db) supply hooks.
 # ADR-0055: share this shell only — keep Components and Persist CAs distinct.
 #
 # Ambient (set by Component Setup begin): HOME_DIR, UNIT_DIR, USER_NAME,

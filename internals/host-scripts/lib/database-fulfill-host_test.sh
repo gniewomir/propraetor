@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# Offline tests: Database publish binding paths + Requires-based claim (ADR-0049 / ADR-0053 / #202).
-# Does not talk to Postgres; stubs ambient dirs and TLS material.
-# Seam: database_publish_binding / database_unpublish_binding /
-#       database_absent_client_basenames / database_workload_is_run_claimant.
+# Offline tests: Database role/db adapter on shared Declaration converge
+# (ADR-0049 / ADR-0053 / ADR-0055 / #202 / #231). Does not talk to Postgres;
+# stubs ambient dirs and TLS material.
+# Seam: database_* adapters → declaration-converge-host (publish/unpublish/claim/orphan).
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"
