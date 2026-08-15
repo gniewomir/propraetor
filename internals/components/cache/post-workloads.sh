@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# Component Setup post-workloads for the Cache (ADR-0055 / #221 / #224 / #225).
-# Standing ensure + Orphan drop (DELUSER/clients/keys) + fulfill/unpublish/disable.
+# Component Setup post-workloads for the Cache (ADR-0055 / #221 / #224 / #225 / #232).
+# Standing ensure + Orphan drop (DELUSER/clients/keys). No Declaration re-converge
+# solely to undo standing ensure — standing ACL preserves claimants across restart.
 # Runs on the Host only. Invoked by ensure-components with slot post-workloads.
 set -euo pipefail
 

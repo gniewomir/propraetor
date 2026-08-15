@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Component Setup pre-workloads for the Database (ADR-0049 / #188 / #189).
-# Standing Component + Intent-run Requires database:true gather/create/publish.
+# Component Setup pre-workloads for the Database (ADR-0049 / #188 / #189 / #232).
+# Standing ensure then Declaration converge (Intent-run Requires database:true).
 # Runs on the Host only. Invoked by ensure-components with slot pre-workloads.
 set -euo pipefail
 

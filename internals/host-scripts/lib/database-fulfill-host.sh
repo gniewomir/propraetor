@@ -3,7 +3,7 @@
 # Intent-run + Requires database:true → role/db/client cert + published binding.
 # Non-claimants → unpublish binding; retain role/db/clients until Orphan Reap.
 # Orphan Reap (SoT gone) → drop role/db/clients + clear projection in post-workloads.
-# Sourced by Database Setup. Expects ambient after database_setup begin:
+# Sourced by Database Setup. Expects ambient after database_standing_ensure begin:
 #   DATA_ROOT, CLIENTS_DIR, ADMIN_ENV, HOME_DIR, UNIT_DIR, USER_NAME, WORKLOADS_ROOT
 # Requires: quadlet_user, component_tls_ensure_client, database_write_pg_ident_file,
 #           database_admin_user_from_env, declaration converge, artifact_requires_database.

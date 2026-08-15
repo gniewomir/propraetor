@@ -70,12 +70,42 @@ grep -E '^user gamma on ' "${acl}" >/dev/null \
   && fail "non-claimant gamma must not be enabled"
 pass "non-claimant Persist client is ACL user off"
 
-# Idle standing (no claimants file): every Persist client user is off.
-cache_write_acl_file "${ADMIN_ENV}" || fail "ACL write idle with Persist clients"
-grep -Eq '^user alpha off$' "${acl}" || fail "idle standing must disable alpha"
-grep -Eq '^user gamma off$' "${acl}" || fail "idle standing must disable gamma"
+# Idle empty-claimants converge (explicit claimants file): every Persist client off.
+# Not a standing-restart side effect (#232) — standing uses cache_ensure_standing_acl.
+: >"${TMP}/no-claimants"
+cache_write_acl_file "${ADMIN_ENV}" "${TMP}/no-claimants" \
+  || fail "ACL write with empty claimants file"
+grep -Eq '^user alpha off$' "${acl}" || fail "empty-claimants converge must disable alpha"
+grep -Eq '^user gamma off$' "${acl}" || fail "empty-claimants converge must disable gamma"
 grep -E '^user (alpha|gamma) on ' "${acl}" >/dev/null \
-  && fail "idle standing must not leave Workload users enabled"
-pass "idle standing disables Persist client ACL users"
+  && fail "empty-claimants converge must not leave Workload users enabled"
+pass "empty-claimants Declaration converge disables Persist client ACL users"
+
+# Standing ACL: refresh admin, preserve Workload users (#232).
+printf 'CACHE_ADMIN_USER=cacheadmin\nCACHE_ADMIN_PASSWORD=rotated\n' \
+  >"${ADMIN_ENV}"
+printf '%s\n' \
+  'user default off' \
+  'user cacheadmin on #deadbeef ~* &* +@all' \
+  "user alpha on resetpass ~alpha:* resetchannels ${EXPECTED_CMDS}" \
+  'user gamma off' \
+  >"${acl}"
+cache_ensure_standing_acl "${ADMIN_ENV}" || fail "standing ACL ensure"
+grep -Eq '^user default off$' "${acl}" || fail "standing ACL must keep default off"
+grep -Eq '^user cacheadmin on #' "${acl}" || fail "standing ACL must refresh admin"
+grep -Fq "user alpha on resetpass ~alpha:* resetchannels ${EXPECTED_CMDS}" "${acl}" \
+  || fail "standing ACL must preserve claimant alpha"
+grep -Eq '^user gamma off$' "${acl}" || fail "standing ACL must preserve gamma off"
+grep -Fq '#deadbeef' "${acl}" && fail "standing ACL must replace stale admin hash"
+pass "standing ACL preserves Workload users while refreshing admin"
+
+# Standing cold path: no prior ACL → default + admin only (no Persist client walk).
+rm -f "${acl}"
+cache_ensure_standing_acl "${ADMIN_ENV}" || fail "standing ACL cold create"
+grep -Eq '^user default off$' "${acl}" || fail "cold standing ACL must disable default"
+grep -Eq '^user cacheadmin on #' "${acl}" || fail "cold standing ACL must emit admin"
+grep -E '^user (alpha|gamma) ' "${acl}" >/dev/null \
+  && fail "cold standing ACL must not emit Persist client users"
+pass "cold standing ACL is admin-only baseline"
 
 echo "All cache-admin-env-host offline tests passed."

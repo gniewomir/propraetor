@@ -4,7 +4,7 @@
 # Non-claimants → unpublish binding + ACL user `off`; durable clients until Orphan Reap.
 # Orphan Reap (SoT gone) → DELUSER, best-effort prefix keys, clients + clear projection
 # in post-workloads.
-# Sourced by Cache Setup. Expects ambient after cache_setup begin:
+# Sourced by Cache Setup. Expects ambient after cache_standing_ensure begin:
 #   DATA_ROOT, ADMIN_ENV, HOME_DIR, UNIT_DIR, USER_NAME, WORKLOADS_ROOT
 # Requires: quadlet_user, component_tls_ensure_client, cache_write_acl_file,
 #           cache_admin_user_from_env, declaration converge, artifact_requires_cache.
