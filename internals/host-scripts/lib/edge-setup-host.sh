@@ -101,7 +101,7 @@ edge_setup() {
   edge_install_want_list "${staged_want_list}"
   edge_install_acme_env "${staged_acme_env}"
 
-  component_units_install "${component_tree}"
+  component_units_install "${component_tree}" component "$(basename "${component_tree}")"
   chmod a+x "${component_tree}/acme-run.sh"
 
   # Placeholders before Domain fronts that reference those paths (ADR-0029).

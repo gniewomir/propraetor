@@ -25,37 +25,37 @@ req = json.load(open(sys.argv[1], encoding="utf-8"))
 if req.get("database") is not False:
     raise SystemExit(f"expected Requires database false, got {req.get('database')!r}")
 PY
-[[ -f "${EXAMPLE_SRC}/quadlets/${WL}.pod" ]] || fail "example missing soft-default pod ${WL}.pod"
-[[ -f "${EXAMPLE_SRC}/quadlets/${WL}-api.container" ]] \
+[[ -f "${EXAMPLE_SRC}/systemd/${WL}.pod" ]] || fail "example missing soft-default pod ${WL}.pod"
+[[ -f "${EXAMPLE_SRC}/systemd/${WL}-api.container" ]] \
   || fail "example missing app container ${WL}-api.container"
-[[ -f "${EXAMPLE_SRC}/quadlets/${WL}-db.container" ]] \
+[[ -f "${EXAMPLE_SRC}/systemd/${WL}-db.container" ]] \
   || fail "example missing DB sidecar ${WL}-db.container"
 [[ -f "${EXAMPLE_SRC}/routes/api.conf.example" ]] \
   || fail "example missing Route teaching fragment routes/api.conf.example"
 
-grep -qE "^NetworkAlias=${WL}$" "${EXAMPLE_SRC}/quadlets/${WL}.pod" \
+grep -qE "^NetworkAlias=${WL}$" "${EXAMPLE_SRC}/systemd/${WL}.pod" \
   || fail "example pod must set NetworkAlias=${WL}"
-grep -qE '^Network=service-network\.network$' "${EXAMPLE_SRC}/quadlets/${WL}.pod" \
+grep -qE '^Network=service-network\.network$' "${EXAMPLE_SRC}/systemd/${WL}.pod" \
   || fail "example pod must join Service Network"
-grep -qE '^PublishPort=' "${EXAMPLE_SRC}/quadlets/${WL}.pod" \
+grep -qE '^PublishPort=' "${EXAMPLE_SRC}/systemd/${WL}.pod" \
   && fail "example pod must not PublishPort (soft: Workloads publish none)"
 
-grep -qE "^Pod=${WL}\\.pod$" "${EXAMPLE_SRC}/quadlets/${WL}-api.container" \
+grep -qE "^Pod=${WL}\\.pod$" "${EXAMPLE_SRC}/systemd/${WL}-api.container" \
   || fail "api container must join ${WL}.pod"
-grep -qE "^Pod=${WL}\\.pod$" "${EXAMPLE_SRC}/quadlets/${WL}-db.container" \
+grep -qE "^Pod=${WL}\\.pod$" "${EXAMPLE_SRC}/systemd/${WL}-db.container" \
   || fail "db container must join ${WL}.pod"
 grep -qE "^Volume=.*/workloads/${WL}:/var/lib/workload:rw$" \
-  "${EXAMPLE_SRC}/quadlets/${WL}-api.container" \
+  "${EXAMPLE_SRC}/systemd/${WL}-api.container" \
   || fail "api container must mount owned tree RW at /var/lib/workload"
 grep -qE "^Volume=.*/workloads/${WL}(:|/)" \
-  "${EXAMPLE_SRC}/quadlets/${WL}-db.container" \
+  "${EXAMPLE_SRC}/systemd/${WL}-db.container" \
   || fail "db container must mount the owned Host Volume tree (or a subtree)"
 grep -qE '^Environment=PGDATA=/var/lib/workload/' \
-  "${EXAMPLE_SRC}/quadlets/${WL}-db.container" \
+  "${EXAMPLE_SRC}/systemd/${WL}-db.container" \
   || fail "db container should keep durable bytes under /var/lib/workload"
-grep -qE '^PublishPort=' "${EXAMPLE_SRC}/quadlets/${WL}-api.container" \
+grep -qE '^PublishPort=' "${EXAMPLE_SRC}/systemd/${WL}-api.container" \
   && fail "api container must not PublishPort"
-grep -qE '^PublishPort=' "${EXAMPLE_SRC}/quadlets/${WL}-db.container" \
+grep -qE '^PublishPort=' "${EXAMPLE_SRC}/systemd/${WL}-db.container" \
   && fail "db sidecar must not PublishPort (private on localhost)"
 
 grep -qE "proxy_pass[[:space:]]+http://${WL}" \
@@ -90,16 +90,16 @@ REMOTE
 "${REPO_ROOT}/internals/ensure-workload.sh" "${WL}" --env "${PLATFORM_ENV:-test}"
 
 host_ssh \
-  "test -f /host-volume/workloads/${WL}/quadlets/${WL}.pod" \
+  "test -f /host-volume/workloads/${WL}/systemd/${WL}.pod" \
   || fail "Setup should store authored pod SoT"
 host_ssh \
   "test -f /home/platform/.config/containers/systemd/${WL}.pod" \
   || fail "Setup should install authored pod unit"
 host_ssh \
-  "test -f /home/platform/.config/containers/systemd/${WL}-api.container" \
+  "test -f /home/platform/.config/containers/systemd/workload-${WL}/${WL}-api.container" \
   || fail "Setup should install authored api container"
 host_ssh \
-  "test -f /home/platform/.config/containers/systemd/${WL}-db.container" \
+  "test -f /home/platform/.config/containers/systemd/workload-${WL}/${WL}-db.container" \
   || fail "Setup should install authored db container"
 pass "example web-api-with-db Setups cleanly (SoT + Host units)"
 

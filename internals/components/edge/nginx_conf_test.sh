@@ -5,7 +5,7 @@ set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"
 CONF="${REPO_ROOT}/internals/components/edge/nginx.conf"
-QUADLET="${REPO_ROOT}/internals/components/edge/quadlets/edge-nginx.container"
+QUADLET="${REPO_ROOT}/internals/components/edge/systemd/edge-nginx.container"
 
 fail() { echo "FAIL: $*" >&2; exit 1; }
 pass() { echo "PASS: $*"; }

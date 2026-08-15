@@ -11,7 +11,7 @@
 #   environment → no lines. ROOT_DB_* bag keys or RHS names fail closed (ADR-0049).
 #
 # environment_configuration_require_containers TREE ACTIVE
-#   When ACTIVE=1, fail closed unless TREE/quadlets/*.container exists.
+#   When ACTIVE=1, fail closed unless TREE/systemd/*.container exists.
 #   Defined in workload-environment-host.sh (Host + operator module).
 
 _ENVCFG_DECL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

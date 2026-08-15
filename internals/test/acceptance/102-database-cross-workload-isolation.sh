@@ -31,7 +31,7 @@ host_ssh \
 
 write_probe_workload() {
   local name="$1"
-  mkdir -p "${FIX_DIR}/${name}/quadlets"
+  mkdir -p "${FIX_DIR}/${name}/systemd"
   cat >"${FIX_DIR}/${name}/manifest.json" <<EOF
 {
   "intent": "run",
@@ -40,7 +40,7 @@ write_probe_workload() {
 }
 EOF
   acceptance_write_database_claim "${FIX_DIR}/${name}"
-  cat >"${FIX_DIR}/${name}/quadlets/${name}.container" <<EOF
+  cat >"${FIX_DIR}/${name}/systemd/${name}.container" <<EOF
 [Unit]
 Description=Propraetor Database isolation probe ${name}
 

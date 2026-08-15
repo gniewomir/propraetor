@@ -15,7 +15,7 @@ mkdir -p "${FIX_DIR}"
 acceptance_wl_track "${WL}" reclaim-intent
 trap 'acceptance_wl_cleanup' EXIT
 
-mkdir -p "${FIX_DIR}/${WL}/quadlets"
+mkdir -p "${FIX_DIR}/${WL}/systemd"
 acceptance_write_artifact_stubs "${FIX_DIR}/${WL}"
 if [[ -n "${HOST}" ]]; then
   mkdir -p "${FIX_DIR}/${WL}/routes"
@@ -38,7 +38,7 @@ location = /trash-probe {
 EOF
   acceptance_bind_route_fragment "${FIX_DIR}/${WL}" "routes/probe.conf" "${HOST}"
 fi
-cat >"${FIX_DIR}/${WL}/quadlets/${WL}.container" <<EOF
+cat >"${FIX_DIR}/${WL}/systemd/${WL}.container" <<EOF
 [Unit]
 Description=Propraetor Workload ${WL}
 
@@ -61,8 +61,8 @@ host_ssh bash -s <<REMOTE
 set -euo pipefail
 rm -rf /host-volume/workloads/${WL} \
   /host-volume/workloads/reclaim-intent
-rm -f /home/platform/.config/containers/systemd/${WL}.container \
-  /home/platform/.config/containers/systemd/reclaim-intent.container
+rm -f /home/platform/.config/containers/systemd/workload-${WL} /home/platform/.config/containers/systemd/${WL}.container \
+  /home/platform/.config/containers/systemd/workload-reclaim-intent
 REMOTE
 
 write_manifest run
@@ -82,7 +82,7 @@ else
   echo "SOFT-SKIP: empty Domain want-list — Route install assertions"
 fi
 host_ssh \
-  "test -f /home/platform/.config/containers/systemd/${WL}.container" \
+  "test -f /home/platform/.config/containers/systemd/workload-${WL}/${WL}.container" \
   || fail "Intent run should install authored Quadlet"
 
 write_manifest trash
@@ -103,9 +103,9 @@ if [[ -n "${HOST}" ]]; then
     || fail "Workload Setup alone must not drop Edge Routes on Intent trash"
   ensure_edge_route_fulfillment
 fi
-host_ssh "test -f /host-volume/workloads/${WL}/quadlets/${WL}.container" \
+host_ssh "test -f /host-volume/workloads/${WL}/systemd/${WL}.container" \
   || fail "Intent trash should retain Quadlet SoT until Purge"
-host_ssh "test -f /home/platform/.config/containers/systemd/${WL}.container" \
+host_ssh "test -f /home/platform/.config/containers/systemd/workload-${WL}/${WL}.container" \
   || fail "Intent trash should retain unit file until Purge"
 trash_routes="$(host_ssh \
   "ls /host-volume/components/edge/persist/routes/${WL}.conf /host-volume/components/edge/persist/routes/${WL}--* 2>/dev/null || true")"

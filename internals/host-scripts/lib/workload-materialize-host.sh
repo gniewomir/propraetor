@@ -33,6 +33,8 @@ fi
 source "${_mat_source_lib}"
 # shellcheck source=../../lib/artifact/provides.sh
 source "${_mat_provides_lib}"
+# shellcheck source=unit-consumers-host.sh
+source "${_MAT_LIB_DIR}/unit-consumers-host.sh"
 
 _workload_materialize_normalize_rel() {
   local key="${1:?}"
@@ -73,10 +75,57 @@ _workload_materialize_apply_directory() {
     echo "workload_materialize_tree: Provides directories missing in Artifact: ${key}" >&2
     return 1
   fi
+
+  # Unified systemd/ bag: merge by filename; same name from both sides fails closed.
+  if [[ "${rel}" == "systemd" ]]; then
+    _workload_materialize_merge_systemd_bag "${src}" "${dest}" || return 1
+    return 0
+  fi
+
   parent="$(dirname "${dest}")"
   mkdir -p "${parent}" || return 1
   rm -rf "${dest}"
   cp -a "${src}" "${dest}" || return 1
+}
+
+# Merge Artifact systemd/ into Environment systemd/ by filename (ADR-0054).
+# Args: artifact_systemd_dir dest_systemd_dir
+_workload_materialize_merge_systemd_bag() {
+  local src="${1:?}"
+  local dest="${2:?}"
+  local f base
+
+  [[ -d "${src}" ]] || {
+    echo "workload_materialize_tree: Provides systemd/ is not a directory" >&2
+    return 1
+  }
+  mkdir -p "${dest}" || return 1
+  for f in "${src}"/*; do
+    [[ -f "${f}" ]] || continue
+    base="$(basename "${f}")"
+    [[ "${base}" == .* ]] && continue
+    if [[ -e "${dest}/${base}" || -L "${dest}/${base}" ]]; then
+      echo "workload_materialize_tree: systemd/ filename collision: ${base}" >&2
+      return 1
+    fi
+    install -m 0644 "${f}" "${dest}/${base}" || return 1
+  done
+}
+
+_workload_materialize_refuse_quadlets() {
+  local tree="${1:?}"
+  local label="${2:?}"
+  if [[ -e "${tree}/quadlets" || -L "${tree}/quadlets" ]]; then
+    echo "workload_materialize_tree: ${label} must not ship retired quadlets/ (use systemd/)" >&2
+    return 1
+  fi
+}
+
+_workload_materialize_require_systemd_bag() {
+  local tree="${1:?}"
+  unit_refuse_retired_quadlets_dir "${tree}" "materialized tree" || return 1
+  unit_validate_systemd_bag "${tree}/systemd" || return 1
+  unit_require_systemd_bag_nonempty "${tree}/systemd" "materialized Workload" || return 1
 }
 
 _workload_materialize_fetch_uri() {
@@ -124,6 +173,7 @@ workload_materialize_tree() {
 
   artifact_source_tree_gate "${env_tree}" || return 1
   _workload_materialize_refuse_persist "${env_tree}" "Environment tree" || return 1
+  _workload_materialize_refuse_quadlets "${env_tree}" "Environment tree" || return 1
 
   rm -rf "${out}"
   mkdir -p "${out}" || return 1
@@ -160,6 +210,10 @@ workload_materialize_tree() {
   fi
 
   if ! _workload_materialize_refuse_persist "${artifact_root}" "Artifact"; then
+    [[ -n "${extract_tmp}" ]] && rm -rf "${extract_tmp}"
+    return 1
+  fi
+  if ! _workload_materialize_refuse_quadlets "${artifact_root}" "Artifact"; then
     [[ -n "${extract_tmp}" ]] && rm -rf "${extract_tmp}"
     return 1
   fi
@@ -201,6 +255,10 @@ workload_materialize_tree() {
   }
 
   if ! _workload_materialize_refuse_persist "${out}" "materialized tree"; then
+    [[ -n "${extract_tmp}" ]] && rm -rf "${extract_tmp}"
+    return 1
+  fi
+  if ! _workload_materialize_require_systemd_bag "${out}"; then
     [[ -n "${extract_tmp}" ]] && rm -rf "${extract_tmp}"
     return 1
   fi

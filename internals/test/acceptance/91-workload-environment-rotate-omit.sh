@@ -24,11 +24,11 @@ SURPLUS='envrot-surplus-value'
 host_ssh \
   "rm -rf /host-volume/workloads/${WL} \
           /home/platform/.config/platform/workloads/${WL}; \
-   rm -f /home/platform/.config/containers/systemd/${WL}.container; \
+   rm -f /home/platform/.config/containers/systemd/workload-${WL} /home/platform/.config/containers/systemd/${WL}.container; \
    rm -rf /home/platform/.config/containers/systemd/${WL}.container.d" \
   || true
 
-mkdir -p "${FIX_DIR}/${WL}/quadlets"
+mkdir -p "${FIX_DIR}/${WL}/systemd"
 cat >"${FIX_DIR}/${WL}/manifest.json" <<'EOF'
 {
   "intent": "run",
@@ -53,7 +53,7 @@ cat >"${FIX_DIR}/${WL}/binding.json" <<'EOF'
 }
 EOF
 printf '{}\n' >"${FIX_DIR}/${WL}/provides.json"
-cat >"${FIX_DIR}/${WL}/quadlets/${WL}.container" <<EOF
+cat >"${FIX_DIR}/${WL}/systemd/${WL}.container" <<EOF
 [Unit]
 Description=Propraetor Environment Configuration rotate probe
 

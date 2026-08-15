@@ -57,3 +57,18 @@ host_volume_component_persist() {
   local name="${1:?host_volume_component_persist: Component name required}"
   printf '%s\n' "$(host_volume_component_sot "${name}")/persist"
 }
+
+# Unified unit bag under an owner tree (Quadlet sources + native units; ADR-0054).
+host_volume_workload_systemd() {
+  local basename="${1:?host_volume_workload_systemd: Workload basename required}"
+  printf '%s\n' "$(host_volume_workload_sot "${basename}")/systemd"
+}
+
+host_volume_component_systemd() {
+  local name="${1:?host_volume_component_systemd: Component name required}"
+  printf '%s\n' "$(host_volume_component_sot "${name}")/systemd"
+}
+
+host_volume_fabric_systemd() {
+  printf '%s\n' "$(host_volume_fabric_root)/systemd"
+}

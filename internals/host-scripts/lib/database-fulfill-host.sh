@@ -86,7 +86,7 @@ database_ensure_role_and_db() {
 database_publish_binding() {
   local wl_name="${1:?database_publish_binding: workload name required}"
   local binding_dir client_dir ca_crt client_crt client_key env_path
-  local sot_quadlets base dropin_path mount_root
+  local sot_systemd base dropin_path mount_root
 
   client_dir="${DATA_ROOT}/clients/${wl_name}"
   ca_crt="${DATA_ROOT}/ca/ca.crt"
@@ -117,9 +117,9 @@ PGSSLKEY=${mount_root}/client.key
 EOF
   chmod 0600 "${env_path}"
 
-  sot_quadlets="${WORKLOADS_ROOT}/${wl_name}/quadlets"
-  if [[ -d "${sot_quadlets}" ]]; then
-    for base in "${sot_quadlets}"/*.container; do
+  sot_systemd="${WORKLOADS_ROOT}/${wl_name}/systemd"
+  if [[ -d "${sot_systemd}" ]]; then
+    for base in "${sot_systemd}"/*.container; do
       [[ -f "${base}" ]] || continue
       base="$(basename "${base}")"
       dropin_path="$(workload_database_dropin_path "${base}")"
@@ -148,7 +148,7 @@ EOF
 # drop-in named <basename>.container.d/50-platform-database.conf.
 database_unpublish_binding() {
   local wl_name="${1:?database_unpublish_binding: workload name required}"
-  local binding_dir sot_quadlets base dropin_path dropin_dir wl_cfg_dir
+  local binding_dir sot_systemd base dropin_path dropin_dir wl_cfg_dir
 
   binding_dir="$(workload_database_binding_dir "${wl_name}")"
   rm -rf "${binding_dir}"
@@ -157,9 +157,9 @@ database_unpublish_binding() {
     rmdir "${wl_cfg_dir}" 2>/dev/null || true
   fi
 
-  sot_quadlets="${WORKLOADS_ROOT}/${wl_name}/quadlets"
-  if [[ -d "${sot_quadlets}" ]]; then
-    for base in "${sot_quadlets}"/*.container; do
+  sot_systemd="${WORKLOADS_ROOT}/${wl_name}/systemd"
+  if [[ -d "${sot_systemd}" ]]; then
+    for base in "${sot_systemd}"/*.container; do
       [[ -f "${base}" ]] || continue
       base="$(basename "${base}")"
       dropin_path="$(workload_database_dropin_path "${base}")"

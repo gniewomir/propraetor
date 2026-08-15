@@ -63,7 +63,7 @@ pass "invalid Binding fails closed"
 # --- full fulfill: happy path ---
 cat >"${PROVIDES}" <<'EOF'
 {
-  "directories": { "quadlets": "./quadlets" },
+  "directories": { "systemd": "./systemd" },
   "routes": {
     "./path/site.conf": "main",
     "./path/extra.conf": "extra"
@@ -185,7 +185,7 @@ pass "want-list FQDN subset fails closed"
 
 # --- zero Provides routes is valid ---
 cat >"${PROVIDES}" <<'EOF'
-{ "directories": { "quadlets": "./quadlets" } }
+{ "directories": { "systemd": "./systemd" } }
 EOF
 cat >"${REQUIRES}" <<'EOF'
 { "environment": {}, "database": true }
@@ -199,7 +199,7 @@ pass "zero routes fulfill"
 
 # --- environment remap: bag key → Requires name (ADR-0053 / #201) ---
 cat >"${PROVIDES}" <<'EOF'
-{ "directories": { "quadlets": "./quadlets" } }
+{ "directories": { "systemd": "./systemd" } }
 EOF
 cat >"${REQUIRES}" <<'EOF'
 {

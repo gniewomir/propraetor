@@ -17,7 +17,7 @@ ROUTE_FQDN="$(acceptance_route_fqdn)"
 
 stage_wl() {
   local name="$1" intent="$2"
-  mkdir -p "${FIX_DIR}/${name}/quadlets"
+  mkdir -p "${FIX_DIR}/${name}/systemd"
   acceptance_write_artifact_stubs "${FIX_DIR}/${name}"
   cat >"${FIX_DIR}/${name}/manifest.json" <<EOF
 {
@@ -25,7 +25,7 @@ stage_wl() {
   "source": "internal"
 }
 EOF
-  cat >"${FIX_DIR}/${name}/quadlets/${name}.container" <<EOF
+  cat >"${FIX_DIR}/${name}/systemd/${name}.container" <<EOF
 [Unit]
 Description=Propraetor Workload ${name}
 
@@ -68,7 +68,7 @@ host_ssh bash -s <<'REMOTE'
 set -euo pipefail
 for n in trash-a reclaim-b keep-me purge-me; do
   rm -rf "/host-volume/workloads/${n}"
-  rm -f "/home/platform/.config/containers/systemd/${n}.container"
+  rm -f "/home/platform/.config/containers/systemd/workload-${n}" "/home/platform/.config/containers/systemd/${n}.container"
 done
 REMOTE
 
@@ -157,7 +157,7 @@ fi
 purge_routes="$(host_ssh \
   "ls /host-volume/components/edge/persist/routes/purge-me.conf /host-volume/components/edge/persist/routes/purge-me--* 2>/dev/null || true")"
 [[ -z "${purge_routes}" ]] || fail "Edge Setup after Purge should drop Routes for trash Workloads (got: ${purge_routes})"
-if host_ssh "test -e /home/platform/.config/containers/systemd/purge-me.container"; then
+if host_ssh "test -e /home/platform/.config/containers/systemd/workload-purge-me"; then
   fail "Purge should remove related Quadlet unit for purge-me"
 fi
 host_ssh "test -f /host-volume/workloads/keep-me/manifest.json" \

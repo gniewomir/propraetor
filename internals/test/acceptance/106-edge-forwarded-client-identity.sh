@@ -28,7 +28,7 @@ SPOOF_PROTO=http
 SPOOF_HOST=spoof.example.invalid
 
 rm -rf "${FIX_DIR:?}/${WL:?}"
-mkdir -p "${FIX_DIR}/${WL}/quadlets" "${FIX_DIR}/${WL}/routes"
+mkdir -p "${FIX_DIR}/${WL}/systemd" "${FIX_DIR}/${WL}/routes"
 acceptance_write_artifact_stubs "${FIX_DIR}/${WL}"
 
 cat >"${FIX_DIR}/${WL}/manifest.json" <<'EOF'
@@ -39,7 +39,7 @@ cat >"${FIX_DIR}/${WL}/manifest.json" <<'EOF'
 }
 EOF
 
-cat >"${FIX_DIR}/${WL}/quadlets/${WL}.pod" <<EOF
+cat >"${FIX_DIR}/${WL}/systemd/${WL}.pod" <<EOF
 [Pod]
 Network=service-network.network
 NetworkAlias=${WL}
@@ -58,7 +58,7 @@ server {
 }
 EOF
 
-cat >"${FIX_DIR}/${WL}/quadlets/${WL}-web.container" <<EOF
+cat >"${FIX_DIR}/${WL}/systemd/${WL}-web.container" <<EOF
 [Unit]
 Description=Propraetor Acceptance Forwarded client identity probe
 

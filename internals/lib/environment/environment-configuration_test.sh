@@ -63,8 +63,8 @@ pairs="$(environment_configuration_remap "${BINDING}" "${REQUIRES}")" \
 if environment_configuration_require_containers "${TREE}" 1 >/dev/null 2>&1; then
   fail "non-empty Requires environment without .container should fail closed"
 fi
-mkdir -p "${TREE}/quadlets"
-touch "${TREE}/quadlets/x.container"
+mkdir -p "${TREE}/systemd"
+touch "${TREE}/systemd/x.container"
 environment_configuration_require_containers "${TREE}" 1 \
   || fail "should accept .container"
 pass "declaration non-empty remap + containers gate"
@@ -187,8 +187,8 @@ USER_NAME="offline-test-user"
 WL_NAME="demo"
 WL_TREE="${WORKLOADS_ROOT}/${WL_NAME}"
 STAGE_DIR="${TMP}/stage"
-mkdir -p "${HOME_DIR}" "${UNIT_DIR}" "${WL_TREE}/quadlets" "${STAGE_DIR}"
-printf '[Container]\nImage=localhost/demo\n' >"${WL_TREE}/quadlets/app.container"
+mkdir -p "${HOME_DIR}" "${UNIT_DIR}" "${WL_TREE}/systemd" "${STAGE_DIR}"
+printf '[Container]\nImage=localhost/demo\n' >"${WL_TREE}/systemd/app.container"
 
 envcfg_stage_and_apply() {
   environment_configuration_stage_for_setup \
@@ -235,7 +235,7 @@ envcfg_stage_and_apply || fail "empty remap stage→apply should succeed"
 pass "module stage→apply empty Requires environment → clear"
 
 # fail closed: non-empty without containers (gate once in prepare)
-rm -f "${WL_TREE}/quadlets"/*.container
+rm -f "${WL_TREE}/systemd"/*.container
 write_remap
 printf 'BAG_A=x\nBAG_B=y\n' >"${ENV_DIR}/.env"
 if envcfg_stage_and_apply >/dev/null 2>&1; then
@@ -244,8 +244,8 @@ fi
 pass "module stage→apply fails closed without containers"
 
 # fail closed: missing bag key
-mkdir -p "${WL_TREE}/quadlets"
-printf '[Container]\nImage=localhost/demo\n' >"${WL_TREE}/quadlets/app.container"
+mkdir -p "${WL_TREE}/systemd"
+printf '[Container]\nImage=localhost/demo\n' >"${WL_TREE}/systemd/app.container"
 write_remap
 printf 'BAG_A=only\n' >"${ENV_DIR}/.env"
 if envcfg_stage_and_apply >/dev/null 2>&1; then
@@ -310,11 +310,11 @@ printf 'BAG_A=zip-a\nBAG_B=zip-b\n' >"${ENV_DIR}/.env"
 unset BAG_A BAG_B || true
 ZIP_TREE="${TMP}/zip-stage-wl"
 mkdir -p "${ZIP_TREE}"
-rm -rf "${ZIP_TREE}/quadlets"
+rm -rf "${ZIP_TREE}/systemd"
 environment_configuration_stage_for_setup \
   "${STAGE_DIR}" "${BINDING}" "" "${ENV_DIR}" "${ZIP_TREE}" \
   "/tmp/platform-ensure-workload" \
-  || fail "zip Binding-only stage should succeed without Environment Requires or quadlets"
+  || fail "zip Binding-only stage should succeed without Environment Requires or systemd units"
 [[ "${WL_ENV_ACTIVE}" == "1" ]] || fail "zip Binding-only stage should be active"
 grep -Fx 'PROC_A=zip-a' "${STAGE_DIR}/environment.resolved" >/dev/null \
   || fail "zip stage should write Requires names into STAGE"

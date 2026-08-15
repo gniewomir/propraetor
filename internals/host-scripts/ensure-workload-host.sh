@@ -92,13 +92,9 @@ trap 'rm -f "${STAGE_UNITS}"; rm -rf "${MAT_TREE}"' EXIT
 workload_materialize_tree "${TREE}" "${MAT_TREE}" || exit 1
 environment_configuration_fulfill_materialized "${MAT_TREE}" || exit 1
 
-QUADLETS_STAGE="${MAT_TREE}/quadlets"
 SYSTEMD_STAGE="${MAT_TREE}/systemd"
 
-{
-  workload_quadlet_sot_basenames "${QUADLETS_STAGE}"
-  workload_quadlet_sot_basenames "${SYSTEMD_STAGE}"
-} | LC_ALL=C sort -u >"${STAGE_UNITS}"
+workload_quadlet_sot_basenames "${SYSTEMD_STAGE}" | LC_ALL=C sort -u >"${STAGE_UNITS}"
 
 quadlet_user_session_begin
 
@@ -124,21 +120,21 @@ if [[ -f "${SOT_TREE}/manifest.json" ]] && diff -rq "${MAT_TREE}" "${SOT_TREE}" 
   fi
   if [[ "${units_ok}" -eq 1 ]]; then
     # Env refresh/removal must not be skipped by SoT noop (ADR-0035); Intent still applied.
-    workload_units_apply "${WL_NAME}" "${WL_INTENT}" "${QUADLETS_STAGE}" "${SYSTEMD_STAGE}" || exit 1
+    workload_units_apply "${WL_NAME}" "${WL_INTENT}" "${SYSTEMD_STAGE}" || exit 1
     unset -f workload_units_before_reload
     echo "Workload Setup noop: '${WL_NAME}' already matches Host Volume SoT"
     exit 0
   fi
 fi
 
-# Refuse foreign / wrong-folder units before mutating Host Volume SoT.
-workload_units_preflight "${WL_NAME}" "${QUADLETS_STAGE}" "${SYSTEMD_STAGE}" || exit 1
+# Refuse foreign / invalid units before mutating Host Volume SoT.
+workload_units_preflight "${WL_NAME}" "${SYSTEMD_STAGE}" || exit 1
 
-# Same materialize projection as Mirror (ADR-0053); unit apply then syncs consumer dirs.
+# Same materialize projection as Mirror (ADR-0053); unit apply then syncs systemd/.
 sync_tree_inplace "${MAT_TREE}" "${WORKLOADS_ROOT}/${WL_NAME}" || exit 1
 
 # Route Declarations stay in Workload SoT only (ADR-0040). Edge Component Setup gathers.
-workload_units_apply "${WL_NAME}" "${WL_INTENT}" "${QUADLETS_STAGE}" "${SYSTEMD_STAGE}" || exit 1
+workload_units_apply "${WL_NAME}" "${WL_INTENT}" "${SYSTEMD_STAGE}" || exit 1
 unset -f workload_units_before_reload
 
 # Cover Host Volume SoT (incl. units synced by apply) and nested Persist.

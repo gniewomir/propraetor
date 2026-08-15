@@ -26,14 +26,14 @@ pass "empty Provides"
 # --- valid directories + routes ---
 cat >"${PROVIDES}" <<'EOF'
 {
-  "directories": { ".": ".", "quadlets": "./quadlets" },
+  "directories": { ".": ".", "systemd": "./systemd" },
   "routes": { "./path/site.conf": "HTTPS location" }
 }
 EOF
 artifact_provides_validate "${PROVIDES}" || fail "valid Provides must pass"
 dirs="$(artifact_provides_directories "${PROVIDES}")"
 printf '%s\n' "${dirs}" | grep -Fxq '.' || fail "directories must include ."
-printf '%s\n' "${dirs}" | grep -Fxq 'quadlets' || fail "directories must include quadlets"
+printf '%s\n' "${dirs}" | grep -Fxq 'systemd' || fail "directories must include systemd"
 [[ "$(artifact_provides_routes "${PROVIDES}")" == "./path/site.conf" ]] \
   || fail "routes must list path"
 pass "valid directories + routes"
@@ -44,7 +44,7 @@ if artifact_provides_validate "${PROVIDES}" >/dev/null 2>&1; then
   fail "array Provides must fail closed"
 fi
 cat >"${PROVIDES}" <<'EOF'
-{ "directories": { "quadlets": false } }
+{ "directories": { "systemd": false } }
 EOF
 if artifact_provides_validate "${PROVIDES}" >/dev/null 2>&1; then
   fail "directories false must fail closed"
@@ -105,7 +105,7 @@ if artifact_provides_reserved_collision "${DEST}" "${PROVIDES}" >/dev/null 2>&1;
 fi
 # targeted pull that does not land on reserved names is OK even if reserved exist
 cat >"${PROVIDES}" <<'EOF'
-{ "directories": { "quadlets": "./quadlets" } }
+{ "directories": { "systemd": "./systemd" } }
 EOF
 artifact_provides_reserved_collision "${DEST}" "${PROVIDES}" \
   || fail "non-reserved directory pull must be allowed"

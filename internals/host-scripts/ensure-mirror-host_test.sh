@@ -27,6 +27,8 @@ mkdir -p "${HV}" "${STAGE}/lib"
 cp "${REPO_ROOT}/internals/host-scripts/lib/sync-tree-host.sh" "${STAGE}/lib/sync-tree-host.sh"
 cp "${REPO_ROOT}/internals/host-scripts/lib/workload-materialize-host.sh" \
   "${STAGE}/lib/workload-materialize-host.sh"
+cp "${REPO_ROOT}/internals/host-scripts/lib/unit-consumers-host.sh" \
+  "${STAGE}/lib/unit-consumers-host.sh"
 cp "${REPO_ROOT}/internals/host-scripts/lib/host-volume-paths-host.sh" \
   "${STAGE}/lib/host-volume-paths-host.sh"
 cp "${REPO_ROOT}/internals/lib/artifact/source.sh" "${STAGE}/lib/source.sh"
@@ -48,10 +50,11 @@ USER_NAME="$(id -un)"
 
 write_internal_stubs() {
   local tree="$1"
-  mkdir -p "${tree}"
+  mkdir -p "${tree}/systemd"
   printf '{}\n' >"${tree}/provides.json"
   printf '{ "database": false }\n' >"${tree}/requires.json"
   printf '{}\n' >"${tree}/binding.json"
+  printf '[Container]\nImage=localhost/stub\n' >"${tree}/systemd/stub.container"
 }
 
 # Seed an orphan on the Host that must survive Mirror
@@ -177,17 +180,17 @@ pass "Mirror fails closed on reserved Provides destination collision"
 rm -rf "${STAGE}/workloads"
 ZIP_ROOT="${TMP}/zip-artifact"
 ZIP_DIR="${TMP}/zip-http"
-mkdir -p "${ZIP_ROOT}/quadlets" "${ZIP_ROOT}/www" "${ZIP_DIR}"
+mkdir -p "${ZIP_ROOT}/systemd" "${ZIP_ROOT}/www" "${ZIP_DIR}"
 cat >"${ZIP_ROOT}/provides.json" <<'EOF'
 {
   "directories": {
-    "quadlets": "units",
+    "systemd": "units",
     "www": "static"
   }
 }
 EOF
 printf '{ "database": false }\n' >"${ZIP_ROOT}/requires.json"
-printf 'from-zip-unit\n' >"${ZIP_ROOT}/quadlets/zippy.container"
+printf 'from-zip-unit\n' >"${ZIP_ROOT}/systemd/zippy.container"
 printf 'from-zip-www\n' >"${ZIP_ROOT}/www/index.html"
 (cd "${ZIP_ROOT}" && zip -qr "${ZIP_DIR}/artifact.zip" .)
 
@@ -229,8 +232,8 @@ bash "${STAGE}/ensure-mirror-host.sh" "${USER_NAME}" \
   || fail "ensure-mirror-host failed for zip Source"
 
 grep -Fxq 'from-zip-unit' \
-  "${HV}/workloads/zippy/quadlets/zippy.container" \
-  || fail "zip Provides directories must materialize quadlets"
+  "${HV}/workloads/zippy/systemd/zippy.container" \
+  || fail "zip Provides directories must materialize systemd"
 grep -Fxq 'from-zip-www' "${HV}/workloads/zippy/www/index.html" \
   || fail "zip Provides directories must materialize www"
 grep -Fq 'units' "${HV}/workloads/zippy/provides.json" \

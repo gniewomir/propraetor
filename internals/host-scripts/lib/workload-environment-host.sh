@@ -7,17 +7,17 @@
 #   environment_configuration_install_host WL_NAME RESOLVED_SRC
 #     RESOLVED_SRC empty → remove EnvironmentFile tree + Setup-owned env drop-ins
 #     RESOLVED_SRC set  → install EnvironmentFile + Setup-owned drop-ins for each
-#                         SoT quadlets/*.container (EnvironmentFile= path only)
+#                         SoT systemd/*.container (EnvironmentFile= path only)
 #     Container gate is owned by environment_configuration_prepare (once).
 #   environment_configuration_clear WL_NAME
 #     Purge / omit clear path.
 #
 # environment_configuration_require_containers TREE ACTIVE
-#   When ACTIVE=1, fail closed unless TREE/quadlets/*.container exists.
+#   When ACTIVE=1, fail closed unless TREE/systemd/*.container exists.
 #
 # environment_configuration_fulfill_materialized TREE
 #   After Source resolve: full-fulfill Binding vs Artifact Requires on TREE.
-#   Non-empty Requires environment also requires quadlets/*.container.
+#   Non-empty Requires environment also requires systemd/*.container.
 
 workload_environment_path() {
   local wl_name="${1:?workload name required}"
@@ -31,10 +31,10 @@ workload_environment_dropin_path() {
 }
 
 workload_environment_remove_dropins_for_dir() {
-  local quadlets_dir="${1:-}"
+  local systemd_dir="${1:-}"
   local base dropin_path dropin_dir
-  [[ -d "${quadlets_dir}" ]] || return 0
-  for base in "${quadlets_dir}"/*.container; do
+  [[ -d "${systemd_dir}" ]] || return 0
+  for base in "${systemd_dir}"/*.container; do
     [[ -f "${base}" ]] || continue
     base="$(basename "${base}")"
     dropin_path="$(workload_environment_dropin_path "${base}")"
@@ -49,14 +49,14 @@ workload_environment_remove_dropins_for_dir() {
 environment_configuration_install_host() {
   local wl_name="${1:?workload name required}"
   local resolved_src="${2:-}"
-  local env_path dropin_path base dest_dir sot_quadlets
+  local env_path dropin_path base dest_dir sot_systemd
 
   env_path="$(workload_environment_path "${wl_name}")"
   dest_dir="$(dirname "${env_path}")"
-  sot_quadlets="${WORKLOADS_ROOT}/${wl_name}/quadlets"
+  sot_systemd="${WORKLOADS_ROOT}/${wl_name}/systemd"
 
   if [[ -z "${resolved_src}" ]]; then
-    workload_environment_remove_dropins_for_dir "${sot_quadlets}"
+    workload_environment_remove_dropins_for_dir "${sot_systemd}"
     # Remove only the EnvironmentFile — sibling Database bindings live under
     # the same Platform User Workload tree (ADR-0049 / #189).
     rm -f "${env_path}"
@@ -75,7 +75,7 @@ environment_configuration_install_host() {
   install -m 0600 "${resolved_src}" "${env_path}"
   chown -R "${USER_NAME}:${USER_NAME}" "${dest_dir}" 2>/dev/null || true
 
-  for base in "${sot_quadlets}"/*.container; do
+  for base in "${sot_systemd}"/*.container; do
     [[ -f "${base}" ]] || continue
     base="$(basename "${base}")"
     dropin_path="$(workload_environment_dropin_path "${base}")"
@@ -106,22 +106,22 @@ environment_configuration_apply_resolved() {
 }
 
 # Fail closed when Requires environment is non-empty but the Workload tree
-# has no quadlets/*.container.
+# has no systemd/*.container.
 environment_configuration_require_containers() {
   local tree="${1:?workload tree required}"
   local active="${2:?WL_ENV_ACTIVE required}"
   [[ "${active}" == "1" ]] || return 0
   local found=0
   local f
-  if [[ -d "${tree}/quadlets" ]]; then
-    for f in "${tree}/quadlets"/*.container; do
+  if [[ -d "${tree}/systemd" ]]; then
+    for f in "${tree}/systemd"/*.container; do
       [[ -f "${f}" ]] || continue
       found=1
       break
     done
   fi
   if [[ "${found}" -ne 1 ]]; then
-    echo "Environment Configuration requires quadlets/*.container when Requires environment is non-empty" >&2
+    echo "Environment Configuration requires systemd/*.container when Requires environment is non-empty" >&2
     return 1
   fi
   return 0

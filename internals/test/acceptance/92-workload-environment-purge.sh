@@ -27,7 +27,7 @@ host_cleanup() {
   host_ssh \
     "rm -rf /host-volume/workloads/${name} \
             /home/platform/.config/platform/workloads/${name}; \
-     rm -f /home/platform/.config/containers/systemd/${name}.container; \
+     rm -f /home/platform/.config/containers/systemd/workload-${name} /home/platform/.config/containers/systemd/${name}.container; \
      rm -rf /home/platform/.config/containers/systemd/${name}.container.d" \
     || true
 }
@@ -38,7 +38,7 @@ host_cleanup "${WL_KEEP}"
 
 stage_wl() {
   local name="$1" intent="$2"
-  mkdir -p "${FIX_DIR}/${name}/quadlets"
+  mkdir -p "${FIX_DIR}/${name}/systemd"
   cat >"${FIX_DIR}/${name}/manifest.json" <<EOF
 {
   "intent": "${intent}",
@@ -55,7 +55,7 @@ EOF
 { "environment": { "ENVPURGE_TOKEN": "APP_TOKEN" } }
 EOF
   printf '{}\n' >"${FIX_DIR}/${name}/provides.json"
-  cat >"${FIX_DIR}/${name}/quadlets/${name}.container" <<EOF
+  cat >"${FIX_DIR}/${name}/systemd/${name}.container" <<EOF
 [Unit]
 Description=Propraetor Environment Configuration purge probe ${name}
 
@@ -99,7 +99,7 @@ cat >"${FIX_DIR}/${WL_STOP}/manifest.json" <<EOF
 }
 EOF
 "${REPO_ROOT}/internals/ensure-workload.sh" "${WL_STOP}" --env "${ENV_SLUG}"
-host_ssh "test -f /home/platform/.config/containers/systemd/${WL_STOP}.container" \
+host_ssh "test -f /home/platform/.config/containers/systemd/workload-${WL_STOP}/${WL_STOP}.container" \
   || fail "Intent stop must retain unit file until Purge"
 host_ssh "test -f $(env_tree "${WL_STOP}")/environment" \
   || fail "Intent stop must retain EnvironmentFile until Purge"
@@ -113,7 +113,7 @@ cat >"${FIX_DIR}/${WL_TRASH}/manifest.json" <<EOF
 }
 EOF
 "${REPO_ROOT}/internals/ensure-workload.sh" "${WL_TRASH}" --env "${ENV_SLUG}"
-host_ssh "test -f /home/platform/.config/containers/systemd/${WL_TRASH}.container" \
+host_ssh "test -f /home/platform/.config/containers/systemd/workload-${WL_TRASH}/${WL_TRASH}.container" \
   || fail "Intent trash must retain unit file until Purge"
 host_ssh "test -f $(env_tree "${WL_TRASH}")/environment" \
   || fail "Intent trash must retain EnvironmentFile until Purge"
@@ -130,13 +130,13 @@ EOF
 
 "${REPO_ROOT}/internals/purge-trash.sh" --env "${ENV_SLUG}"
 
-host_ssh "test ! -e /home/platform/.config/containers/systemd/${WL_TRASH}.container" \
+host_ssh "test ! -e /home/platform/.config/containers/systemd/workload-${WL_TRASH}" \
   || fail "Purge must remove trash Workload unit"
 host_ssh "test ! -e $(env_tree "${WL_TRASH}")/environment" \
   || fail "Purge must remove trash EnvironmentFile"
 pass "Purge removes trash Workload unit and EnvironmentFile"
 
-host_ssh "test -f /home/platform/.config/containers/systemd/${WL_STOP}.container" \
+host_ssh "test -f /home/platform/.config/containers/systemd/workload-${WL_STOP}/${WL_STOP}.container" \
   || fail "Purge must leave stop Workload unit file alone"
 host_ssh "test -f $(env_tree "${WL_STOP}")/environment" \
   || fail "Purge must leave stop EnvironmentFile alone"

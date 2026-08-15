@@ -16,6 +16,7 @@ USER_NAME="${PLATFORM_USER:-platform}"
 HOST_SCRIPT="${REPO_ROOT}/internals/host-scripts/ensure-mirror-host.sh"
 SYNC_LIB="${REPO_ROOT}/internals/host-scripts/lib/sync-tree-host.sh"
 MATERIALIZE_LIB="${REPO_ROOT}/internals/host-scripts/lib/workload-materialize-host.sh"
+UNIT_CONSUMERS_LIB="${REPO_ROOT}/internals/host-scripts/lib/unit-consumers-host.sh"
 ARTIFACT_SOURCE_LIB="${REPO_ROOT}/internals/lib/artifact/source.sh"
 ARTIFACT_PROVIDES_LIB="${REPO_ROOT}/internals/lib/artifact/provides.sh"
 PATHS_LIB="${REPO_ROOT}/internals/host-scripts/lib/host-volume-paths-host.sh"
@@ -55,6 +56,10 @@ environment_activate "${STACK_DIR}" "${CLI_env}" || exit 1
   echo "missing ${MATERIALIZE_LIB}" >&2
   exit 1
 }
+[[ -f "${UNIT_CONSUMERS_LIB}" ]] || {
+  echo "missing ${UNIT_CONSUMERS_LIB}" >&2
+  exit 1
+}
 [[ -f "${ARTIFACT_SOURCE_LIB}" ]] || {
   echo "missing ${ARTIFACT_SOURCE_LIB}" >&2
   exit 1
@@ -82,6 +87,7 @@ trap 'rm -rf "${STAGE}"' EXIT
 mkdir -p "${STAGE}/lib" "${STAGE}/workloads"
 cp "${SYNC_LIB}" "${STAGE}/lib/sync-tree-host.sh"
 cp "${MATERIALIZE_LIB}" "${STAGE}/lib/workload-materialize-host.sh"
+cp "${UNIT_CONSUMERS_LIB}" "${STAGE}/lib/unit-consumers-host.sh"
 cp "${ARTIFACT_SOURCE_LIB}" "${STAGE}/lib/source.sh"
 cp "${ARTIFACT_PROVIDES_LIB}" "${STAGE}/lib/provides.sh"
 cp "${PATHS_LIB}" "${STAGE}/lib/host-volume-paths-host.sh"

@@ -40,8 +40,8 @@ must_be_dir "${INTERNALS}"
 must_be_file "${INTERNALS}/pre-workloads.sh"
 must_be_file "${INTERNALS}/post-workloads.sh"
 must_be_file "${INTERNALS}/entrypoint.sh"
-must_be_file "${INTERNALS}/quadlets/database.pod"
-must_be_file "${INTERNALS}/quadlets/database-postgres.container"
+must_be_file "${INTERNALS}/systemd/database.pod"
+must_be_file "${INTERNALS}/systemd/database-postgres.container"
 must_be_dir "${DATA_ROOT}/ca"
 must_be_dir "${DATA_ROOT}/server"
 must_be_dir "${DATA_ROOT}/pgdata"
@@ -55,7 +55,7 @@ must_be_file "${DATA_ROOT}/conf/pg_hba.conf"
 pass "Database Component source and Host Volume interior present"
 
 # Authored pod must not publish Host ports (Service Network only).
-if host_ssh "grep -E '^PublishPort=' '${INTERNALS}/quadlets/database.pod'"; then
+if host_ssh "grep -E '^PublishPort=' '${INTERNALS}/systemd/database.pod'"; then
   fail "database.pod must not PublishPort (no Host-published Postgres)"
 fi
 pass "database.pod has no PublishPort"

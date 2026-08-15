@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# Workload unit SoT helpers for dual consumers (sourced by Workload Setup / Purge).
+# Workload unified systemd/ unit SoT helpers (sourced by Workload Setup / Purge).
 # Expects after quadlet_user_session_begin: UNIT_DIR, SYSTEMD_USER_DIR, WORKLOADS_ROOT, USER_NAME.
 # Optional: quadlet_user for start/stop after session reload.
 #
-# Consumers: quadlets/ → UNIT_DIR; systemd/ → SYSTEMD_USER_DIR (ADR-0024 / ADR-0034).
-# Basename ownership spans both Host unit directories. Wrong-folder authoring fails closed
-# via shared unit-consumers-host.sh (shape parity with Component Setup).
+# One bag: systemd/ holds Quadlet sources + native units (ADR-0054).
+# Install: UNIT_DIR/workload-<basename> → directory symlink to Host Volume systemd/;
+# natives copy into SYSTEMD_USER_DIR. Basename ownership spans farm + native dirs.
 
 # shellcheck source=unit-consumers-host.sh
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/unit-consumers-host.sh"
@@ -74,15 +74,13 @@ workload_systemd_unit_name() {
 }
 
 # Classify authored unit by file kind: always-on | on-demand | ensure (empty = install-only).
-# Args: consumer (quadlets|systemd) base sot_file
+# Args: base sot_file
 workload_unit_kind() {
-  local consumer="$1"
-  local base="$2"
-  local file="$3"
+  local base="$1"
+  local file="$2"
   local ext="${base##*.}"
 
-  case "${consumer}" in
-  quadlets)
+  if unit_ext_is_quadlet "${ext}"; then
     case "${ext}" in
     volume | network | image | build | artifact)
       printf '%s\n' ensure
@@ -101,8 +99,10 @@ workload_unit_kind() {
       printf '\n'
       ;;
     esac
-    ;;
-  systemd)
+    return 0
+  fi
+
+  if unit_ext_is_native "${ext}"; then
     case "${ext}" in
     timer)
       printf '%s\n' on-demand
@@ -118,11 +118,10 @@ workload_unit_kind() {
       printf '\n'
       ;;
     esac
-    ;;
-  *)
-    printf '\n'
-    ;;
-  esac
+    return 0
+  fi
+
+  printf '\n'
 }
 
 # True when a Quadlet container file sets non-empty Pod= (pod membership authorship).
@@ -133,11 +132,11 @@ workload_quadlet_container_has_pod_ref() {
   [[ -n "${pod_ref}" ]]
 }
 
-# Fail closed when any quadlets/*.container Pod= names a missing or invalid target.
+# Fail closed when any systemd/*.container Pod= names a missing or invalid target.
 # Args: wl_name
 workload_quadlet_validate_pod_refs() {
   local wl_name="$1"
-  local sot_dir="${WORKLOADS_ROOT}/${wl_name}/quadlets"
+  local sot_dir="${WORKLOADS_ROOT}/${wl_name}/systemd"
   local base file pod_ref ext
   [[ -d "${sot_dir}" ]] || return 0
   while IFS= read -r base; do
@@ -149,44 +148,36 @@ workload_quadlet_validate_pod_refs() {
     fi
     pod_ref="$(workload_unit_file_key_value "${file}" "Pod")"
     if [[ -z "${pod_ref}" ]]; then
-      echo "workload quadlet ${base}: Pod must name a .pod or .kube unit in quadlets" >&2
+      echo "workload unit ${base}: Pod must name a .pod or .kube unit in systemd/" >&2
       return 1
     fi
     ext="${pod_ref##*.}"
     case "${ext}" in
     pod | kube) ;;
     *)
-      echo "workload quadlet ${base}: Pod=${pod_ref} must reference a .pod or .kube unit" >&2
+      echo "workload unit ${base}: Pod=${pod_ref} must reference a .pod or .kube unit" >&2
       return 1
       ;;
     esac
     if [[ ! -f "${sot_dir}/${pod_ref}" ]]; then
-      echo "workload quadlet ${base}: Pod=${pod_ref} missing from quadlets" >&2
+      echo "workload unit ${base}: Pod=${pod_ref} missing from systemd/" >&2
       return 1
     fi
-  done < <(workload_quadlet_sot_basenames "${sot_dir}")
+  done < <(unit_bag_basenames "${sot_dir}")
 }
 
 # List regular non-hidden basenames in a SoT directory (may be missing).
+# Kept name for call-site stability during the bag cut.
 workload_quadlet_sot_basenames() {
-  local sot_dir="${1:-}"
-  local f base
-  [[ -n "${sot_dir}" && -d "${sot_dir}" ]] || return 0
-  for f in "${sot_dir}"/*; do
-    [[ -f "${f}" ]] || continue
-    base="$(basename "${f}")"
-    [[ "${base}" == .* ]] && continue
-    printf '%s\n' "${base}"
-  done
+  unit_bag_basenames "${1:-}"
 }
 
-# True when basename exists in either Host unit directory.
+# True when basename exists in the Quadlet farm or native user systemd dir.
 workload_unit_basename_exists_on_host() {
-  local base="$1"
-  [[ -e "${UNIT_DIR}/${base}" || -e "${SYSTEMD_USER_DIR}/${base}" ]]
+  unit_basename_exists_on_host "$1"
 }
 
-# Refuse basename if present in either Host unit directory and not previously owned.
+# Refuse basename if present on Host and not previously owned.
 # Args: wl_name base prev_owned_file (union of previous SoT basenames)
 workload_unit_refuse_foreign_basename() {
   local wl_name="$1"
@@ -209,13 +200,12 @@ workload_unit_refuse_foreign_basename() {
   fi
 }
 
-# Sync staged consumer dir into Host Volume SoT for one Workload (replace tree).
-# Args: wl_name consumer (quadlets|systemd) stage_dir
+# Sync staged systemd/ bag into Host Volume SoT for one Workload (replace tree).
+# Args: wl_name stage_dir
 workload_unit_sync_sot() {
   local wl_name="$1"
-  local consumer="$2"
-  local stage_dir="${3:-}"
-  local dest="${WORKLOADS_ROOT}/${wl_name}/${consumer}"
+  local stage_dir="${2:-}"
+  local dest="${WORKLOADS_ROOT}/${wl_name}/systemd"
   local src
 
   rm -rf "${dest}"
@@ -232,47 +222,71 @@ workload_unit_sync_sot() {
   fi
 }
 
-# Stop a managed unit for one consumer basename (best-effort).
+# Stop a managed unit for one basename (best-effort).
 workload_unit_stop_basename() {
-  local consumer="$1"
-  local base="$2"
+  local base="$1"
+  local ext="${base##*.}"
   local svc=""
-  case "${consumer}" in
-  quadlets) svc="$(workload_quadlet_service_name "${base}")" ;;
-  systemd) svc="$(workload_systemd_unit_name "${base}")" ;;
-  esac
+  if unit_ext_is_quadlet "${ext}"; then
+    svc="$(workload_quadlet_service_name "${base}")"
+  elif unit_ext_is_native "${ext}"; then
+    svc="$(workload_systemd_unit_name "${base}")"
+  fi
   if [[ -n "${svc}" ]] && declare -F quadlet_user >/dev/null 2>&1; then
     quadlet_user systemctl --user stop "${svc}" 2>/dev/null || true
   fi
 }
 
-# Reconcile one consumer: drop removed (prev_drop), install new; refuse foreign via prev_owned.
-# Args: wl_name consumer dest_dir prev_drop_file prev_owned_file
-workload_unit_reconcile_consumer() {
+# Install Quadlet farm directory symlink for a Workload (never per-file / never file symlink).
+# Args: wl_name
+workload_unit_install_quadlet_farm() {
   local wl_name="$1"
-  local consumer="$2"
-  local dest_dir="$3"
-  local prev_drop="$4"
-  local prev_owned="$5"
-  local sot_dir="${WORKLOADS_ROOT}/${wl_name}/${consumer}"
-  local base
+  local bag="${WORKLOADS_ROOT}/${wl_name}/systemd"
+  local farm_id farm_path
+
+  farm_id="$(unit_quadlet_farm_id workload "${wl_name}")" || return 1
+  farm_path="${UNIT_DIR}/${farm_id}"
+  mkdir -p "${UNIT_DIR}"
+
+  if [[ -L "${farm_path}" ]]; then
+    rm -f "${farm_path}"
+  elif [[ -e "${farm_path}" ]]; then
+    echo "workload unit farm path '${farm_path}' exists and is not a symlink" >&2
+    return 1
+  fi
+
+  [[ -d "${bag}" ]] || {
+    echo "workload unit farm: systemd bag missing for '${wl_name}'" >&2
+    return 1
+  }
+
+  ln -s "${bag}" "${farm_path}" || return 1
+  if [[ -n "${USER_NAME:-}" ]]; then
+    chown -h "${USER_NAME}:${USER_NAME}" "${farm_path}" 2>/dev/null || true
+  fi
+}
+
+# Copy native units from Workload SoT bag into SYSTEMD_USER_DIR; drop removed natives.
+# Args: wl_name prev_natives_file
+workload_unit_reconcile_natives() {
+  local wl_name="$1"
+  local prev_natives="$2"
+  local sot_dir="${WORKLOADS_ROOT}/${wl_name}/systemd"
+  local base ext still n
   local -a prev_bases=()
   local -a new_bases=()
-  local n still
 
   while IFS= read -r base; do
     [[ -n "${base}" ]] || continue
     prev_bases+=("${base}")
-  done <"${prev_drop}"
+  done <"${prev_natives}"
 
   while IFS= read -r base; do
     [[ -n "${base}" ]] || continue
+    ext="${base##*.}"
+    unit_ext_is_native "${ext}" || continue
     new_bases+=("${base}")
-  done < <(workload_quadlet_sot_basenames "${sot_dir}")
-
-  for base in "${new_bases[@]+"${new_bases[@]}"}"; do
-    workload_unit_refuse_foreign_basename "${wl_name}" "${base}" "${prev_owned}" || return 1
-  done
+  done < <(unit_bag_basenames "${sot_dir}")
 
   for base in "${prev_bases[@]+"${prev_bases[@]}"}"; do
     still=0
@@ -283,50 +297,58 @@ workload_unit_reconcile_consumer() {
       fi
     done
     if [[ "${still}" -eq 0 ]]; then
-      workload_unit_stop_basename "${consumer}" "${base}"
-      rm -f "${dest_dir}/${base}"
+      workload_unit_stop_basename "${base}"
+      rm -f "${SYSTEMD_USER_DIR}/${base}"
     fi
   done
 
   for base in "${new_bases[@]+"${new_bases[@]}"}"; do
-    install -m 0644 "${sot_dir}/${base}" "${dest_dir}/${base}"
+    install -m 0644 "${sot_dir}/${base}" "${SYSTEMD_USER_DIR}/${base}"
     if [[ -n "${USER_NAME:-}" ]]; then
-      chown "${USER_NAME}:${USER_NAME}" "${dest_dir}/${base}"
+      chown "${USER_NAME}:${USER_NAME}" "${SYSTEMD_USER_DIR}/${base}"
     fi
   done
 }
 
-# Reconcile both consumers after SoT sync.
-# Args: wl_name prev_owned_file prev_quadlets_file prev_systemd_file
-workload_unit_reconcile_dual() {
+# Reconcile Host install after SoT sync: farm symlink + native copies.
+# Args: wl_name prev_owned_file prev_natives_file
+workload_unit_reconcile() {
   local wl_name="$1"
   local prev_owned="$2"
-  local prev_quadlets="$3"
-  local prev_systemd="$4"
-  workload_unit_reconcile_consumer "${wl_name}" quadlets "$(unit_consumer_dest_dir quadlets)" "${prev_quadlets}" "${prev_owned}" || return 1
-  workload_unit_reconcile_consumer "${wl_name}" systemd "$(unit_consumer_dest_dir systemd)" "${prev_systemd}" "${prev_owned}" || return 1
+  local prev_natives="$3"
+  local base sot_dir="${WORKLOADS_ROOT}/${wl_name}/systemd"
+
+  while IFS= read -r base; do
+    [[ -n "${base}" ]] || continue
+    workload_unit_refuse_foreign_basename "${wl_name}" "${base}" "${prev_owned}" || return 1
+  done < <(unit_bag_basenames "${sot_dir}")
+
+  workload_unit_install_quadlet_farm "${wl_name}" || return 1
+  workload_unit_reconcile_natives "${wl_name}" "${prev_natives}" || return 1
 }
 
 # Apply Intent for one authored unit by kind (Workload-wide Intent; no partial Intent).
-# Args: consumer base sot_file intent
+# Args: base sot_file intent
 workload_unit_apply_basename_intent() {
-  local consumer="$1"
-  local base="$2"
-  local file="$3"
-  local intent="$4"
+  local base="$1"
+  local file="$2"
+  local intent="$3"
   local kind svc _
-  kind="$(workload_unit_kind "${consumer}" "${base}" "${file}")"
+  local ext="${base##*.}"
+  kind="$(workload_unit_kind "${base}" "${file}")"
   [[ -n "${kind}" ]] || return 0
 
-  case "${consumer}" in
-  quadlets) svc="$(workload_quadlet_service_name "${base}")" ;;
-  systemd) svc="$(workload_systemd_unit_name "${base}")" ;;
-  *) return 0 ;;
-  esac
+  if unit_ext_is_quadlet "${ext}"; then
+    svc="$(workload_quadlet_service_name "${base}")"
+  elif unit_ext_is_native "${ext}"; then
+    svc="$(workload_systemd_unit_name "${base}")"
+  else
+    return 0
+  fi
   [[ -n "${svc}" ]] || return 0
 
   # Always-on pod members: pod graph owns restart/stop; Setup drives the pod only.
-  if [[ "${kind}" == "always-on" && "${consumer}" == "quadlets" && "${base##*.}" == "container" ]] &&
+  if [[ "${kind}" == "always-on" && "${ext}" == "container" ]] &&
     workload_quadlet_container_has_pod_ref "${file}"; then
     return 0
   fi
@@ -346,7 +368,7 @@ workload_unit_apply_basename_intent() {
       quadlet_user systemctl --user --quiet is-active "${svc}"
       ;;
     on-demand)
-      case "${base##*.}" in
+      case "${ext}" in
       timer)
         quadlet_user systemctl --user enable --now "${svc}"
         ;;
@@ -369,7 +391,7 @@ workload_unit_apply_basename_intent() {
       quadlet_user systemctl --user stop "${svc}" 2>/dev/null || true
       ;;
     on-demand)
-      case "${base##*.}" in
+      case "${ext}" in
       timer)
         quadlet_user systemctl --user disable --now "${svc}" 2>/dev/null || true
         ;;
@@ -380,19 +402,19 @@ workload_unit_apply_basename_intent() {
       esac
       ;;
     ensure)
-      # Leave Ensure resources in place; unit files retained until Purge.
+      # Leave Ensure resources in place; unit files retained until Orphan Reap / Purge.
       :
       ;;
     esac
   fi
 }
 
-# Apply Intent across both consumers for the Workload's current SoT.
+# Apply Intent across the Workload's current systemd/ SoT.
 # Kind order: Ensure, then Always-on, then On-demand (Arm last).
 workload_unit_apply_intent() {
   local wl_name="$1"
   local intent="$2"
-  local base sot kind consumer
+  local base sot kind
   local -a ensure_args=()
   local -a always_args=()
   local -a ondemand_args=()
@@ -400,29 +422,27 @@ workload_unit_apply_intent() {
 
   workload_quadlet_validate_pod_refs "${wl_name}" || return 1
 
-  for consumer in quadlets systemd; do
-    sot="${WORKLOADS_ROOT}/${wl_name}/${consumer}"
-    while IFS= read -r base; do
-      [[ -n "${base}" ]] || continue
-      kind="$(workload_unit_kind "${consumer}" "${base}" "${sot}/${base}")"
-      case "${kind}" in
-      ensure) ensure_args+=("${consumer}" "${base}" "${sot}/${base}") ;;
-      always-on) always_args+=("${consumer}" "${base}" "${sot}/${base}") ;;
-      on-demand) ondemand_args+=("${consumer}" "${base}" "${sot}/${base}") ;;
-      esac
-    done < <(workload_quadlet_sot_basenames "${sot}")
-  done
+  sot="${WORKLOADS_ROOT}/${wl_name}/systemd"
+  while IFS= read -r base; do
+    [[ -n "${base}" ]] || continue
+    kind="$(workload_unit_kind "${base}" "${sot}/${base}")"
+    case "${kind}" in
+    ensure) ensure_args+=("${base}" "${sot}/${base}") ;;
+    always-on) always_args+=("${base}" "${sot}/${base}") ;;
+    on-demand) ondemand_args+=("${base}" "${sot}/${base}") ;;
+    esac
+  done < <(unit_bag_basenames "${sot}")
 
-  for ((i = 0; i < ${#ensure_args[@]}; i += 3)); do
+  for ((i = 0; i < ${#ensure_args[@]}; i += 2)); do
     workload_unit_apply_basename_intent \
-      "${ensure_args[i]}" "${ensure_args[i + 1]}" "${ensure_args[i + 2]}" "${intent}"
+      "${ensure_args[i]}" "${ensure_args[i + 1]}" "${intent}"
   done
-  for ((i = 0; i < ${#always_args[@]}; i += 3)); do
+  for ((i = 0; i < ${#always_args[@]}; i += 2)); do
     workload_unit_apply_basename_intent \
-      "${always_args[i]}" "${always_args[i + 1]}" "${always_args[i + 2]}" "${intent}"
+      "${always_args[i]}" "${always_args[i + 1]}" "${intent}"
   done
-  for ((i = 0; i < ${#ondemand_args[@]}; i += 3)); do
+  for ((i = 0; i < ${#ondemand_args[@]}; i += 2)); do
     workload_unit_apply_basename_intent \
-      "${ondemand_args[i]}" "${ondemand_args[i + 1]}" "${ondemand_args[i + 2]}" "${intent}"
+      "${ondemand_args[i]}" "${ondemand_args[i + 1]}" "${intent}"
   done
 }

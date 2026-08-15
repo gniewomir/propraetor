@@ -23,8 +23,8 @@ host_ssh \
    rm -rf /home/platform/.config/containers/systemd/${WL}*.container.d" \
   || true
 
-mkdir -p "${FIX_DIR}/${WL}/quadlets"
-cat >"${FIX_DIR}/${WL}/quadlets/${WL}.container" <<EOF
+mkdir -p "${FIX_DIR}/${WL}/systemd"
+cat >"${FIX_DIR}/${WL}/systemd/${WL}.container" <<EOF
 [Unit]
 Description=Propraetor Database Manifest allowlist probe
 

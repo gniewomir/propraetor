@@ -19,20 +19,20 @@ trap 'acceptance_wl_cleanup' EXIT
 
 [[ -d "${EXAMPLE_SRC}" ]] || fail "missing teaching example at environments/example/${WL}"
 acceptance_assert_artifact_tree "${EXAMPLE_SRC}" "example ${WL}"
-[[ -f "${EXAMPLE_SRC}/quadlets/${WL}.pod" ]] || fail "example missing soft-default pod ${WL}.pod"
-[[ -f "${EXAMPLE_SRC}/quadlets/${WL}-web.container" ]] \
+[[ -f "${EXAMPLE_SRC}/systemd/${WL}.pod" ]] || fail "example missing soft-default pod ${WL}.pod"
+[[ -f "${EXAMPLE_SRC}/systemd/${WL}-web.container" ]] \
   || fail "example missing member container ${WL}-web.container"
 
-grep -qE '^NetworkAlias=hello-service$' "${EXAMPLE_SRC}/quadlets/${WL}.pod" \
+grep -qE '^NetworkAlias=hello-service$' "${EXAMPLE_SRC}/systemd/${WL}.pod" \
   || fail "example pod must set NetworkAlias=${WL}"
-grep -qE '^Network=service-network\.network$' "${EXAMPLE_SRC}/quadlets/${WL}.pod" \
+grep -qE '^Network=service-network\.network$' "${EXAMPLE_SRC}/systemd/${WL}.pod" \
   || fail "example pod must join Service Network"
-grep -qE '^PublishPort=' "${EXAMPLE_SRC}/quadlets/${WL}.pod" \
+grep -qE '^PublishPort=' "${EXAMPLE_SRC}/systemd/${WL}.pod" \
   && fail "example pod must not PublishPort (soft: Workloads publish none)"
 grep -qE '^Volume=.*/workloads/hello-service:/var/lib/workload:rw$' \
-  "${EXAMPLE_SRC}/quadlets/${WL}-web.container" \
+  "${EXAMPLE_SRC}/systemd/${WL}-web.container" \
   || fail "example container must mount owned tree RW at /var/lib/workload"
-grep -qE '^PublishPort=' "${EXAMPLE_SRC}/quadlets/${WL}-web.container" \
+grep -qE '^PublishPort=' "${EXAMPLE_SRC}/systemd/${WL}-web.container" \
   && fail "example container must not PublishPort"
 
 rm -rf "${FIX_DIR:?}/${WL:?}"
@@ -54,13 +54,13 @@ REMOTE
 "${REPO_ROOT}/internals/ensure-workload.sh" "${WL}" --env "${PLATFORM_ENV:-test}"
 
 host_ssh \
-  "test -f /host-volume/workloads/${WL}/quadlets/${WL}.pod" \
+  "test -f /host-volume/workloads/${WL}/systemd/${WL}.pod" \
   || fail "Setup should store authored pod SoT"
 host_ssh \
   "test -f /home/platform/.config/containers/systemd/${WL}.pod" \
   || fail "Setup should install authored pod unit"
 host_ssh \
-  "test -f /home/platform/.config/containers/systemd/${WL}-web.container" \
+  "test -f /home/platform/.config/containers/systemd/workload-${WL}/${WL}-web.container" \
   || fail "Setup should install authored member container"
 pass "example hello-service Setups cleanly (SoT + Host units)"
 

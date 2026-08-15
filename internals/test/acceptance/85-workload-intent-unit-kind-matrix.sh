@@ -16,7 +16,7 @@ mkdir -p "${FIX_DIR}"
 acceptance_wl_track "${WL}"
 trap 'acceptance_wl_cleanup' EXIT
 
-mkdir -p "${FIX_DIR}/${WL}/quadlets" "${FIX_DIR}/${WL}/systemd"
+mkdir -p "${FIX_DIR}/${WL}/systemd" "${FIX_DIR}/${WL}/systemd"
 acceptance_write_artifact_stubs "${FIX_DIR}/${WL}"
 
 write_manifest() {
@@ -30,7 +30,7 @@ EOF
 }
 
 # Always-on long-running container.
-cat >"${FIX_DIR}/${WL}/quadlets/${WL}.container" <<EOF
+cat >"${FIX_DIR}/${WL}/systemd/${WL}.container" <<EOF
 [Unit]
 Description=Propraetor kind-matrix Always-on
 
@@ -47,7 +47,7 @@ WantedBy=default.target
 EOF
 
 # On-demand Quadlet job: StartWithPod=false is On-demand, not Always-on.
-cat >"${FIX_DIR}/${WL}/quadlets/${WL}-batch.container" <<EOF
+cat >"${FIX_DIR}/${WL}/systemd/${WL}-batch.container" <<EOF
 [Unit]
 Description=Propraetor kind-matrix On-demand job container
 
@@ -65,7 +65,7 @@ WantedBy=default.target
 EOF
 
 # Ensure volume — provisioned on run; left in place on stop/trash.
-cat >"${FIX_DIR}/${WL}/quadlets/${WL}-data.volume" <<EOF
+cat >"${FIX_DIR}/${WL}/systemd/${WL}-data.volume" <<EOF
 [Volume]
 VolumeName=${WL}-data
 EOF
@@ -142,7 +142,8 @@ runuser -u platform -- env XDG_RUNTIME_DIR=\$XDG_RUNTIME_DIR \
 runuser -u platform -- env XDG_RUNTIME_DIR=\$XDG_RUNTIME_DIR \
   systemctl --user reset-failed ${WL}-data-volume.service 2>/dev/null || true
 rm -rf /host-volume/workloads/${WL}
-rm -f /home/platform/.config/containers/systemd/${WL}.container \
+rm -f /home/platform/.config/containers/systemd/workload-${WL} \
+  /home/platform/.config/containers/systemd/${WL}.container \
   /home/platform/.config/containers/systemd/${WL}-batch.container \
   /home/platform/.config/containers/systemd/${WL}-data.volume \
   /home/platform/.config/systemd/user/${WL}-tick.service \
@@ -158,11 +159,11 @@ REMOTE
 write_manifest run
 "${REPO_ROOT}/internals/ensure-workload.sh" "${WL}" --env "${PLATFORM_ENV:-test}"
 
-host_ssh "test -f /home/platform/.config/containers/systemd/${WL}.container" \
+host_ssh "test -L /home/platform/.config/containers/systemd/workload-${WL}" \
   || fail "Always-on unit file missing after run"
-host_ssh "test -f /home/platform/.config/containers/systemd/${WL}-batch.container" \
+host_ssh "test -f /home/platform/.config/containers/systemd/workload-${WL}/${WL}-batch.container" \
   || fail "On-demand job container unit file missing after run"
-host_ssh "test -f /home/platform/.config/containers/systemd/${WL}-data.volume" \
+host_ssh "test -f /home/platform/.config/containers/systemd/workload-${WL}/${WL}-data.volume" \
   || fail "Ensure volume unit file missing after run"
 host_ssh "test -f /home/platform/.config/systemd/user/${WL}-tick.timer" \
   || fail "On-demand timer unit file missing after run"
@@ -209,7 +210,7 @@ timer_active="$(unit_state "${WL}-tick.timer" ActiveState)"
   || fail "Intent stop should leave Disarmed timer inactive (ActiveState=${timer_active})"
 pass "Intent stop Disarms On-demand timer and job"
 
-host_ssh "test -f /home/platform/.config/containers/systemd/${WL}-data.volume" \
+host_ssh "test -f /home/platform/.config/containers/systemd/workload-${WL}/${WL}-data.volume" \
   || fail "Intent stop must retain Ensure unit file until Purge"
 vol_exists="$(volume_exists)"
 [[ "${vol_exists}" == "yes" ]] \
@@ -229,7 +230,7 @@ batch_active="$(unit_state "${WL}-batch.service" ActiveState)"
 timer_enabled="$(unit_state "${WL}-tick.timer" UnitFileState)"
 [[ "${timer_enabled}" != "enabled" ]] \
   || fail "Intent trash should Disarm On-demand timer (UnitFileState=${timer_enabled})"
-host_ssh "test -f /home/platform/.config/containers/systemd/${WL}-data.volume" \
+host_ssh "test -f /home/platform/.config/containers/systemd/workload-${WL}/${WL}-data.volume" \
   || fail "Intent trash must retain Ensure unit file until Purge"
 vol_exists="$(volume_exists)"
 [[ "${vol_exists}" == "yes" ]] \

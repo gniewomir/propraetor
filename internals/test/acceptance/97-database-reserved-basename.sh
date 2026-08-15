@@ -17,11 +17,11 @@ acceptance_wl_track "${WL}"
 err="$(mktemp "${TMPDIR:-/tmp}/platform-database-basename.XXXXXX")"
 trap 'rm -f "${err}"; acceptance_wl_cleanup' EXIT
 
-mkdir -p "${FIX_DIR}/${WL}/quadlets"
+mkdir -p "${FIX_DIR}/${WL}/systemd"
 cat >"${FIX_DIR}/${WL}/manifest.json" <<'EOF'
 { "intent": "run", "source": "internal" }
 EOF
-cat >"${FIX_DIR}/${WL}/quadlets/${WL}.container" <<'EOF'
+cat >"${FIX_DIR}/${WL}/systemd/${WL}.container" <<'EOF'
 [Unit]
 Description=must not install — basename reserved
 

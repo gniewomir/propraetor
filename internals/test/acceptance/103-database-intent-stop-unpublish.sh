@@ -35,10 +35,10 @@ write_manifest() {
 EOF
 }
 
-mkdir -p "${FIX_DIR}/${WL}/quadlets"
+mkdir -p "${FIX_DIR}/${WL}/systemd"
 write_manifest run
 acceptance_write_database_claim "${FIX_DIR}/${WL}"
-cat >"${FIX_DIR}/${WL}/quadlets/${WL}.container" <<EOF
+cat >"${FIX_DIR}/${WL}/systemd/${WL}.container" <<EOF
 [Unit]
 Description=Propraetor Database Intent stop probe
 

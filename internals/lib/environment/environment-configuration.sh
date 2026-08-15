@@ -124,7 +124,7 @@ environment_configuration_prepare() {
   resolve_out="$(environment_configuration_resolve \
     "${binding}" "${requires}" "${env_dir}" "${outfile}")" || return 1
   eval "${resolve_out}"
-  # Zip Environment trees have no Artifact quadlets; Host gates after materialize.
+  # Zip Environment trees have no Artifact systemd units; Host gates after materialize.
   if [[ -n "${requires}" ]]; then
     environment_configuration_require_containers "${tree}" "${WL_ENV_ACTIVE}" || return 1
   fi

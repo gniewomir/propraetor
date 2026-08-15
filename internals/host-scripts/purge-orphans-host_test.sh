@@ -56,13 +56,13 @@ export PATH="${TMP}/bin:${PATH}"
 
 # Host: keep-me (in Environment) + orphan (absent) + durable Persist for both
 mkdir -p \
-  "${HV}/workloads/keep-me/quadlets" \
-  "${HV}/workloads/orphan-gone/quadlets" \
+  "${HV}/workloads/keep-me/systemd" \
+  "${HV}/workloads/orphan-gone/systemd" \
   "${HV}/workloads/keep-me/persist" \
   "${HV}/workloads/orphan-gone/persist"
 printf '{"intent":"run"}\n' >"${HV}/workloads/keep-me/manifest.json"
 printf '{"intent":"run"}\n' >"${HV}/workloads/orphan-gone/manifest.json"
-printf 'unit\n' >"${HV}/workloads/orphan-gone/quadlets/orphan.container"
+printf 'unit\n' >"${HV}/workloads/orphan-gone/systemd/orphan.container"
 printf 'keep-data\n' >"${HV}/workloads/keep-me/persist/state.bin"
 printf 'orphan-data\n' >"${HV}/workloads/orphan-gone/persist/state.bin"
 

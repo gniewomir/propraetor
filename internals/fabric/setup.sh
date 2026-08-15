@@ -17,9 +17,11 @@ source "$(host_volume_host_scripts_root)/lib/component-units-host.sh"
 
 quadlet_user_session_begin
 
-component_units_install "${SRC}"
+component_units_install "${SRC}" fabric
 chown -R "${USER_NAME}:${USER_NAME}" "${HOME_DIR}/.config"
 
 quadlet_user_session_reload
 
-[[ -f "${UNIT_DIR}/service-network.network" ]]
+# Quadlet farm: UNIT_DIR/fabric → Host Volume fabric/systemd (ADR-0054).
+[[ -L "${UNIT_DIR}/fabric" ]]
+[[ -f "${UNIT_DIR}/fabric/service-network.network" ]]

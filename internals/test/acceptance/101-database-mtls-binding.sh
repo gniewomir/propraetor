@@ -23,7 +23,7 @@ host_ssh \
    rm -rf /home/platform/.config/containers/systemd/${WL}*.container.d" \
   || true
 
-mkdir -p "${FIX_DIR}/${WL}/quadlets"
+mkdir -p "${FIX_DIR}/${WL}/systemd"
 cat >"${FIX_DIR}/${WL}/manifest.json" <<'EOF'
 {
   "intent": "run",
@@ -32,7 +32,7 @@ cat >"${FIX_DIR}/${WL}/manifest.json" <<'EOF'
 }
 EOF
 acceptance_write_database_claim "${FIX_DIR}/${WL}"
-cat >"${FIX_DIR}/${WL}/quadlets/${WL}.container" <<EOF
+cat >"${FIX_DIR}/${WL}/systemd/${WL}.container" <<EOF
 [Unit]
 Description=Propraetor Database mTLS probe
 

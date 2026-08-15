@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Offline tests: Component dual-consumer unit install (#130 / ADR-0034 / ADR-0010).
+# Offline tests: Component unified systemd/ install + Quadlet dir symlink farm (ADR-0054 / #216).
 # Ambient UNIT_DIR, SYSTEMD_USER_DIR, USER_NAME → temp dirs (no SSH / live Host).
 set -euo pipefail
 
@@ -21,63 +21,62 @@ mkdir -p "${UNIT_DIR}" "${SYSTEMD_USER_DIR}"
 
 reset_tree() {
   rm -rf "${TREE}" "${UNIT_DIR}" "${SYSTEMD_USER_DIR}"
-  mkdir -p "${UNIT_DIR}" "${SYSTEMD_USER_DIR}" "${TREE}/quadlets" "${TREE}/systemd"
+  mkdir -p "${UNIT_DIR}" "${SYSTEMD_USER_DIR}" "${TREE}/systemd"
 }
 
-# --- wrong-folder: native unit under quadlets/ fails closed ---
+# --- retired quadlets/ fails closed ---
 reset_tree
-printf '[Timer]\nOnCalendar=daily\n' >"${TREE}/quadlets/bad.timer"
-if component_units_install "${TREE}" 2>/dev/null; then
-  fail "expected fail-closed for timer authored under quadlets/"
+mkdir -p "${TREE}/quadlets"
+printf '[Network]\nNetworkName=x\n' >"${TREE}/systemd/ok.network"
+if component_units_install "${TREE}" component demo 2>/dev/null; then
+  fail "expected fail-closed when retired quadlets/ is present"
 fi
-[[ ! -f "${UNIT_DIR}/bad.timer" ]] || fail "wrong-folder must not install into UNIT_DIR"
-[[ ! -f "${SYSTEMD_USER_DIR}/bad.timer" ]] || fail "wrong-folder must not install into SYSTEMD_USER_DIR"
-pass "wrong-folder: timer under quadlets/ fails closed"
+pass "retired quadlets/ fails closed"
 
-# --- wrong-folder: Quadlet under systemd/ fails closed ---
+# --- unsupported extension fails closed ---
 reset_tree
-printf '[Container]\nImage=localhost/x\n' >"${TREE}/systemd/bad.container"
-if component_units_install "${TREE}" 2>/dev/null; then
-  fail "expected fail-closed for container authored under systemd/"
+printf 'nope\n' >"${TREE}/systemd/bad.txt"
+if component_units_install "${TREE}" component demo 2>/dev/null; then
+  fail "expected fail-closed for unsupported extension"
 fi
-[[ ! -f "${UNIT_DIR}/bad.container" ]] || fail "wrong-folder must not install into UNIT_DIR"
-[[ ! -f "${SYSTEMD_USER_DIR}/bad.container" ]] || fail "wrong-folder must not install into SYSTEMD_USER_DIR"
-pass "wrong-folder: container under systemd/ fails closed"
+pass "unsupported extension fails closed"
 
-# --- install maps quadlets/ → UNIT_DIR and systemd/ → SYSTEMD_USER_DIR ---
-reset_tree
-printf '[Network]\nNetworkName=demo\n' >"${TREE}/quadlets/demo.network"
-printf '[Pod]\nPodName=demo\n' >"${TREE}/quadlets/demo.pod"
-printf '[Service]\nType=oneshot\nExecStart=/bin/true\n' >"${TREE}/systemd/demo.service"
-printf '[Timer]\nOnCalendar=daily\n' >"${TREE}/systemd/demo.timer"
-component_units_install "${TREE}" || fail "install should succeed for correctly authored dual consumers"
-[[ -f "${UNIT_DIR}/demo.network" ]] || fail "expected demo.network in UNIT_DIR"
-[[ -f "${UNIT_DIR}/demo.pod" ]] || fail "expected demo.pod in UNIT_DIR"
-[[ -f "${SYSTEMD_USER_DIR}/demo.service" ]] || fail "expected demo.service in SYSTEMD_USER_DIR"
-[[ -f "${SYSTEMD_USER_DIR}/demo.timer" ]] || fail "expected demo.timer in SYSTEMD_USER_DIR"
-[[ ! -f "${SYSTEMD_USER_DIR}/demo.network" ]] || fail "network must not land in SYSTEMD_USER_DIR"
-[[ ! -f "${UNIT_DIR}/demo.service" ]] || fail "service must not land in UNIT_DIR"
-grep -Fq 'NetworkName=demo' "${UNIT_DIR}/demo.network" || fail "installed Quadlet must keep authored bytes"
-grep -Fq 'Type=oneshot' "${SYSTEMD_USER_DIR}/demo.service" || fail "installed systemd unit must keep authored bytes"
-pass "install maps quadlets/ → UNIT_DIR and systemd/ → SYSTEMD_USER_DIR"
-
-# --- missing/empty consumer dirs are valid ---
+# --- empty/missing systemd/ fails closed (≥1 unit) ---
 rm -rf "${TREE}" "${UNIT_DIR}" "${SYSTEMD_USER_DIR}"
 mkdir -p "${UNIT_DIR}" "${SYSTEMD_USER_DIR}" "${TREE}"
-component_units_install "${TREE}" || fail "missing consumer dirs should be valid"
-mkdir -p "${TREE}/quadlets" "${TREE}/systemd"
-component_units_install "${TREE}" || fail "empty consumer dirs should be valid"
-[[ -z "$(ls -A "${UNIT_DIR}" 2>/dev/null || true)" ]] || fail "empty tree must not invent Quadlet units"
-[[ -z "$(ls -A "${SYSTEMD_USER_DIR}" 2>/dev/null || true)" ]] || fail "empty tree must not invent systemd units"
-pass "missing/empty quadlets/ and systemd/ are valid"
+if component_units_install "${TREE}" component demo 2>/dev/null; then
+  fail "missing systemd/ must fail"
+fi
+mkdir -p "${TREE}/systemd"
+if component_units_install "${TREE}" component demo 2>/dev/null; then
+  fail "empty systemd/ must fail"
+fi
+pass "missing/empty systemd/ fails closed"
 
-# --- only quadlets/ (Service Network shape) installs without systemd/ ---
+# --- install: dir symlink farm for Quadlets + native copies ---
 reset_tree
-rm -rf "${TREE}/systemd"
-printf '[Network]\nNetworkName=service-network\n' >"${TREE}/quadlets/service-network.network"
-component_units_install "${TREE}" || fail "quadlets-only Component should install"
-[[ -f "${UNIT_DIR}/service-network.network" ]] || fail "expected service-network.network installed"
-[[ -z "$(ls -A "${SYSTEMD_USER_DIR}" 2>/dev/null || true)" ]] || fail "quadlets-only must not invent systemd units"
-pass "quadlets-only Component installs without systemd/"
+printf '[Network]\nNetworkName=demo\n' >"${TREE}/systemd/demo.network"
+printf '[Pod]\nPodName=demo\n' >"${TREE}/systemd/demo.pod"
+printf '[Service]\nType=oneshot\nExecStart=/bin/true\n' >"${TREE}/systemd/demo.service"
+printf '[Timer]\nOnCalendar=daily\n' >"${TREE}/systemd/demo.timer"
+component_units_install "${TREE}" component demo || fail "install should succeed"
+[[ -L "${UNIT_DIR}/component-demo" ]] || fail "expected directory symlink farm entry"
+[[ "$(readlink "${UNIT_DIR}/component-demo")" == "${TREE}/systemd" ]] \
+  || fail "farm symlink must target owner systemd/"
+[[ -f "${UNIT_DIR}/component-demo/demo.network" ]] || fail "Quadlet visible via farm"
+[[ -f "${SYSTEMD_USER_DIR}/demo.service" ]] || fail "expected native service copy"
+[[ -f "${SYSTEMD_USER_DIR}/demo.timer" ]] || fail "expected native timer copy"
+[[ ! -f "${UNIT_DIR}/demo.network" ]] || fail "must not copy Quadlets flat into UNIT_DIR"
+[[ ! -L "${UNIT_DIR}/demo.network" ]] || fail "must not create per-file Quadlet symlinks"
+[[ ! -f "${SYSTEMD_USER_DIR}/demo.network" ]] || fail "network must not land in SYSTEMD_USER_DIR"
+pass "install uses dir symlink farm + native copies"
+
+# --- Fabric farm id ---
+reset_tree
+printf '[Network]\nNetworkName=service-network\n' >"${TREE}/systemd/service-network.network"
+component_units_install "${TREE}" fabric || fail "fabric install should succeed"
+[[ -L "${UNIT_DIR}/fabric" ]] || fail "expected fabric farm symlink"
+[[ -f "${UNIT_DIR}/fabric/service-network.network" ]] || fail "fabric unit via farm"
+pass "fabric kind uses farm id fabric"
 
 echo "All component-units-host offline tests passed."

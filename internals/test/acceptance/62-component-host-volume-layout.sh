@@ -51,10 +51,9 @@ must_be_dir "${COMPONENTS_ROOT}/edge"
 must_be_dir "${COMPONENTS_ROOT}/database"
 must_be_dir "${WORKLOADS_SOT_ROOT}"
 must_be_dir "${HOST_SCRIPTS_ROOT}/lib"
-must_be_dir "${FABRIC_ROOT}/quadlets"
-must_be_dir "${COMPONENTS_ROOT}/edge/quadlets"
+must_be_dir "${FABRIC_ROOT}/systemd"
 must_be_dir "${COMPONENTS_ROOT}/edge/systemd"
-must_be_dir "${COMPONENTS_ROOT}/database/quadlets"
+must_be_dir "${COMPONENTS_ROOT}/database/systemd"
 must_be_file "${COMPONENTS_ROOT}/edge/nginx.conf"
 must_be_file "${COMPONENTS_ROOT}/edge/domain-template.conf"
 must_be_file "${FABRIC_ROOT}/setup.sh"
@@ -65,13 +64,13 @@ must_be_file "${COMPONENTS_ROOT}/database/post-workloads.sh"
 must_be_file "${COMPONENTS_ROOT}/database/entrypoint.sh"
 must_not_exist "${COMPONENTS_ROOT}/edge/setup.sh"
 must_not_exist "${COMPONENTS_ROOT}/database/setup.sh"
-must_be_file "${FABRIC_ROOT}/quadlets/service-network.network"
-must_be_file "${COMPONENTS_ROOT}/edge/quadlets/edge.pod"
-must_be_file "${COMPONENTS_ROOT}/edge/quadlets/edge-nginx.container"
+must_be_file "${FABRIC_ROOT}/systemd/service-network.network"
+must_be_file "${COMPONENTS_ROOT}/edge/systemd/edge.pod"
+must_be_file "${COMPONENTS_ROOT}/edge/systemd/edge-nginx.container"
 must_be_file "${COMPONENTS_ROOT}/edge/systemd/edge-acme.service"
 must_be_file "${COMPONENTS_ROOT}/edge/systemd/edge-acme.timer"
-must_be_file "${COMPONENTS_ROOT}/database/quadlets/database.pod"
-must_be_file "${COMPONENTS_ROOT}/database/quadlets/database-postgres.container"
+must_be_file "${COMPONENTS_ROOT}/database/systemd/database.pod"
+must_be_file "${COMPONENTS_ROOT}/database/systemd/database-postgres.container"
 must_be_file "${HOST_SCRIPTS_ROOT}/lib/quadlet-user-session.sh"
 must_be_file "${HOST_SCRIPTS_ROOT}/lib/edge-routes-host.sh"
 must_be_file "${HOST_SCRIPTS_ROOT}/lib/edge-want-list-host.sh"
@@ -112,13 +111,12 @@ must_not_exist "${COMPONENTS_ROOT}/edge/acme"
 
 for path in \
   "${FABRIC_ROOT}" \
-  "${FABRIC_ROOT}/quadlets" \
+  "${FABRIC_ROOT}/systemd" \
   "${COMPONENTS_ROOT}" \
   "${COMPONENTS_ROOT}/edge" \
-  "${COMPONENTS_ROOT}/edge/quadlets" \
   "${COMPONENTS_ROOT}/edge/systemd" \
   "${COMPONENTS_ROOT}/database" \
-  "${COMPONENTS_ROOT}/database/quadlets" \
+  "${COMPONENTS_ROOT}/database/systemd" \
   "${WORKLOADS_SOT_ROOT}" \
   "${HOST_SCRIPTS_ROOT}" \
   "${HOST_SCRIPTS_ROOT}/lib" \

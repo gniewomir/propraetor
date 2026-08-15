@@ -20,14 +20,14 @@ trap 'acceptance_wl_cleanup' EXIT
 
 [[ -d "${EXAMPLE_SRC}" ]] || fail "missing teaching example at environments/example/${WL}"
 acceptance_assert_artifact_tree "${EXAMPLE_SRC}" "example ${WL}"
-[[ -f "${EXAMPLE_SRC}/quadlets/${WL}-${ROLE}.container" ]] \
+[[ -f "${EXAMPLE_SRC}/systemd/${WL}-${ROLE}.container" ]] \
   || fail "example missing On-demand job ${WL}-${ROLE}.container"
 [[ -f "${EXAMPLE_SRC}/systemd/${WL}-${ROLE}.timer" ]] \
   || fail "example missing On-demand timer ${WL}-${ROLE}.timer"
 
-grep -qE '^StartWithPod=false$' "${EXAMPLE_SRC}/quadlets/${WL}-${ROLE}.container" \
+grep -qE '^StartWithPod=false$' "${EXAMPLE_SRC}/systemd/${WL}-${ROLE}.container" \
   || fail "example job container must set StartWithPod=false (On-demand, not Always-on)"
-grep -qE '^PublishPort=' "${EXAMPLE_SRC}/quadlets/${WL}-${ROLE}.container" \
+grep -qE '^PublishPort=' "${EXAMPLE_SRC}/systemd/${WL}-${ROLE}.container" \
   && fail "example job container must not PublishPort (soft: Workloads publish none)"
 grep -qE "^Unit=${WL}-${ROLE}\\.service$" "${EXAMPLE_SRC}/systemd/${WL}-${ROLE}.timer" \
   || fail "example timer must target shared-stem job service ${WL}-${ROLE}.service"
@@ -35,7 +35,7 @@ grep -qE '^WantedBy=timers\.target$' "${EXAMPLE_SRC}/systemd/${WL}-${ROLE}.timer
   || fail "example timer must WantedBy=timers.target"
 
 # Soft basename habit: timer/job family shares role stem; no Escape Hatch units.
-for path in "${EXAMPLE_SRC}/quadlets"/* "${EXAMPLE_SRC}/systemd"/*; do
+for path in "${EXAMPLE_SRC}/systemd"/*; do
   [[ -e "${path}" ]] || continue
   base="$(basename "${path}")"
   case "${base}" in
@@ -79,7 +79,8 @@ runuser -u platform -- env XDG_RUNTIME_DIR=\$XDG_RUNTIME_DIR \
 runuser -u platform -- env XDG_RUNTIME_DIR=\$XDG_RUNTIME_DIR \
   systemctl --user disable --now ${WL}-${ROLE}.timer 2>/dev/null || true
 rm -rf /host-volume/workloads/${WL}
-rm -f /home/platform/.config/containers/systemd/${WL}-${ROLE}.container \
+rm -f /home/platform/.config/containers/systemd/workload-${WL} \
+  /home/platform/.config/containers/systemd/${WL}-${ROLE}.container \
   /home/platform/.config/systemd/user/${WL}-${ROLE}.timer \
   /home/platform/.config/systemd/user/timers.target.wants/${WL}-${ROLE}.timer
 runuser -u platform -- env XDG_RUNTIME_DIR=\$XDG_RUNTIME_DIR systemctl --user daemon-reload
@@ -90,13 +91,13 @@ write_manifest run
 "${REPO_ROOT}/internals/ensure-workload.sh" "${WL}" --env "${PLATFORM_ENV:-test}"
 
 host_ssh \
-  "test -f /host-volume/workloads/${WL}/quadlets/${WL}-${ROLE}.container" \
+  "test -f /host-volume/workloads/${WL}/systemd/${WL}-${ROLE}.container" \
   || fail "Setup should store authored job container SoT"
 host_ssh \
   "test -f /host-volume/workloads/${WL}/systemd/${WL}-${ROLE}.timer" \
   || fail "Setup should store authored timer SoT"
 host_ssh \
-  "test -f /home/platform/.config/containers/systemd/${WL}-${ROLE}.container" \
+  "test -f /home/platform/.config/containers/systemd/workload-${WL}/${WL}-${ROLE}.container" \
   || fail "Setup should install authored job container"
 host_ssh \
   "test -f /home/platform/.config/systemd/user/${WL}-${ROLE}.timer" \

@@ -42,8 +42,8 @@ write_container() {
   local dir="$1"
   local base="$2"
   local cname="$3"
-  mkdir -p "${dir}/quadlets"
-  cat >"${dir}/quadlets/${base}.container" <<EOF
+  mkdir -p "${dir}/systemd"
+  cat >"${dir}/systemd/${base}.container" <<EOF
 [Unit]
 Description=Propraetor Environment Configuration probe ${base}
 
@@ -98,7 +98,7 @@ write_empty_env_contract() {
 }
 
 # --- allowlist: Source required; environment is retired; unknown keys still rejected ---
-mkdir -p "${FIX_DIR}/${WL}/quadlets"
+mkdir -p "${FIX_DIR}/${WL}/systemd"
 printf 'ENVCFG_TOKEN=x\nENVCFG_MODE=y\n' >"${ENV_FILE}"
 cat >"${FIX_DIR}/${WL}/manifest.json" <<'EOF'
 {
@@ -132,7 +132,7 @@ write_thin_manifest "${FIX_DIR}/${WL_NC}"
 write_env_remap "${FIX_DIR}/${WL_NC}"
 printf 'ENVCFG_TOKEN=x\nENVCFG_MODE=y\n' >"${ENV_FILE}"
 if "${REPO_ROOT}/internals/ensure-workload.sh" "${WL_NC}" --env "${ENV_SLUG}" >/dev/null 2>&1; then
-  fail "non-empty Requires environment without quadlets/*.container must fail closed"
+  fail "non-empty Requires environment without systemd/*.container must fail closed"
 fi
 pass "non-empty Requires environment without .container fails closed"
 
@@ -215,7 +215,7 @@ acceptance_assert_container_env "${WL}" APP_MODE rotated
 pass "SoT noop refreshes Environment Configuration in container process env"
 
 # --- multiple .container units share one Environment Configuration ---
-mkdir -p "${FIX_DIR}/${WL2}/quadlets"
+mkdir -p "${FIX_DIR}/${WL2}/systemd"
 write_thin_manifest "${FIX_DIR}/${WL2}"
 cat >"${FIX_DIR}/${WL2}/requires.json" <<'EOF'
 {

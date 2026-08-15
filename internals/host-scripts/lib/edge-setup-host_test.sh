@@ -143,14 +143,16 @@ quadlet_user_session_reload() {
 }
 
 # Minimal Component tree (nginx.conf + domain front template + acme-run + optional units).
-TREE="${TMP}/edge-tree"
-mkdir -p "${TREE}/quadlets" "${TREE}/systemd"
+TREE="${TMP}/edge"
+mkdir -p "${TREE}/systemd"
 printf 'worker_processes 1;\n' >"${TREE}/nginx.conf"
 cp "${REPO_ROOT}/internals/components/edge/domain-template.conf" \
   "${TREE}/domain-template.conf"
 printf '#!/usr/bin/env bash\nexit 0\n' >"${TREE}/acme-run.sh"
 chmod a+x "${TREE}/acme-run.sh"
-printf '[Container]\nImage=docker.io/library/nginx:1.31.3-alpine\n' >"${TREE}/quadlets/edge-nginx.container"
+printf '[Container]\nImage=docker.io/library/nginx:1.31.3-alpine\n' >"${TREE}/systemd/edge-nginx.container"
+printf '[Service]\nType=oneshot\nExecStart=/bin/true\n' >"${TREE}/systemd/edge-acme.service"
+printf '[Timer]\nOnCalendar=daily\n' >"${TREE}/systemd/edge-acme.timer"
 
 # Ambient Edge data root (Host Volume substitute).
 DATA_ROOT="${TMP}/edge-data"
@@ -192,8 +194,12 @@ grep -Fxq 'EDGE_ACME_DIRECTORY=staging' "${ACME_ENV_FILE}" \
 [[ -f "${DATA_ROOT}/certs/alpha.example.test/privkey.pem" ]] \
   || fail "expected placeholder privkey for alpha"
 
-[[ -f "${UNIT_DIR}/edge-nginx.container" ]] \
-  || fail "expected Component quadlet installed under UNIT_DIR"
+[[ -L "${UNIT_DIR}/component-edge" ]] \
+  || fail "expected Component Quadlet farm symlink"
+[[ -f "${UNIT_DIR}/component-edge/edge-nginx.container" ]] \
+  || fail "expected Component quadlet visible via farm"
+[[ -f "${SYSTEMD_USER_DIR}/edge-acme.timer" ]] \
+  || fail "expected native ACME timer copied into user systemd"
 
 grep -Fq 'restart edge-pod.service' "${STATE}/systemctl.calls" \
   || fail "expected edge-pod restart"

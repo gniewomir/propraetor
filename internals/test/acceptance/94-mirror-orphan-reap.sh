@@ -16,7 +16,7 @@ trap 'acceptance_wl_cleanup' EXIT
 
 stage_wl() {
   local name="$1"
-  mkdir -p "${FIX_DIR}/${name}/quadlets"
+  mkdir -p "${FIX_DIR}/${name}/systemd"
   acceptance_write_artifact_stubs "${FIX_DIR}/${name}"
   cat >"${FIX_DIR}/${name}/manifest.json" <<EOF
 {
@@ -24,7 +24,7 @@ stage_wl() {
   "source": "internal"
 }
 EOF
-  cat >"${FIX_DIR}/${name}/quadlets/${name}.container" <<EOF
+  cat >"${FIX_DIR}/${name}/systemd/${name}.container" <<EOF
 [Unit]
 Description=Propraetor Workload ${name}
 
@@ -45,7 +45,7 @@ host_ssh bash -s <<'REMOTE'
 set -euo pipefail
 for n in keep-alive gone-soon; do
   rm -rf "/host-volume/workloads/${n}"
-  rm -f "/home/platform/.config/containers/systemd/${n}.container"
+  rm -f "/home/platform/.config/containers/systemd/workload-${n}" "/home/platform/.config/containers/systemd/${n}.container"
   rm -rf "/home/platform/.config/containers/systemd/${n}.container.d"
 done
 REMOTE
@@ -61,7 +61,7 @@ host_ssh "mkdir -p /host-volume/workloads/gone-soon/persist && \
 
 host_ssh "test -f /host-volume/workloads/gone-soon/manifest.json" \
   || fail "gone-soon should be on Host before orphaning"
-host_ssh "test -f /home/platform/.config/containers/systemd/gone-soon.container" \
+host_ssh "test -L /home/platform/.config/containers/systemd/workload-gone-soon" \
   || fail "gone-soon unit should be installed before orphaning"
 
 # Drop from Environment → Host leftover becomes an orphan
@@ -91,7 +91,7 @@ pass "Mirror upserts Environment Workloads and leaves orphans alone"
 
 host_ssh "test ! -e /host-volume/workloads/gone-soon" \
   || fail "Orphan Reap must remove orphan owner tree (SoT + Persist)"
-host_ssh "test ! -e /home/platform/.config/containers/systemd/gone-soon.container" \
+host_ssh "test ! -e /home/platform/.config/containers/systemd/workload-gone-soon" \
   || fail "Orphan Reap must remove orphan unit file"
 host_ssh "test -f /host-volume/workloads/keep-alive/manifest.json" \
   || fail "Orphan Reap must leave Environment Workloads alone"

@@ -29,7 +29,7 @@ REMOTE
 
 stage_wl() {
   local name="$1"
-  mkdir -p "${FIX_DIR}/${name}/quadlets"
+  mkdir -p "${FIX_DIR}/${name}/systemd"
   cat >"${FIX_DIR}/${name}/manifest.json" <<EOF
 {
   "intent": "run",
@@ -37,7 +37,7 @@ stage_wl() {
   "description": "Database Orphan Reap drop probe"
 }
 EOF
-  cat >"${FIX_DIR}/${name}/quadlets/${name}.container" <<EOF
+  cat >"${FIX_DIR}/${name}/systemd/${name}.container" <<EOF
 [Unit]
 Description=Propraetor Database Orphan Reap probe ${name}
 

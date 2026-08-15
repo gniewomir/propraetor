@@ -23,14 +23,14 @@ USER_NAME=""
 WL=alpha
 
 mkdir -p "${HOME_DIR}" "${UNIT_DIR}" \
-  "${WORKLOADS_ROOT}/${WL}/quadlets" \
+  "${WORKLOADS_ROOT}/${WL}/systemd" \
   "${DATA_ROOT}/ca" \
   "${DATA_ROOT}/clients/${WL}"
 printf 'CA\n' >"${DATA_ROOT}/ca/ca.crt"
 printf 'CERT\n' >"${DATA_ROOT}/clients/${WL}/client.crt"
 printf 'KEY\n' >"${DATA_ROOT}/clients/${WL}/client.key"
 printf '[Container]\nImage=localhost/demo\n' \
-  >"${WORKLOADS_ROOT}/${WL}/quadlets/${WL}.container"
+  >"${WORKLOADS_ROOT}/${WL}/systemd/${WL}.container"
 
 database_publish_binding "${WL}" || fail "publish should succeed"
 

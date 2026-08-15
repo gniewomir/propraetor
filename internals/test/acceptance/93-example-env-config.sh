@@ -26,8 +26,8 @@ trap 'rm -f "${ENV_FILE}"; acceptance_wl_cleanup' EXIT
 
 [[ -d "${EXAMPLE_SRC}" ]] || fail "missing teaching example at environments/example/${WL}"
 acceptance_assert_artifact_tree "${EXAMPLE_SRC}" "example ${WL}"
-[[ -f "${EXAMPLE_SRC}/quadlets/${WL}.pod" ]] || fail "example missing soft-default pod ${WL}.pod"
-[[ -f "${EXAMPLE_SRC}/quadlets/${WL}-${ROLE}.container" ]] \
+[[ -f "${EXAMPLE_SRC}/systemd/${WL}.pod" ]] || fail "example missing soft-default pod ${WL}.pod"
+[[ -f "${EXAMPLE_SRC}/systemd/${WL}-${ROLE}.container" ]] \
   || fail "example missing member container ${WL}-${ROLE}.container"
 [[ -f "${EXAMPLE_DOTENV}" ]] || fail "missing environments/example/.env.example"
 
@@ -53,16 +53,16 @@ grep -qE '^EXAMPLE_GREETING=' "${EXAMPLE_DOTENV}" \
 grep -qE '^EXAMPLE_MODE=' "${EXAMPLE_DOTENV}" \
   || fail ".env.example must document EXAMPLE_MODE="
 
-grep -qE '^NetworkAlias=env-config$' "${EXAMPLE_SRC}/quadlets/${WL}.pod" \
+grep -qE '^NetworkAlias=env-config$' "${EXAMPLE_SRC}/systemd/${WL}.pod" \
   || fail "example pod must set NetworkAlias=${WL}"
-grep -qE '^Network=service-network\.network$' "${EXAMPLE_SRC}/quadlets/${WL}.pod" \
+grep -qE '^Network=service-network\.network$' "${EXAMPLE_SRC}/systemd/${WL}.pod" \
   || fail "example pod must join Service Network"
-grep -qE '^PublishPort=' "${EXAMPLE_SRC}/quadlets/${WL}.pod" \
+grep -qE '^PublishPort=' "${EXAMPLE_SRC}/systemd/${WL}.pod" \
   && fail "example pod must not PublishPort"
 grep -qE '^Volume=.*/workloads/env-config:/var/lib/workload:rw$' \
-  "${EXAMPLE_SRC}/quadlets/${WL}-${ROLE}.container" \
+  "${EXAMPLE_SRC}/systemd/${WL}-${ROLE}.container" \
   || fail "example container must mount owned tree RW at /var/lib/workload"
-grep -qE '^PublishPort=' "${EXAMPLE_SRC}/quadlets/${WL}-${ROLE}.container" \
+grep -qE '^PublishPort=' "${EXAMPLE_SRC}/systemd/${WL}-${ROLE}.container" \
   && fail "example container must not PublishPort"
 
 rm -rf "${FIX_DIR:?}/${WL:?}"
@@ -81,7 +81,8 @@ runuser -u platform -- env XDG_RUNTIME_DIR=\$XDG_RUNTIME_DIR \
   systemctl --user stop ${WL}-pod.service ${WL}-${ROLE}.service 2>/dev/null || true
 rm -rf /host-volume/workloads/${WL} \
   /home/platform/.config/platform/workloads/${WL}
-rm -f /home/platform/.config/containers/systemd/${WL}.pod \
+rm -f /home/platform/.config/containers/systemd/workload-${WL} \
+  /home/platform/.config/containers/systemd/${WL}.pod \
   /home/platform/.config/containers/systemd/${WL}-${ROLE}.container
 rm -rf /home/platform/.config/containers/systemd/${WL}-${ROLE}.container.d
 runuser -u platform -- env XDG_RUNTIME_DIR=\$XDG_RUNTIME_DIR systemctl --user daemon-reload

@@ -25,10 +25,10 @@ USER_NAME="offline-test-user"
 WL_NAME="demo"
 RESOLVED="${TMP}/resolved.env"
 
-mkdir -p "${HOME_DIR}" "${UNIT_DIR}" "${WORKLOADS_ROOT}/${WL_NAME}/quadlets"
+mkdir -p "${HOME_DIR}" "${UNIT_DIR}" "${WORKLOADS_ROOT}/${WL_NAME}/systemd"
 printf 'A=from-resolved\nB=also\n' >"${RESOLVED}"
-printf '[Container]\nImage=localhost/demo\n' >"${WORKLOADS_ROOT}/${WL_NAME}/quadlets/app.container"
-printf '[Container]\nImage=localhost/demo-worker\n' >"${WORKLOADS_ROOT}/${WL_NAME}/quadlets/worker.container"
+printf '[Container]\nImage=localhost/demo\n' >"${WORKLOADS_ROOT}/${WL_NAME}/systemd/app.container"
+printf '[Container]\nImage=localhost/demo-worker\n' >"${WORKLOADS_ROOT}/${WL_NAME}/systemd/worker.container"
 
 # --- install: EnvironmentFile + Setup drop-ins for each SoT *.container ---
 environment_configuration_install_host "${WL_NAME}" "${RESOLVED}" \
@@ -67,15 +67,15 @@ pass "clear on empty/omit"
 rm -rf "$(dirname "${env_path}")"
 
 # --- install with no SoT *.container still writes EnvironmentFile (gate is prepare's job) ---
-rm -f "${WORKLOADS_ROOT}/${WL_NAME}/quadlets"/*.container
+rm -f "${WORKLOADS_ROOT}/${WL_NAME}/systemd"/*.container
 environment_configuration_install_host "${WL_NAME}" "${RESOLVED}" \
   || fail "install without containers should still place EnvironmentFile"
 [[ -f "${env_path}" ]] || fail "EnvironmentFile should exist without containers"
 pass "install without containers places EnvironmentFile (gate elsewhere)"
 
 # --- Purge-style clear ---
-mkdir -p "${WORKLOADS_ROOT}/${WL_NAME}/quadlets"
-printf '[Container]\nImage=localhost/demo\n' >"${WORKLOADS_ROOT}/${WL_NAME}/quadlets/app.container"
+mkdir -p "${WORKLOADS_ROOT}/${WL_NAME}/systemd"
+printf '[Container]\nImage=localhost/demo\n' >"${WORKLOADS_ROOT}/${WL_NAME}/systemd/app.container"
 environment_configuration_install_host "${WL_NAME}" "${RESOLVED}" \
   || fail "re-install before Purge clear should succeed"
 [[ -f "${env_path}" ]] || fail "EnvironmentFile should exist before Purge clear"
@@ -108,11 +108,11 @@ EOF
 if environment_configuration_fulfill_materialized "${MAT}" >/dev/null 2>&1; then
   fail "non-empty Requires environment without .container must fail closed"
 fi
-mkdir -p "${MAT}/quadlets"
-touch "${MAT}/quadlets/app.container"
+mkdir -p "${MAT}/systemd"
+touch "${MAT}/systemd/app.container"
 environment_configuration_fulfill_materialized "${MAT}" \
   || fail "full-fulfill with .container must pass"
-pass "fulfill non-empty Requires requires materialized quadlets"
+pass "fulfill non-empty Requires requires materialized systemd units"
 
 cat >"${MAT}/binding.json" <<'EOF'
 { "environment": {} }

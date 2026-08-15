@@ -16,7 +16,7 @@ trap 'acceptance_wl_cleanup' EXIT
 
 ROUTE_FQDN="$(acceptance_route_fqdn)"
 
-mkdir -p "${FIX_DIR}/alpha/quadlets"
+mkdir -p "${FIX_DIR}/alpha/systemd"
 acceptance_write_artifact_stubs "${FIX_DIR}/alpha"
 cat >"${FIX_DIR}/alpha/manifest.json" <<'EOF'
 {
@@ -24,6 +24,21 @@ cat >"${FIX_DIR}/alpha/manifest.json" <<'EOF'
   "description": "alpha probe — ignored by automation",
   "source": "internal"
 }
+EOF
+cat >"${FIX_DIR}/alpha/systemd/alpha-probe.container" <<'EOF'
+[Unit]
+Description=alpha probe container
+
+[Container]
+Image=docker.io/library/nginx:1.31.3-alpine
+ContainerName=alpha-probe
+Network=service-network.network
+
+[Service]
+Restart=on-failure
+
+[Install]
+WantedBy=default.target
 EOF
 if [[ -n "${ROUTE_FQDN}" ]]; then
   mkdir -p "${FIX_DIR}/alpha/routes"
@@ -94,7 +109,7 @@ cat >"${FIX_DIR}/retired-db/manifest.json" <<'EOF'
 }
 EOF
 
-mkdir -p "${FIX_DIR}/zero"
+mkdir -p "${FIX_DIR}/zero/systemd"
 acceptance_write_artifact_stubs "${FIX_DIR}/zero"
 cat >"${FIX_DIR}/zero/manifest.json" <<'EOF'
 {
@@ -102,8 +117,23 @@ cat >"${FIX_DIR}/zero/manifest.json" <<'EOF'
   "source": "internal"
 }
 EOF
+cat >"${FIX_DIR}/zero/systemd/zero-probe.container" <<'EOF'
+[Unit]
+Description=zero routes probe
 
-mkdir -p "${FIX_DIR}/clash/quadlets"
+[Container]
+Image=docker.io/library/nginx:1.31.3-alpine
+ContainerName=zero-probe
+Network=service-network.network
+
+[Service]
+Restart=on-failure
+
+[Install]
+WantedBy=default.target
+EOF
+
+mkdir -p "${FIX_DIR}/clash/systemd"
 acceptance_write_artifact_stubs "${FIX_DIR}/clash"
 cat >"${FIX_DIR}/clash/manifest.json" <<'EOF'
 {
@@ -112,7 +142,7 @@ cat >"${FIX_DIR}/clash/manifest.json" <<'EOF'
 }
 EOF
 # Collide with Component unit basename already on the Host.
-cat >"${FIX_DIR}/clash/quadlets/edge-nginx.container" <<'EOF'
+cat >"${FIX_DIR}/clash/systemd/edge-nginx.container" <<'EOF'
 [Unit]
 Description=clash should fail
 
@@ -128,7 +158,7 @@ Restart=on-failure
 WantedBy=default.target
 EOF
 
-mkdir -p "${FIX_DIR}/owner-a/quadlets" "${FIX_DIR}/owner-b/quadlets"
+mkdir -p "${FIX_DIR}/owner-a/systemd" "${FIX_DIR}/owner-b/systemd"
 acceptance_write_artifact_stubs "${FIX_DIR}/owner-a"
 acceptance_write_artifact_stubs "${FIX_DIR}/owner-b"
 cat >"${FIX_DIR}/owner-a/manifest.json" <<'EOF'
@@ -137,7 +167,7 @@ EOF
 cat >"${FIX_DIR}/owner-b/manifest.json" <<'EOF'
 { "intent": "run", "source": "internal" }
 EOF
-cat >"${FIX_DIR}/owner-a/quadlets/shared-name.container" <<'EOF'
+cat >"${FIX_DIR}/owner-a/systemd/shared-name.container" <<'EOF'
 [Unit]
 Description=owner-a claims shared-name
 
@@ -152,7 +182,7 @@ Restart=on-failure
 [Install]
 WantedBy=default.target
 EOF
-cp "${FIX_DIR}/owner-a/quadlets/shared-name.container" "${FIX_DIR}/owner-b/quadlets/shared-name.container"
+cp "${FIX_DIR}/owner-a/systemd/shared-name.container" "${FIX_DIR}/owner-b/systemd/shared-name.container"
 
 # Snapshot Domain want-list (must not change across Workload Setup).
 want_before="$(host_ssh \
@@ -172,7 +202,13 @@ host_ssh \
           /host-volume/workloads/clash \
           /host-volume/workloads/owner-a \
           /host-volume/workloads/owner-b; \
-   rm -f /home/platform/.config/containers/systemd/alpha.container \
+   rm -f /home/platform/.config/containers/systemd/workload-alpha \
+         /home/platform/.config/containers/systemd/workload-zero \
+         /home/platform/.config/containers/systemd/workload-legacy \
+         /home/platform/.config/containers/systemd/workload-owner-a \
+         /home/platform/.config/containers/systemd/workload-owner-b \
+         /home/platform/.config/containers/systemd/workload-clash \
+         /home/platform/.config/containers/systemd/alpha.container \
          /home/platform/.config/containers/systemd/zero.container \
          /home/platform/.config/containers/systemd/legacy.container \
          /home/platform/.config/containers/systemd/shared-name.container"
@@ -206,11 +242,15 @@ fi
 
 ! host_ssh "test -f /host-volume/workloads/alpha/interior.conf" \
   || fail "interior.conf must not be stored"
-# No Propraetor-minted Quadlet when quadlets/ is empty.
-alpha_units="$(host_ssh \
-  "ls /home/platform/.config/containers/systemd/alpha.container 2>/dev/null || true")"
-[[ -z "${alpha_units}" ]] || fail "empty quadlets/ must not invent a Quadlet (got: ${alpha_units})"
-pass "thin Manifest; no invented Quadlet"
+host_ssh "test -L /home/platform/.config/containers/systemd/workload-alpha" \
+  || fail "expected workload-alpha Quadlet farm symlink"
+host_ssh "test -f /home/platform/.config/containers/systemd/workload-alpha/alpha-probe.container" \
+  || fail "alpha probe unit missing via farm"
+host_ssh "test ! -e /home/platform/.config/containers/systemd/alpha.container" \
+  || fail "must not invent flat alpha.container under UNIT_DIR"
+host_ssh "test ! -e /home/platform/.config/containers/systemd/alpha-probe.container" \
+  || fail "must not flat-copy Quadlet into UNIT_DIR"
+pass "thin Manifest; Quadlet farm install (no flat UNIT_DIR copies)"
 
 want_after="$(host_ssh \
   "cat /host-volume/components/edge/persist/acme/want-list 2>/dev/null || true")"

@@ -16,7 +16,7 @@ mkdir -p "${FIX_DIR}"
 acceptance_wl_track "${WL}"
 trap 'acceptance_wl_cleanup' EXIT
 
-mkdir -p "${FIX_DIR}/${WL}/quadlets"
+mkdir -p "${FIX_DIR}/${WL}/systemd"
 acceptance_write_artifact_stubs "${FIX_DIR}/${WL}"
 if [[ -n "${HOST}" ]]; then
   mkdir -p "${FIX_DIR}/${WL}/routes"
@@ -39,7 +39,7 @@ location = /app-route-probe {
 EOF
   acceptance_bind_route_fragment "${FIX_DIR}/${WL}" "routes/probe.conf" "${HOST}"
 fi
-cat >"${FIX_DIR}/${WL}/quadlets/${WL}.container" <<EOF
+cat >"${FIX_DIR}/${WL}/systemd/${WL}.container" <<EOF
 [Unit]
 Description=Propraetor Workload ${WL}
 
@@ -60,16 +60,16 @@ want_before="$(host_ssh \
 
 host_ssh \
   "rm -rf /host-volume/workloads/${WL}; \
-   rm -f /home/platform/.config/containers/systemd/${WL}.container"
+   rm -f /home/platform/.config/containers/systemd/workload-${WL} /home/platform/.config/containers/systemd/${WL}.container"
 
 write_manifest run
 "${REPO_ROOT}/internals/ensure-workload.sh" "${WL}" --env "${PLATFORM_ENV:-test}"
 
 host_ssh \
-  "test -f /host-volume/workloads/${WL}/quadlets/${WL}.container" \
+  "test -f /host-volume/workloads/${WL}/systemd/${WL}.container" \
   || fail "Intent run should store authored Quadlet SoT"
 host_ssh \
-  "test -f /home/platform/.config/containers/systemd/${WL}.container" \
+  "test -f /home/platform/.config/containers/systemd/workload-${WL}/${WL}.container" \
   || fail "Intent run should install authored Quadlet unit file"
 pass "Intent run installs authored Quadlet"
 
@@ -104,7 +104,7 @@ if [[ -n "${HOST}" ]]; then
 fi
 
 host_ssh \
-  "test -f /home/platform/.config/containers/systemd/${WL}.container" \
+  "test -f /home/platform/.config/containers/systemd/workload-${WL}/${WL}.container" \
   || fail "Intent stop should retain unit file until Purge"
 active="$(host_ssh bash -s <<REMOTE
 UID_NUM=\$(id -u platform)

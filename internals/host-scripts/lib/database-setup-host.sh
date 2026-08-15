@@ -102,7 +102,7 @@ database_setup() {
   database_tls_ensure || return 1
   database_write_auth_conf || return 1
 
-  component_units_install "${component_tree}" || return 1
+  component_units_install "${component_tree}" component "$(basename "${component_tree}")" || return 1
   [[ -f "${component_tree}/entrypoint.sh" ]] || {
     echo "Database entrypoint.sh missing at ${component_tree}/entrypoint.sh" >&2
     return 1

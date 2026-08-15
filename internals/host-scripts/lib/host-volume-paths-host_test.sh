@@ -33,6 +33,12 @@ unset HV_ROOT || true
   || fail "default workload Persist wrong"
 [[ "$(host_volume_component_persist database)" == "/host-volume/components/database/persist" ]] \
   || fail "default component Persist wrong"
+[[ "$(host_volume_workload_systemd panel)" == "/host-volume/workloads/panel/systemd" ]] \
+  || fail "default workload systemd wrong"
+[[ "$(host_volume_component_systemd edge)" == "/host-volume/components/edge/systemd" ]] \
+  || fail "default component systemd wrong"
+[[ "$(host_volume_fabric_systemd)" == "/host-volume/fabric/systemd" ]] \
+  || fail "default fabric systemd wrong"
 pass "defaults resolve to ADR-0054 Host Volume paths"
 
 # --- HV_ROOT override relocates the whole vocabulary ---
@@ -50,6 +56,10 @@ export HV_ROOT="${TMP}/hv"
   || fail "HV_ROOT workload Persist"
 [[ "$(host_volume_component_persist edge)" == "${HV_ROOT}/components/edge/persist" ]] \
   || fail "HV_ROOT component Persist"
+[[ "$(host_volume_workload_systemd hello)" == "${HV_ROOT}/workloads/hello/systemd" ]] \
+  || fail "HV_ROOT workload systemd"
+[[ "$(host_volume_fabric_systemd)" == "${HV_ROOT}/fabric/systemd" ]] \
+  || fail "HV_ROOT fabric systemd"
 pass "HV_ROOT overrides all Host Volume path helpers"
 
 # --- owner args are required (fail closed) ---
@@ -64,6 +74,12 @@ if host_volume_workload_persist 2>/dev/null; then
 fi
 if host_volume_component_persist 2>/dev/null; then
   fail "component_persist must require a name"
+fi
+if host_volume_workload_systemd 2>/dev/null; then
+  fail "workload_systemd must require a basename"
+fi
+if host_volume_component_systemd 2>/dev/null; then
+  fail "component_systemd must require a name"
 fi
 pass "owner-scoped helpers fail closed without args"
 
