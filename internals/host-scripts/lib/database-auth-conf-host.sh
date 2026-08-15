@@ -42,7 +42,7 @@ EOF
 }
 
 # Rewrite pg_ident map rows from basenames in file (Intent-run claimants only).
-# Non-claimants are omitted so Intent stop/trash unpublish clears live map rows (#190).
+# Non-claimants are omitted so Intent stop unpublish clears live map rows (#190).
 database_write_pg_ident_file() {
   local path="${1:?database_write_pg_ident_file: path required}"
   local conf_dir="${DATA_ROOT}/conf"

@@ -204,7 +204,7 @@ _edge_installed_route_workload_name() {
 }
 
 # Gather Route Declarations from Binding × Provides and fulfill into Edge interior.
-# Intent run → validate want-list and install; stop/trash → drop that Workload's fulfillment.
+# Intent run → validate want-list and install; stop → drop that Workload's fulfillment.
 # Missing Binding/Provides → do not fulfill. Workloads missing from SoT leave orphan Edge
 # installs, which are removed.
 # Args: workloads_root (defaults to ambient WORKLOADS_ROOT).

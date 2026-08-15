@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Deploy ladder orchestrator — Fabric → Mirror → Orphan Reap → Component Setup
-# (pre-workloads) → Workloads → Purge → Component Setup (post-workloads).
-# Composes Host ensure/purge cogs for CI and Acceptance; root deploy.sh invokes this after
-# IHP Done. Does not run Stack Apply. ADR-0041 / ADR-0043 / #181.
+# (pre-workloads) → Workloads → Component Setup (post-workloads).
+# Composes Host ensure/purge-orphans cogs for CI and Acceptance; root deploy.sh invokes this after
+# IHP Done. Does not run Stack Apply. ADR-0041 / ADR-0043 / ADR-0054 / #217.
 # Environment: omitted / --env default|test → workspace default; --env <slug> otherwise (ADR-0019).
 # Usage: ./internals/ensure.sh [--env <slug>]
 # Optional: PLATFORM_USER=platform (forwarded by child cogs).
@@ -34,7 +34,6 @@ ENV_FLAG=(--env "${PLATFORM_ENV}")
 "${REPO_ROOT}/internals/purge-orphans.sh" "${ENV_FLAG[@]}"
 "${REPO_ROOT}/internals/ensure-components.sh" pre-workloads "${ENV_FLAG[@]}"
 "${REPO_ROOT}/internals/ensure-workloads.sh" "${ENV_FLAG[@]}"
-"${REPO_ROOT}/internals/purge-trash.sh" "${ENV_FLAG[@]}"
 "${REPO_ROOT}/internals/ensure-components.sh" post-workloads "${ENV_FLAG[@]}"
 
 echo "Deploy ladder finished for Environment '${PLATFORM_ENV}'."

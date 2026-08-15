@@ -5,7 +5,7 @@
 # dial name `database`, idle allowed with zero Workload claimants.
 # pre-workloads also gathers Intent-run Requires database:true Declarations and
 # publishes passwordless mTLS bindings (#189); non-claimants are unpublished (#190).
-# post-workloads drops role/db/client material for Purge/Orphan-absent basenames (#191).
+# post-workloads drops role/db/client material for Orphan-absent basenames (#191).
 #
 # Ambient (optional overrides for offline tests):
 #   USER_NAME, DATA_ROOT, WORKLOADS_ROOT
@@ -153,7 +153,7 @@ database_setup_pre_workloads() {
   database_fulfill_declarations || return 1
 }
 
-# post-workloads: standing ensure + drop Purge/Orphan-absent fulfillments (#191).
+# post-workloads: standing ensure + drop Orphan-absent fulfillments (#191).
 database_setup_post_workloads() {
   local component_tree="${1:?database_setup_post_workloads: component tree required}"
   local staged_admin_env="${2:-}"

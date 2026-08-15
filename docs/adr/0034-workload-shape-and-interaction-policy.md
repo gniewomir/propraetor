@@ -8,7 +8,7 @@ Propraetor needed a single architectural stance for how a Workload is shaped and
 
 **Hard floor.** Only the Edge publishes Host ports 80/443. There is **no Escape Hatch** for colliding with that Host shape.
 
-**Escape Hatches (soft surfaces only).** Not joining the Service Network; mounting any Host Volume path outside the owned `internals/` / `data/` trees for that basename; publishing any non-80/443 Host port. Possible but unsupported — not taught, scaffolded, or Acceptance-tested; ownership/Setup/Purge stay on the default contract.
+**Escape Hatches (soft surfaces only).** Not joining the Service Network; mounting any Host Volume path outside the owned `internals/` / `data/` trees for that basename; publishing any non-80/443 Host port. Possible but unsupported — not taught, scaffolded, or Acceptance-tested; ownership/Setup/Orphan Reap stay on the default contract.
 
 **Unit kinds under Intent.** Always-on / On-demand / Ensure classified by authored file kind; Intent stays Workload-wide. Soft unit basenames: default pod `<workload>.pod`; every other unit `<workload>-<role>.…`; related families share a role stem.
 

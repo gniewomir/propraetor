@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Acceptance Test: environments/example scheduled-job teaching Workload (#104 / ADR-0034).
 # Materializes the committed example into the active Environment, Setups it, and asserts
-# On-demand timer + job family Armed on Intent run and Disarmed on stop / trash.
+# On-demand timer + job family Armed on Intent run and Disarmed on stop.
 set -euo pipefail
 # shellcheck source=lib.sh
 source "$(cd "$(dirname "$0")" && pwd)/lib.sh"
@@ -131,18 +131,3 @@ timer_active="$(unit_state "${WL}-${ROLE}.timer" ActiveState)"
 [[ "${timer_active}" != "active" ]] \
   || fail "Intent stop should leave Disarmed timer inactive (ActiveState=${timer_active})"
 pass "Intent stop Disarms On-demand timer and job"
-
-# --- Intent trash: same Disarm expectation ---
-write_manifest trash
-"${REPO_ROOT}/internals/ensure-workload.sh" "${WL}" --env "${PLATFORM_ENV:-test}"
-
-job_active="$(unit_state "${WL}-${ROLE}.service" ActiveState)"
-[[ "${job_active}" != "active" ]] \
-  || fail "Intent trash should Disarm On-demand job (ActiveState=${job_active})"
-timer_enabled="$(unit_state "${WL}-${ROLE}.timer" UnitFileState)"
-[[ "${timer_enabled}" != "enabled" ]] \
-  || fail "Intent trash should Disarm On-demand timer (UnitFileState=${timer_enabled})"
-timer_active="$(unit_state "${WL}-${ROLE}.timer" ActiveState)"
-[[ "${timer_active}" != "active" ]] \
-  || fail "Intent trash should leave Disarmed timer inactive (ActiveState=${timer_active})"
-pass "Intent trash Disarms On-demand timer and job"

@@ -6,7 +6,7 @@ Day-to-day operator surface stays at the repo root; project wiring moves under b
 
 - **Root operator entrypoints** (high-level operations on the Environment / platform as a whole): `apply.sh`, `park.sh`, `teardown.sh`, `ssh.sh`, `database.sh` (Database admin console — ADR-0049), the unified test dispatcher `test.sh` (ADR-0036), and **`deploy.sh`** (Substrate → Deployed — ADR-0041). Diagnostics, lint, and the ensure/purge cogs are not root entrypoints — they are internals that `deploy.sh` / `ensure.sh` compose. Scoped power (one Workload, one Component) belongs as options on platform-level entrypoints later, not as separate root scripts.
 - **Root declarations and docs:** `environments/` (Environment intent — ADR-0033), `docs/`, and root `*.md` stay at root. Dotdirs stay at root.
-- **`internals/`:** Stack (`terraform/`), operator-machine helpers (`lib/` — not shipped beside Host Workload mirrors), Host ship surfaces (`fabric/`, `components/`, `host-scripts/`), test suites under `test/<suite>/` (ADR-0036), and a **flat** glanceable list of non-root operations (`diagnostics.sh`, `lint-*.sh`, `ensure-*.sh`, `purge-orphans.sh`, `purge-trash.sh`, … — ADR-0041). Host copy tars must not share a tree with Stack/docs/tests/operator `lib/`.
+- **`internals/`:** Stack (`terraform/`), operator-machine helpers (`lib/` — not shipped beside Host Workload mirrors), Host ship surfaces (`fabric/`, `components/`, `host-scripts/`), test suites under `test/<suite>/` (ADR-0036), and a **flat** glanceable list of non-root operations (`diagnostics.sh`, `lint-*.sh`, `ensure-*.sh`, `purge-orphans.sh`, … — ADR-0041 / ADR-0054). Host copy tars must not share a tree with Stack/docs/tests/operator `lib/`.
 - **Rejected:** nesting internals under a project-brand directory (`prefect/`, later `propraetor/`); leaving today’s brand-named folder as both Component ship surface and junk drawer; root clutter of every runnable script; naming the Host mount or repo internals folder from the carrier metaphor.
 
 **Host-local function names** (same cut as the layout move; not the Propraetor brand rename)
@@ -26,3 +26,5 @@ Day-to-day operator surface stays at the repo root; project wiring moves under b
 **Provider-visible names:** Cloud Project, Propraetor Tag / Role Tag, and other account-unique resource name prefixes are Propraetor-derived per ADR-0027. Host paths/user remain **function-named**, not brand-Propraetor.
 
 **Builds on:** ADR-0010 (Host Volume layout — paths update), ADR-0018, ADR-0019 (Environment / `--env`), ADR-0027 (amended: Host-local ≠ brand), ADR-0036 (`./test.sh` and `internals/test/`).
+
+**Amended by ADR-0054 / #217:** `purge-trash` removed from the flat internals surface.

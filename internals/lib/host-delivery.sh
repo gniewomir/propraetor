@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Host delivery on Host-session: ship a local stage directory to a Host path, then run a command.
-# Sourced by operator entrypoints (Purge, Workload Setup, ensure-fabric, ensure-components). Requires ssh.sh.
+# Sourced by operator entrypoints (Orphan Reap, Workload Setup, ensure-fabric, ensure-components). Requires ssh.sh.
 # Public interface:
 #   host_delivery_run STAGE REMOTE_ROOT REMOTE_CMD
 #     Replace REMOTE_ROOT on the ambient Host-session with STAGE contents (ustar), then host_ssh REMOTE_CMD.

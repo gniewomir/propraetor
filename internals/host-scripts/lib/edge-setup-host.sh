@@ -116,7 +116,7 @@ edge_setup() {
   fi
 
   # Route Declarations: gather Intent-run Binding×Provides into Edge interior
-  # (ADR-0040 / ADR-0041 / ADR-0053). Workload Setup/Purge do not write Edge routes.
+  # (ADR-0040 / ADR-0041 / ADR-0053). Workload Setup / Orphan Reap do not write Edge routes.
   WORKLOADS_ROOT="${WORKLOADS_ROOT:-$(host_volume_workloads_sot_root)}"
   local routes_changed=0
   if [[ "${skip_gather}" == "1" ]]; then

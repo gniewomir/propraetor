@@ -138,15 +138,15 @@ grep -Fq 'location /b' "${ROUTES_DIR}/beta--alpha.example.test.conf" \
   || fail "beta fulfilled Route must keep Provides fragment bytes"
 pass "gather-all fulfills Intent-run Binding×Provides Routes across Workloads"
 
-# --- gather Intent filter: stop and trash drop fulfillment ---
+# --- gather Intent filter: stop drops fulfillment ---
 printf '%s\n' '{"intent":"stop"}' >"${WL_ROOT}/alpha/manifest.json"
-printf '%s\n' '{"intent":"trash"}' >"${WL_ROOT}/beta/manifest.json"
+printf '%s\n' '{"intent":"run"}' >"${WL_ROOT}/beta/manifest.json"
 edge_gather_workload_routes "${WL_ROOT}"
 [[ ! -f "${ROUTES_DIR}/alpha--alpha.example.test.conf" ]] \
   || fail "gather must drop fulfillment for Intent stop"
-[[ ! -f "${ROUTES_DIR}/beta--alpha.example.test.conf" ]] \
-  || fail "gather must drop fulfillment for Intent trash"
-pass "gather drops fulfillment for Intent stop and trash"
+[[ -f "${ROUTES_DIR}/beta--alpha.example.test.conf" ]] \
+  || fail "gather must keep fulfillment for Intent run"
+pass "gather drops fulfillment for Intent stop; keeps run"
 
 # --- gather restores run and removes orphan Edge installs (SoT gone) ---
 printf '%s\n' '{"intent":"run"}' >"${WL_ROOT}/alpha/manifest.json"

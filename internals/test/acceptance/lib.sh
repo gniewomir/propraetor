@@ -523,7 +523,7 @@ PY
 }
 
 # Re-run Component Setup post-workloads so Edge gathers Route Declarations (ADR-0043).
-# Workload Setup / Purge sync SoT only; fulfillment refreshes on Edge Component Setup.
+# Workload Setup / Orphan Reap sync SoT only; fulfillment refreshes on Edge Component Setup.
 ensure_edge_route_fulfillment() {
   [[ -n "${REPO_ROOT:-}" ]] || fail "ensure_edge_route_fulfillment: REPO_ROOT required"
   "${REPO_ROOT}/internals/ensure-components.sh" post-workloads --env "${PLATFORM_ENV:-test}"
@@ -536,8 +536,8 @@ ensure_database_fulfillment() {
   "${REPO_ROOT}/internals/ensure-components.sh" pre-workloads --env "${PLATFORM_ENV:-test}"
 }
 
-# Re-run Component Setup post-workloads so Database drops Purge/Orphan fulfillment (ADR-0049 / #191).
-# Purge / Orphan Reap remove SoT only; role/db/client drop is Database Component Setup.
+# Re-run Component Setup post-workloads so Database drops Orphan fulfillment (ADR-0049 / #191).
+# Orphan Reap removes SoT only; role/db/client drop is Database Component Setup.
 ensure_database_post_workloads() {
   [[ -n "${REPO_ROOT:-}" ]] || fail "ensure_database_post_workloads: REPO_ROOT required"
   "${REPO_ROOT}/internals/ensure-components.sh" post-workloads --env "${PLATFORM_ENV:-test}"

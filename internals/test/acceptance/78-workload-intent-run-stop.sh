@@ -105,7 +105,7 @@ fi
 
 host_ssh \
   "test -f /home/platform/.config/containers/systemd/workload-${WL}/${WL}.container" \
-  || fail "Intent stop should retain unit file until Purge"
+  || fail "Intent stop should retain unit file until Orphan Reap"
 active="$(host_ssh bash -s <<REMOTE
 UID_NUM=\$(id -u platform)
 export XDG_RUNTIME_DIR=/run/user/\${UID_NUM}

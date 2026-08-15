@@ -153,8 +153,8 @@ REMOTE
   || fail "hello-service must not publish Host ports (PortBindings=${ports_json})"
 pass "Workload publishes no Host ports"
 
-# Leave Intent trash so Purge-friendly; local tree cleaned by trap.
+# Leave Intent stop; local tree cleaned by trap.
 cat >"${FIX_DIR}/${WL}/manifest.json" <<'EOF'
-{ "intent": "trash", "source": "internal" }
+{ "intent": "stop", "source": "internal" }
 EOF
 "${REPO_ROOT}/internals/ensure-workload.sh" "${WL}" --env "${PLATFORM_ENV:-test}"

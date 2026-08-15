@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Environment Configuration module for Workload Setup / Purge (ADR-0035 / ADR-0053 / #201).
+# Environment Configuration module for Workload Setup / Orphan Reap (ADR-0035 / ADR-0053 / #201).
 # Sourced by Workload Setup and offline tests — not an operator entrypoint.
 #
 # Public interface (one outcome chain — install or clear):
@@ -11,7 +11,7 @@
 #   environment_configuration_apply_resolved WL_NAME RESOLVED_SRC
 #     Host half: empty/unset → clear EnvironmentFile/drop-ins; else install from RESOLVED_SRC.
 #   environment_configuration_clear WL_NAME
-#     Purge clear path (same Host half as apply_resolved with empty src).
+#     Orphan Reap clear path (same Host half as apply_resolved with empty src).
 #
 # Offline tests exercise stage_for_setup → apply_resolved (REMOTE_ROOT may be the local
 # STAGE so WL_ENV_RESOLVED_REMOTE is a local path). prepare / install_host are internals.

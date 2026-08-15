@@ -142,20 +142,3 @@ pass "Workload Setup fails closed on unsupported systemd/ extension"
 reject_setup "native systemd basename vs Edge" "clash-sys" \
   "edge-acme|already exists|not owned"
 pass "Workload Setup refuses basename spanning Host unit directories (clash with Edge timer)"
-
-# Purge still works for Intent trash (#217 retires product path later).
-cat >"${FIX_DIR}/unified-ok/manifest.json" <<'EOF'
-{ "intent": "trash", "source": "internal" }
-EOF
-"${REPO_ROOT}/internals/ensure-workload.sh" "unified-ok" --env "${PLATFORM_ENV:-test}"
-"${REPO_ROOT}/internals/purge-trash.sh" --env "${PLATFORM_ENV:-test}"
-
-host_ssh "test ! -e /host-volume/workloads/unified-ok" \
-  || fail "Purge should remove unified-ok Host Volume tree"
-host_ssh "test ! -e /home/platform/.config/containers/systemd/workload-unified-ok" \
-  || fail "Purge should remove unified-ok farm symlink"
-host_ssh "test ! -e /home/platform/.config/systemd/user/unified-ok-probe.service" \
-  || fail "Purge should remove unified-ok native service"
-host_ssh "test ! -e /home/platform/.config/systemd/user/unified-ok-probe.timer" \
-  || fail "Purge should remove unified-ok native timer"
-pass "Purge removes farm symlink, natives, and Host Volume tree"

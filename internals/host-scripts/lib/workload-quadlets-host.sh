@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Workload unified systemd/ unit SoT helpers (sourced by Workload Setup / Purge).
+# Workload unified systemd/ unit SoT helpers (sourced by Workload Setup / Orphan Reap).
 # Expects after quadlet_user_session_begin: UNIT_DIR, SYSTEMD_USER_DIR, WORKLOADS_ROOT, USER_NAME.
 # Optional: quadlet_user for start/stop after session reload.
 #
@@ -385,7 +385,7 @@ workload_unit_apply_basename_intent() {
       ;;
     esac
   else
-    # stop / trash
+    # stop
     case "${kind}" in
     always-on)
       quadlet_user systemctl --user stop "${svc}" 2>/dev/null || true
@@ -402,7 +402,7 @@ workload_unit_apply_basename_intent() {
       esac
       ;;
     ensure)
-      # Leave Ensure resources in place; unit files retained until Orphan Reap / Purge.
+      # Leave Ensure resources in place; unit files retained until Orphan Reap.
       :
       ;;
     esac

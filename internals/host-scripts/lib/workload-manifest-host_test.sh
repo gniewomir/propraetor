@@ -23,12 +23,14 @@ cat >"${MANIFEST}" <<'EOF'
 { "intent": "stop" }
 EOF
 [[ "$(workload_manifest_intent "${MANIFEST}")" == "stop" ]] || fail "stop intent"
+pass "intent run|stop"
+
 cat >"${MANIFEST}" <<'EOF'
 { "intent": "trash" }
 EOF
-[[ "$(workload_manifest_intent "${MANIFEST}")" == "trash" ]] || fail "trash intent"
-pass "intent run|stop|trash"
-
+if workload_manifest_intent "${MANIFEST}" >/dev/null 2>&1; then
+  fail "retired Intent trash must fail closed"
+fi
 cat >"${MANIFEST}" <<'EOF'
 { "intent": "paused" }
 EOF

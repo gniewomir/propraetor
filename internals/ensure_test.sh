@@ -18,9 +18,9 @@ DEPLOY="${REPO_ROOT}/deploy.sh"
 [[ -x "${DEPLOY}" ]] || fail "deploy.sh not executable"
 pass "ensure.sh and deploy.sh entrypoints exist"
 
-# Ladder order must match ADR-0043 (Fabric → Mirror → Orphan Reap → Components
-# pre-workloads → Workloads → Purge → Components post-workloads).
-want_order=$'ensure-fabric.sh\nensure-mirror.sh\npurge-orphans.sh\nensure-components.sh pre-workloads\nensure-workloads.sh\npurge-trash.sh\nensure-components.sh post-workloads'
+# Ladder order: Fabric → Mirror → Orphan Reap → Components pre-workloads →
+# Workloads → Components post-workloads (no Purge — ADR-0054 / #217).
+want_order=$'ensure-fabric.sh\nensure-mirror.sh\npurge-orphans.sh\nensure-components.sh pre-workloads\nensure-workloads.sh\nensure-components.sh post-workloads'
 got_order="$(
   awk '
     /ensure-fabric\.sh/ { print "ensure-fabric.sh"; next }
@@ -33,14 +33,14 @@ got_order="$(
       next
     }
     /ensure-workloads\.sh/ { print "ensure-workloads.sh"; next }
-    /purge-trash\.sh/ { print "purge-trash.sh"; next }
   ' "${ENSURE}"
 )"
 [[ "${got_order}" == "${want_order}" ]] || fail "ensure.sh ladder order want:
 ${want_order}
 got:
 ${got_order}"
-pass "ensure.sh composes Deploy ladder in ADR-0043 order (both Component Setup slots)"
+grep -Fq 'purge-trash' "${ENSURE}" && fail "ensure.sh must not invoke purge-trash" || true
+pass "ensure.sh composes Deploy ladder without Purge (both Component Setup slots)"
 
 grep -Eq 'apply\.sh|terraform[[:space:]]+apply' "${ENSURE}" \
   && fail "ensure.sh must not invoke Stack Apply" || true

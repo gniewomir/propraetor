@@ -2,8 +2,8 @@
 # Host-local Orphan Reap. Invoked by internals/purge-orphans.sh.
 # Removes Host Workloads whose basename is absent from the Environment keep set
 # (Host Volume owner tree including Persist, Platform User units, EnvironmentFiles).
-# Same cleanup class as Purge; keyed by Environment absence, not Intent trash
-# (ADR-0054 / ADR-0041 / #156 / #215).
+# Sole supported Host Workload destroy path — keyed by Environment absence
+# (ADR-0054 / ADR-0041 / #156 / #215 / #217).
 set -euo pipefail
 
 USER_NAME="${PLATFORM_USER:-platform}"

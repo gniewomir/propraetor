@@ -72,13 +72,13 @@ Day-to-day operator surface (Environment lifecycle):
 | Script | What it does |
 |--------|----------------|
 | `./apply.sh [--yes] [--env <slug>]` | Bring the Stack up (or converge it). Interactive plan by default; `--yes` for automation. |
-| `./deploy.sh [--env <slug>]` | Take a Substrate Host to **Deployed** (Fabric → Mirror → Orphan Reap → Components `pre-workloads` → Workloads → Purge → Components `post-workloads`). Does not run Apply. |
+| `./deploy.sh [--env <slug>]` | Take a Substrate Host to **Deployed** (Fabric → Mirror → Orphan Reap → Components `pre-workloads` → Workloads → Components `post-workloads`). Does not run Apply. |
 | `./park.sh [--env <slug>]` | Tear down the Host and other non-durables; keep Durables. For development and other non-production Environments — so you are not billed for a Host you are not using. Confirm by typing `park`. |
 | `./teardown.sh [--env <slug>]` | Full wipe, including Durables. Stops Durable billing. Confirm by typing `teardown`. |
 | `./ssh.sh [--env <slug>] [ssh args…]` | SSH to the Host (root @ Reserved IP; Stack SSH port from `internals/lib/ssh.sh` — not raw `:22` after ADR-0030 cutover). |
 | `./database.sh [read or write] [--env <slug>]` | Interactive Postgres console as Database admin (`ROOT_DB_*`) over an SSH TCP tunnel. Default `read` sets soft `default_transaction_read_only` (bypassable); `write` omits it. |
 
-Tests: unified `./test.sh <suite>` (Acceptance, Lifecycle, Unit) — [docs/agents/testing.md](docs/agents/testing.md), [ADR-0036](docs/adr/0036-unified-test-entrypoint.md). Everything else lives under `internals/` (flat glanceable list): diagnostics, lint, `ensure.sh` (Deploy ladder), ensure-fabric, ensure-mirror, ensure-components, ensure-workload(s), purge-orphans, purge-trash, Stack, Fabric, Components, and helpers. Same `--env` rule for Environment-scoped entrypoints. Layout and Host-local function names: [ADR-0032](docs/adr/0032-operator-surface-internals-and-host-function-names.md).
+Tests: unified `./test.sh <suite>` (Acceptance, Lifecycle, Unit) — [docs/agents/testing.md](docs/agents/testing.md), [ADR-0036](docs/adr/0036-unified-test-entrypoint.md). Everything else lives under `internals/` (flat glanceable list): diagnostics, lint, `ensure.sh` (Deploy ladder), ensure-fabric, ensure-mirror, ensure-components, ensure-workload(s), purge-orphans, Stack, Fabric, Components, and helpers. Same `--env` rule for Environment-scoped entrypoints. Layout and Host-local function names: [ADR-0032](docs/adr/0032-operator-surface-internals-and-host-function-names.md).
 
 **Cutover note:** Host Volume mount, Platform User, units, and Edge nginx paths renamed in ADR-0032 — already-Applied Environments need Host recreation (Park/Apply or equivalent); there is no dual-read of old Host paths.
 

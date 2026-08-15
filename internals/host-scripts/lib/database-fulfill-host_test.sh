@@ -111,9 +111,10 @@ write_claim_tree "${CLAIM}" stop '{ "database": true }'
 [[ "$(database_workload_is_run_claimant "${CLAIM}")" == "0" ]] \
   || fail "Intent stop + Requires database true must not claim"
 write_claim_tree "${CLAIM}" trash '{ "database": true }'
-[[ "$(database_workload_is_run_claimant "${CLAIM}")" == "0" ]] \
-  || fail "Intent trash + Requires database true must not claim"
-pass "Requires database claim is gated on Intent run"
+if database_workload_is_run_claimant "${CLAIM}" >/dev/null 2>&1; then
+  fail "retired Intent trash must fail closed"
+fi
+pass "Requires database claim is gated on Intent run; trash rejected"
 
 # Manifest database must not claim (clean break; retired key).
 mkdir -p "${CLAIM}"

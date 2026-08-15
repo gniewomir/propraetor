@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Database Declaration gather + fulfill (ADR-0049 / ADR-0053 / #189 / #190 / #191 / #202).
 # Intent-run + Requires database:true → role/db/client cert + published binding.
-# Intent stop/trash (non-claimants) → unpublish binding; retain role/db/clients until Purge.
-# Purge / Orphan Reap (SoT gone) → drop role/db/clients + clear projection in post-workloads.
+# Intent stop (non-claimants) → unpublish binding; retain role/db/clients until Orphan Reap.
+# Orphan Reap (SoT gone) → drop role/db/clients + clear projection in post-workloads.
 # Sourced by Database Setup. Expects ambient after database_setup begin:
 #   DATA_ROOT, CLIENTS_DIR, ADMIN_ENV, HOME_DIR, UNIT_DIR, USER_NAME, WORKLOADS_ROOT
 # Requires: quadlet_user, database_tls_ensure_client, database_write_pg_ident_file,
@@ -142,9 +142,9 @@ EOF
   fi
 }
 
-# Clear published binding + Setup-owned drop-ins for one Workload (Intent stop/trash).
-# Retains Host Volume client material, role, and database until Purge (#191).
-# When SoT is already gone (after Purge/Orphan), clears the binding dir and any leftover
+# Clear published binding + Setup-owned drop-ins for one Workload (Intent stop).
+# Retains Host Volume client material, role, and database until Orphan Reap (#191).
+# When SoT is already gone (after Orphan Reap), clears the binding dir and any leftover
 # drop-in named <basename>.container.d/50-platform-database.conf.
 database_unpublish_binding() {
   local wl_name="${1:?database_unpublish_binding: workload name required}"
@@ -243,7 +243,7 @@ database_absent_client_basenames() {
   done | LC_ALL=C sort -u
 }
 
-# post-workloads: drop role/db/clients + clear projection for Purge/Orphan-absent basenames.
+# post-workloads: drop role/db/clients + clear projection for Orphan-absent basenames.
 database_drop_absent_fulfillments() {
   local workloads_root="${1:-${WORKLOADS_ROOT-}}"
   local clients_dir="${CLIENTS_DIR:-${DATA_ROOT}/clients}"
@@ -297,8 +297,8 @@ database_workload_is_run_claimant() {
 }
 
 # Gather Intent-run Requires database:true claimants from Workload SoT; fulfill create/publish.
-# Non-claimants (Intent stop/trash or Requires database false): unpublish binding only;
-# role/database/client material retained until Purge (#190 / #191).
+# Non-claimants (Intent stop or Requires database false): unpublish binding only;
+# role/database/client material retained until Orphan Reap (#190 / #191).
 database_fulfill_declarations() {
   local workloads_root="${1:-${WORKLOADS_ROOT-}}"
   local wl_dir wl_name claims

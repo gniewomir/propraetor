@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Unit tests: ensure-workload(s) / purge-trash entrypoint hard cut and batch discovery (#157).
+# Unit tests: ensure-workload(s) entrypoint hard cut and batch discovery (#157 / #217).
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -15,21 +15,23 @@ HOST_SCRIPTS="${REPO_ROOT}/internals/host-scripts"
 for gone in \
   "${INTERNALS}/workload-setup.sh" \
   "${INTERNALS}/purge-workloads.sh" \
+  "${INTERNALS}/purge-trash.sh" \
   "${HOST_SCRIPTS}/workload-setup-host.sh" \
-  "${HOST_SCRIPTS}/purge-workloads-host.sh"; do
+  "${HOST_SCRIPTS}/purge-workloads-host.sh" \
+  "${HOST_SCRIPTS}/purge-trash-host.sh"; do
   [[ ! -e "${gone}" ]] || fail "legacy path still present: ${gone}"
 done
-pass "legacy workload-setup / purge-workloads paths are gone"
+pass "legacy workload-setup / purge-workloads / purge-trash paths are gone"
 
 for want in \
   "${INTERNALS}/ensure-workload.sh" \
   "${INTERNALS}/ensure-workloads.sh" \
-  "${INTERNALS}/purge-trash.sh" \
+  "${INTERNALS}/purge-orphans.sh" \
   "${HOST_SCRIPTS}/ensure-workload-host.sh" \
-  "${HOST_SCRIPTS}/purge-trash-host.sh"; do
+  "${HOST_SCRIPTS}/purge-orphans-host.sh"; do
   [[ -f "${want}" ]] || fail "missing ${want}"
 done
-pass "ensure-workload(s) and purge-trash entrypoints exist"
+pass "ensure-workload(s) and Orphan Reap entrypoints exist"
 
 # Batch discovery uses the same Environment helper as Mirror (directory identity).
 TMP="$(umask 077; mktemp -d "${TMPDIR:-/tmp}/ensure-workloads.XXXXXX")"
@@ -37,7 +39,7 @@ trap 'rm -rf "${TMP}"' EXIT
 ENV_DIR="${TMP}/env"
 mkdir -p "${ENV_DIR}/keep-me" "${ENV_DIR}/also" "${ENV_DIR}/nope"
 printf '{"intent":"run"}\n' >"${ENV_DIR}/keep-me/manifest.json"
-printf '{"intent":"trash"}\n' >"${ENV_DIR}/also/manifest.json"
+printf '{"intent":"stop"}\n' >"${ENV_DIR}/also/manifest.json"
 printf 'not a workload\n' >"${ENV_DIR}/domains.json"
 printf 'x\n' >"${ENV_DIR}/nope/README.md"
 
@@ -92,4 +94,4 @@ done < <(environment_discover_workloads "${ENV_DIR}")
 [[ "${names}" == "ran:also,ran:keep-me,ran:nope" ]] || fail "batch order/names want ran:also,ran:keep-me,ran:nope got '${names}'"
 pass "batch loop visits every discovered Workload without stdin steal"
 
-echo "All ensure-workload(s) / purge-trash entrypoint checks passed."
+echo "All ensure-workload(s) / Orphan Reap entrypoint checks passed."

@@ -39,11 +39,9 @@ if grep -E '^[[:space:]]*ensure_edge_route_fulfillment([[:space:]]|$)' "${PROOF}
 fi
 pass "Deploy-alone Route HTTPS proof case avoids fulfillment-helper heal"
 
-# --- Intent-transition / Purge Edge refresh uses post-workloads (helper or direct) ---
+# --- Intent-transition Edge refresh uses post-workloads (helper or direct) ---
 refresh_cases=(
   "${CASE_DIR}/78-workload-intent-run-stop.sh"
-  "${CASE_DIR}/79-workload-intent-trash-purge.sh"
-  "${CASE_DIR}/81-workload-intent-trash.sh"
 )
 for case_path in "${refresh_cases[@]}"; do
   [[ -f "${case_path}" ]] || fail "missing Intent-transition case ${case_path}"

@@ -21,7 +21,7 @@ ${peer_hits}"
 pass "no case calls acceptance_drop_peer_location_root_routes"
 
 # --- no hand-deletion of Host Volume data/ in cases ---
-# Intent-expressed cleanup is via Deploy / purge-orphans / purge-trash, not rm of data/.
+# Intent-expressed cleanup is via Deploy / purge-orphans (Orphan Reap), not rm of data/.
 # Track multi-line rm commands (continuation with \).
 data_rm_hits="$(
   awk '
@@ -32,7 +32,7 @@ data_rm_hits="$(
     }
   ' "${CASE_DIR}"/[0-9]*.sh
 )"
-[[ -z "${data_rm_hits}" ]] || fail "cases must not hand-rm Host Volume data/ (use Intent Deploy/Purge/Reap or acceptance_data_track):
+[[ -z "${data_rm_hits}" ]] || fail "cases must not hand-rm Host Volume data/ (use Intent Deploy/Orphan Reap or acceptance_data_track):
 ${data_rm_hits}"
 pass "no case hand-rms Host Volume data/"
 

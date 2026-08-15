@@ -10,10 +10,10 @@ Executable checks that the live Stack’s **Deployed** Host matches the intended
 
 - Baseline between cases: **Deployed**.
 - Runner re-converges via **Deploy** (`./internals/ensure.sh` / `./deploy.sh`) **before each case**. Failed-case Host artifacts remain until the next baseline.
-- Cases restore Environment SoT / Intent to committed truth before exit (remove fixtures or leave Intent only when deliberately testing **trash** + Purge). Runner owns Host convergence.
+- Cases restore Environment SoT / Intent to committed truth before exit (remove fixtures). Runner owns Host convergence.
 - After each baseline Deploy, the runner snapshots `environments/<slug>/` (excluding `.ssh/`) and asserts the tree is identical after the case (covers gitignored `.env` / `.env.override` and leftover fixtures).
-- **Host Volume `data/`:** do not destroy bytes except as expressed operator Intent (Environment absence / Intent **trash** → Orphan Reap / Purge via Deploy). Case-owned cleanup only for case-created durable residue that would **survive** the next Deploy; register those paths for tracked **G**. No peer-pollution cleanup.
-- **`test` only** for Environment fixtures / SoT mutation (track helpers, Intent-trash / Purge / Orphan Reap fixture paths).
+- **Host Volume Persist / owner trees:** do not destroy bytes except as expressed operator Intent (Environment absence → Orphan Reap via Deploy is fine). Case-owned cleanup only for case-created durable residue that would **survive** the next Deploy; register those paths for tracked **G**. No peer-pollution cleanup.
+- **`test` only** for Environment fixtures / SoT mutation (track helpers, Orphan Reap fixture paths).
 - Non-**test**: type exact `diagnose <slug>` (slug matches `--env`); Environment SoT stays at committed `HEAD`; fixture-class cases skipped (full suite) or refused (explicit selector); baseline Deploy aborts if `environments/<slug>/` is dirty vs `HEAD`; case-owned Host Volume `data/` probes still allowed; Deploy still runs.
 
 ## Run

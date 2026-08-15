@@ -87,9 +87,9 @@ workload_units_apply() {
   local rc=0
 
   case "${intent}" in
-  run | stop | trash) ;;
+  run | stop) ;;
   *)
-    echo "workload_units_apply: intent must be run|stop|trash (got '${intent}')" >&2
+    echo "workload_units_apply: intent must be run|stop (got '${intent}')" >&2
     return 1
     ;;
   esac

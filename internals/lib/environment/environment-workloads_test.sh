@@ -33,7 +33,7 @@ pass "domains.json, .env, and hidden dirs ignored; Manifest-less dir is a Worklo
 mkdir -p "${ENV_DIR}/zeta" "${ENV_DIR}/alpha" "${ENV_DIR}/beta"
 printf 'not-json\n' >"${ENV_DIR}/zeta/manifest.json"
 printf '{"intent":"run"}\n' >"${ENV_DIR}/alpha/manifest.json"
-printf '{"intent":"trash"}\n' >"${ENV_DIR}/beta/manifest.json"
+printf '{"intent":"stop"}\n' >"${ENV_DIR}/beta/manifest.json"
 # Nested tree must not be discovered (immediate children only)
 mkdir -p "${ENV_DIR}/alpha/nested"
 printf '{"intent":"run"}\n' >"${ENV_DIR}/alpha/nested/manifest.json"

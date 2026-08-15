@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
 # Host-local Environment Configuration install / clear (ADR-0035 / #128 / #132).
-# Sourced by ensure-workload-host, purge-trash-host, purge-orphans-host, and the operator module.
+# Sourced by ensure-workload-host, purge-orphans-host, and the operator module.
 # Requires: HOME_DIR, UNIT_DIR, USER_NAME, WORKLOADS_ROOT (after quadlet_user_session_begin).
 #
-# Module Host half (Setup/Purge interface):
+# Module Host half (Setup / Orphan Reap interface):
 #   environment_configuration_install_host WL_NAME RESOLVED_SRC
 #     RESOLVED_SRC empty → remove EnvironmentFile tree + Setup-owned env drop-ins
 #     RESOLVED_SRC set  → install EnvironmentFile + Setup-owned drop-ins for each
 #                         SoT systemd/*.container (EnvironmentFile= path only)
 #     Container gate is owned by environment_configuration_prepare (once).
 #   environment_configuration_clear WL_NAME
-#     Purge / omit clear path.
+#     Orphan Reap / omit clear path.
 #
 # environment_configuration_require_containers TREE ACTIVE
 #   When ACTIVE=1, fail closed unless TREE/systemd/*.container exists.

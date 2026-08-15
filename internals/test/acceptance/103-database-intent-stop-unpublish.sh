@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Acceptance Test: Intent stop unpublishes Database binding; role/db retained (ADR-0049 / ADR-0053 / #190 / #202).
 # Workload Setup alone must not unpublish; Component Setup clears published material;
-# Host Volume client cert + Postgres role/database remain until Purge.
+# Host Volume client cert + Postgres role/database remain until Orphan Reap.
 set -euo pipefail
 # shellcheck source=lib.sh
 source "$(cd "$(dirname "$0")" && pwd)/lib.sh"
@@ -93,7 +93,7 @@ fi
 pass "Component Setup unpublishes Database binding after Intent stop"
 
 host_ssh "test -f /host-volume/components/database/persist/clients/${WL}/client.crt" \
-  || fail "durable client cert must remain until Purge"
+  || fail "durable client cert must remain until Orphan Reap"
 pass "durable client material retained after Intent stop"
 
 # Role + database remain (admin local trust inside container; user name only — no secrets).
@@ -123,5 +123,5 @@ fi
 REMOTE
 )"
 [[ "${retain_ok}" == "yes" ]] \
-  || fail "Postgres role and database must remain until Purge (got '${retain_ok}')"
+  || fail "Postgres role and database must remain until Orphan Reap (got '${retain_ok}')"
 pass "Postgres role and database retained after Intent stop"

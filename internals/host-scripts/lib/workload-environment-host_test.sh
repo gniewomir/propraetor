@@ -73,22 +73,22 @@ environment_configuration_install_host "${WL_NAME}" "${RESOLVED}" \
 [[ -f "${env_path}" ]] || fail "EnvironmentFile should exist without containers"
 pass "install without containers places EnvironmentFile (gate elsewhere)"
 
-# --- Purge-style clear ---
+# --- Orphan Reap-style clear ---
 mkdir -p "${WORKLOADS_ROOT}/${WL_NAME}/systemd"
 printf '[Container]\nImage=localhost/demo\n' >"${WORKLOADS_ROOT}/${WL_NAME}/systemd/app.container"
 environment_configuration_install_host "${WL_NAME}" "${RESOLVED}" \
-  || fail "re-install before Purge clear should succeed"
-[[ -f "${env_path}" ]] || fail "EnvironmentFile should exist before Purge clear"
+  || fail "re-install before clear should succeed"
+[[ -f "${env_path}" ]] || fail "EnvironmentFile should exist before clear"
 [[ -f "$(workload_environment_dropin_path "app.container")" ]] \
-  || fail "drop-in should exist before Purge clear"
+  || fail "drop-in should exist before clear"
 
 environment_configuration_clear "${WL_NAME}" \
-  || fail "Purge-style clear should succeed"
-[[ ! -f "${env_path}" ]] || fail "Purge clear should remove EnvironmentFile"
-[[ ! -e "$(dirname "${env_path}")" ]] || fail "Purge clear should remove empty Workload config dir"
+  || fail "Orphan Reap-style clear should succeed"
+[[ ! -f "${env_path}" ]] || fail "clear should remove EnvironmentFile"
+[[ ! -e "$(dirname "${env_path}")" ]] || fail "clear should remove empty Workload config dir"
 [[ ! -f "$(workload_environment_dropin_path "app.container")" ]] \
-  || fail "Purge clear should remove Setup drop-in"
-pass "Purge-style clear"
+  || fail "clear should remove Setup drop-in"
+pass "Orphan Reap-style clear"
 
 # --- post-materialize Binding × Artifact Requires full-fulfill ---
 MAT="${TMP}/mat-wl"

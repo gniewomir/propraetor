@@ -104,7 +104,7 @@ mkdir -p "${ENV_DIR}/committed-wl"
 printf '{ "intent": "run" }\n' >"${ENV_DIR}/committed-wl/manifest.json"
 git -C "${REPO_ROOT}" add environments/test/committed-wl/manifest.json
 git -C "${REPO_ROOT}" -c commit.gpgsign=false commit -q -m "committed SoT"
-printf '{ "intent": "trash" }\n' >"${ENV_DIR}/committed-wl/manifest.json"
+printf '{ "intent": "stop" }\n' >"${ENV_DIR}/committed-wl/manifest.json"
 acceptance_sot_track "committed-wl/manifest.json"
 acceptance_wl_cleanup
 got="$(cat "${ENV_DIR}/committed-wl/manifest.json")"

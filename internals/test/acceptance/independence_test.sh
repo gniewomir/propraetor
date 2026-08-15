@@ -56,7 +56,7 @@ case_a_leave_residue() {
   mkdir -p "${REPO_ROOT}/environments/test/polluter-wl"
   printf '{ "intent": "run" }\n' \
     >"${REPO_ROOT}/environments/test/polluter-wl/manifest.json"
-  printf '{ "intent": "trash" }\n' \
+  printf '{ "intent": "stop" }\n' \
     >"${REPO_ROOT}/environments/test/committed-wl/manifest.json"
   printf 'host-leak\n' >"${HOST_ROOT}/var/lib/propraetor/case-a-host-residue"
   mkdir -p "${ACCEPTANCE_HV_DATA_ROOT}/workloads/polluter-wl/persist"

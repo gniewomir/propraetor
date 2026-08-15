@@ -64,7 +64,7 @@ Type=oneshot
 WantedBy=default.target
 EOF
 
-# Ensure volume — provisioned on run; left in place on stop/trash.
+# Ensure volume — provisioned on run; left in place on stop.
 cat >"${FIX_DIR}/${WL}/systemd/${WL}-data.volume" <<EOF
 [Volume]
 VolumeName=${WL}-data
@@ -211,28 +211,8 @@ timer_active="$(unit_state "${WL}-tick.timer" ActiveState)"
 pass "Intent stop Disarms On-demand timer and job"
 
 host_ssh "test -f /home/platform/.config/containers/systemd/workload-${WL}/${WL}-data.volume" \
-  || fail "Intent stop must retain Ensure unit file until Purge"
+  || fail "Intent stop must retain Ensure unit file until Orphan Reap"
 vol_exists="$(volume_exists)"
 [[ "${vol_exists}" == "yes" ]] \
   || fail "Intent stop must leave Ensure volume in place (got exists=${vol_exists})"
 pass "Intent stop leaves Ensure resources in place; unit files retained"
-
-# --- Intent trash (same unit expectation as stop) ---
-write_manifest trash
-"${REPO_ROOT}/internals/ensure-workload.sh" "${WL}" --env "${PLATFORM_ENV:-test}"
-
-always_active="$(unit_state "${WL}.service" ActiveState)"
-[[ "${always_active}" != "active" ]] \
-  || fail "Intent trash should stop Always-on (ActiveState=${always_active})"
-batch_active="$(unit_state "${WL}-batch.service" ActiveState)"
-[[ "${batch_active}" != "active" ]] \
-  || fail "Intent trash should Disarm On-demand job (ActiveState=${batch_active})"
-timer_enabled="$(unit_state "${WL}-tick.timer" UnitFileState)"
-[[ "${timer_enabled}" != "enabled" ]] \
-  || fail "Intent trash should Disarm On-demand timer (UnitFileState=${timer_enabled})"
-host_ssh "test -f /home/platform/.config/containers/systemd/workload-${WL}/${WL}-data.volume" \
-  || fail "Intent trash must retain Ensure unit file until Purge"
-vol_exists="$(volume_exists)"
-[[ "${vol_exists}" == "yes" ]] \
-  || fail "Intent trash must leave Ensure volume in place"
-pass "Intent trash matches stop for units; Ensure retained until Purge"
