@@ -93,11 +93,6 @@ EOF
   printf '{}\n' >"${dir}/provides.json"
 }
 
-write_empty_env_contract() {
-  local dir="$1"
-  acceptance_write_artifact_stubs "${dir}"
-}
-
 # --- allowlist: Source required; environment is retired; unknown keys still rejected ---
 mkdir -p "${FIX_DIR}/${WL}/systemd"
 printf 'ENVCFG_TOKEN=x\nENVCFG_MODE=y\n' >"${ENV_FILE}"
@@ -137,11 +132,10 @@ if "${REPO_ROOT}/internals/ensure-workload.sh" "${WL_NC}" --env "${ENV_SLUG}" >/
 fi
 pass "non-empty Requires environment without .container fails closed"
 
-# empty Requires environment with no containers is fine
-write_thin_manifest "${FIX_DIR}/${WL_NC}"
-write_empty_env_contract "${FIX_DIR}/${WL_NC}"
-"${REPO_ROOT}/internals/ensure-workload.sh" "${WL_NC}" --env "${ENV_SLUG}"
-pass "empty Requires environment with no containers succeeds"
+# Empty Requires environment clears Environment Configuration (see 91); Workload
+# Setup still requires ≥1 allowlisted unit after projection (ADR-0054) — a
+# zero-unit tree is not a valid Setup path, so this case does not assert success
+# without systemd/.
 
 # --- ROOT_DB_* remapped into a Workload fails closed ---
 write_thin_manifest "${FIX_DIR}/${WL}"
