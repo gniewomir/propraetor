@@ -143,4 +143,22 @@ workload_unit_sync_sot "${WL_NAME}" "${SOT_BAG}" \
   || fail "same-inode sync_sot must not wipe projected systemd bag"
 pass "sync_sot same-inode stage preserves SoT bag"
 
+# --- same-inode stage: foreign basename still refused (pre-mutation ownership) ---
+# After project-first Setup, stage_dir -ef SoT. prev_owned must be the snapshot from
+# *before* projection (WORKLOAD_UNITS_PREV_OWNED), not the already-projected bag.
+reset
+mkdir -p "${UNIT_DIR}/component-edge" "${WORKLOADS_ROOT}/${WL_NAME}/systemd"
+printf '[Container]\nImage=localhost/foreign\n' >"${UNIT_DIR}/component-edge/taken.container"
+printf '[Container]\nImage=localhost/mine\n' >"${WORKLOADS_ROOT}/${WL_NAME}/systemd/taken.container"
+SOT_BAG="${WORKLOADS_ROOT}/${WL_NAME}/systemd"
+PREV_EMPTY="$(mktemp "${TMPDIR:-/tmp}/platform-prev-owned.XXXXXX")"
+: >"${PREV_EMPTY}"
+if WORKLOAD_UNITS_PREV_OWNED="${PREV_EMPTY}" \
+  workload_units_apply "${WL_NAME}" run "${SOT_BAG}" 2>/dev/null; then
+  rm -f "${PREV_EMPTY}"
+  fail "expected fail-closed when same-inode stage claims foreign basename"
+fi
+rm -f "${PREV_EMPTY}"
+pass "same-inode stage: foreign farm basename refused via prev snapshot"
+
 echo "All workload-units-host offline tests passed."
