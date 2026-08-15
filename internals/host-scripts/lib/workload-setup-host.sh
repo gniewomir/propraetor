@@ -43,7 +43,7 @@ workload_setup_apply() {
   local env_resolved="${2-}"
   local user_name="${PLATFORM_USER:-platform}"
   local manifest="${tree}/manifest.json"
-  local wl_name workloads_root wl_persist sot_tree prev_owned mat_tree systemd_stage
+  local wl_name wl_persist sot_tree prev_owned mat_tree systemd_stage
 
   [[ -d "${tree}" ]] || {
     echo "workload tree missing: ${tree}" >&2
@@ -57,10 +57,11 @@ workload_setup_apply() {
   wl_name="$(basename "${tree}")"
   workload_identity_require "${wl_name}" || return 1
 
-  workloads_root="$(host_volume_workloads_sot_root)"
+  # Ambient for units / env / quadlet modules (same contract as Component Setup).
+  WORKLOADS_ROOT="${WORKLOADS_ROOT:-$(host_volume_workloads_sot_root)}"
   # Nested Persist under this owner (ADR-0054); created by projection when missing.
   wl_persist="$(host_volume_workload_persist "${wl_name}")"
-  sot_tree="${workloads_root}/${wl_name}"
+  sot_tree="${WORKLOADS_ROOT}/${wl_name}"
 
   command -v python3 >/dev/null || {
     echo "python3 required on Host for Workload Manifest parsing" >&2
