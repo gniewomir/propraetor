@@ -1,10 +1,12 @@
 #!/usr/bin/env bash
-# Deep Cache Component Setup (ADR-0055 / #221 / #222 / #224 / #225).
+# Deep Cache Component Setup (ADR-0055 / #221 / #222 / #224 / #225 / #232).
 # Sourced by Cache pre-workloads.sh / post-workloads.sh.
-# Standing Component: TLS interior, ACL (default off + admin), admin client cert,
-# Valkey on Service Network dial name `cache`, idle allowed with zero claimants.
-# pre/post gather Intent-run Requires cache:true, publish bindings, disable stopped.
-# post-workloads also drops Orphan-absent fulfillments (DELUSER, clients, prefix keys).
+# Standing ensure: TLS interior, standing ACL (admin + preserved claimants),
+# admin client cert, Valkey on Service Network dial name `cache`.
+# Declaration converge: gather Intent-run Requires cache:true, ACL rewrite,
+# publish bindings, disable stopped. post-workloads drops Orphan-absent
+# fulfillments (DELUSER, clients, prefix keys) — no re-converge solely to undo
+# standing ensure (#232).
 #
 # Ambient (optional overrides for offline tests):
 #   USER_NAME, DATA_ROOT, WORKLOADS_ROOT
@@ -78,10 +80,10 @@ cache_wait_ready() {
   return 1
 }
 
-# Deep Cache Setup success: units active + Valkey ready on Service Network.
+# Standing ensure: units / TLS / admin / standing ACL — not Declaration converge.
 # Args: component_tree [staged_admin_env_src]
-cache_setup() {
-  local component_tree="${1:?cache_setup: component tree required}"
+cache_standing_ensure() {
+  local component_tree="${1:?cache_standing_ensure: component tree required}"
   shift
   local staged_admin_env=""
   local admin_user=""
@@ -91,7 +93,7 @@ cache_setup() {
     shift
   fi
   if [[ $# -gt 0 ]]; then
-    echo "cache_setup: unknown argument: $1" >&2
+    echo "cache_standing_ensure: unknown argument: $1" >&2
     return 1
   fi
 
@@ -110,7 +112,9 @@ cache_setup() {
   component_tls_ensure cache "${DATA_ROOT}" || return 1
   admin_user="$(cache_admin_user_from_env "${ADMIN_ENV}")" || return 1
   component_tls_ensure_admin_client cache "${DATA_ROOT}" "${admin_user}" || return 1
-  cache_write_acl_file "${ADMIN_ENV}" || return 1
+  # Standing ACL: admin (+ preserve Workload users). Idle empty-claimants rewrite
+  # belongs to Declaration converge, not restart (#232).
+  cache_ensure_standing_acl "${ADMIN_ENV}" || return 1
   cache_write_valkey_conf || return 1
 
   component_units_install "${component_tree}" component "$(basename "${component_tree}")" || return 1
@@ -145,21 +149,19 @@ cache_setup() {
   }
 }
 
-# Standing ensure + Declaration fulfill/publish before Workload apps start.
+# Ordering (#232): standing ensure → Declaration converge (before Workload apps).
 cache_setup_pre_workloads() {
   local component_tree="${1:?cache_setup_pre_workloads: component tree required}"
   local staged_admin_env="${2:-}"
-  cache_setup "${component_tree}" "${staged_admin_env}" || return 1
+  cache_standing_ensure "${component_tree}" "${staged_admin_env}" || return 1
   cache_fulfill_declarations || return 1
 }
 
-# Standing ensure + Orphan drop + re-fulfill after Workloads (#225).
-# Drop runs before fulfill so ACL rewrite omits absent basenames; re-fulfill
-# keeps Intent-run ACL users enabled after standing ACL rewrite/restart.
+# Ordering (#232): standing ensure → Orphan drop. No Declaration re-converge —
+# standing ACL preserve means restart does not clobber claimants.
 cache_setup_post_workloads() {
   local component_tree="${1:?cache_setup_post_workloads: component tree required}"
   local staged_admin_env="${2:-}"
-  cache_setup "${component_tree}" "${staged_admin_env}" || return 1
+  cache_standing_ensure "${component_tree}" "${staged_admin_env}" || return 1
   cache_drop_absent_fulfillments || return 1
-  cache_fulfill_declarations || return 1
 }

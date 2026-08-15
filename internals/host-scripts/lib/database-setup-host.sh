@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
-# Deep Database Component Setup (ADR-0049 / #188 / #189 / #190 / #191).
+# Deep Database Component Setup (ADR-0049 / #188 / #189 / #190 / #191 / #232).
 # Sourced by Database pre-workloads.sh / post-workloads.sh.
-# Standing Component: TLS interior, admin EnvironmentFile, Postgres on Service Network
-# dial name `database`, idle allowed with zero Workload claimants.
-# pre-workloads also gathers Intent-run Requires database:true Declarations and
-# publishes passwordless mTLS bindings (#189); non-claimants are unpublished (#190).
-# post-workloads drops role/db/client material for Orphan-absent basenames (#191).
+# Standing ensure: TLS interior, admin EnvironmentFile, auth conf (pg_ident
+# create-if-missing), Postgres on Service Network dial name `database`.
+# Declaration converge: gather Intent-run Requires database:true and publish
+# passwordless mTLS bindings (#189); non-claimants unpublished (#190).
+# post-workloads drops role/db/client material for Orphan-absent basenames (#191)
+# — no re-converge after standing (#232).
 #
 # Ambient (optional overrides for offline tests):
 #   USER_NAME, DATA_ROOT, WORKLOADS_ROOT
@@ -68,11 +69,11 @@ database_wait_ready() {
   return 1
 }
 
-# Deep Database Setup success: units active + Postgres ready on Service Network.
+# Standing ensure: units / TLS / admin / auth conf — not Declaration converge.
 # Args: component_tree [staged_admin_env_src]
 # Omitted stage path resolves from the Component Setup handoff root.
-database_setup() {
-  local component_tree="${1:?database_setup: component tree required}"
+database_standing_ensure() {
+  local component_tree="${1:?database_standing_ensure: component tree required}"
   shift
   local staged_admin_env=""
 
@@ -81,7 +82,7 @@ database_setup() {
     shift
   fi
   if [[ $# -gt 0 ]]; then
-    echo "database_setup: unknown argument: $1" >&2
+    echo "database_standing_ensure: unknown argument: $1" >&2
     return 1
   fi
 
@@ -100,6 +101,8 @@ database_setup() {
 
   database_install_admin_env "${staged_admin_env}" || return 1
   component_tls_ensure database "${DATA_ROOT}" || return 1
+  # Standing auth: pg_hba always; pg_ident create-if-missing only — converge
+  # owns claimant map rows (#232 / mirrors Cache standing ACL preserve).
   database_write_auth_conf || return 1
 
   component_units_install "${component_tree}" component "$(basename "${component_tree}")" || return 1
@@ -145,18 +148,18 @@ database_setup() {
   database_sync_admin_password "${ADMIN_ENV}" || return 1
 }
 
-# Standing ensure + Declaration fulfill/publish before Workload apps start.
+# Ordering (#232): standing ensure → Declaration converge (before Workload apps).
 database_setup_pre_workloads() {
   local component_tree="${1:?database_setup_pre_workloads: component tree required}"
   local staged_admin_env="${2:-}"
-  database_setup "${component_tree}" "${staged_admin_env}" || return 1
+  database_standing_ensure "${component_tree}" "${staged_admin_env}" || return 1
   database_fulfill_declarations || return 1
 }
 
-# post-workloads: standing ensure + drop Orphan-absent fulfillments (#191).
+# Ordering (#232): standing ensure → Orphan drop. No Declaration re-converge.
 database_setup_post_workloads() {
   local component_tree="${1:?database_setup_post_workloads: component tree required}"
   local staged_admin_env="${2:-}"
-  database_setup "${component_tree}" "${staged_admin_env}" || return 1
+  database_standing_ensure "${component_tree}" "${staged_admin_env}" || return 1
   database_drop_absent_fulfillments || return 1
 }

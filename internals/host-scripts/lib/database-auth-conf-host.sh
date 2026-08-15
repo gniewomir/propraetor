@@ -30,7 +30,8 @@ hostssl all             all             0.0.0.0/0               cert clientcert=
 hostssl all             all             ::/0                    cert clientcert=verify-full map=${DATABASE_PG_IDENT_MAP}
 EOF
 
-  # Create-if-missing empty map header; gather rewrites claimant rows.
+  # Standing: create-if-missing empty map only. Declaration converge rewrites
+  # claimant rows — never idle-empty as a restart side effect (#232).
   if [[ ! -f "${ident}" ]]; then
     database_write_pg_ident_file /dev/null
   fi

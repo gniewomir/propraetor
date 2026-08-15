@@ -56,14 +56,90 @@ cache_workload_acl_commands() {
     '-@all +@string +@hash +@list +@set +@sortedset +ping +del +unlink +exists +type +expire +expireat +pexpire +pexpireat +ttl +pttl +persist +touch'
 }
 
-# Write Persist ACL file: default off + admin (+ Workload users from Persist clients).
+# Standing ensure ACL: default off + admin only (create-if-missing), or refresh
+# admin hash while preserving existing Workload user lines (#232).
+# Never walks Persist clients / never idle-disables claimants — that is Declaration
+# converge via cache_write_acl_file (including empty claimants file).
+# Args: env_file
+cache_ensure_standing_acl() {
+  local env_file="${1:?cache_ensure_standing_acl: EnvironmentFile required}"
+  local acl_path="${DATA_ROOT}/conf/users.acl"
+  local conf_dir
+
+  [[ -f "${env_file}" ]] || {
+    echo "cache_ensure_standing_acl: missing ${env_file}" >&2
+    return 1
+  }
+  [[ -n "${DATA_ROOT:-}" ]] || {
+    echo "cache_ensure_standing_acl: DATA_ROOT is unset" >&2
+    return 1
+  }
+
+  conf_dir="$(dirname "${acl_path}")"
+  mkdir -p "${conf_dir}"
+
+  python3 - "${env_file}" "${acl_path}" <<'PY' || return 1
+import hashlib
+import os
+import sys
+
+env_path, acl_path = sys.argv[1], sys.argv[2]
+vals = {}
+with open(env_path, encoding="utf-8") as f:
+    for raw in f:
+        line = raw.rstrip("\n")
+        if not line or "=" not in line or line.lstrip().startswith("#"):
+            continue
+        key, _, val = line.partition("=")
+        vals[key] = val
+user = vals.get("CACHE_ADMIN_USER", "")
+password = vals.get("CACHE_ADMIN_PASSWORD", "")
+if not user or not password:
+    raise SystemExit("Cache admin EnvironmentFile missing CACHE_ADMIN_USER/PASSWORD")
+if any(ch in user for ch in " \t\r\n/\"'\\"):
+    raise SystemExit("Cache admin user is not a simple ACL username")
+if any(ch in password for ch in " \t\r\n"):
+    raise SystemExit("Cache admin password must not contain whitespace")
+
+pw_hash = hashlib.sha256(password.encode("utf-8")).hexdigest()
+preserved = []
+if os.path.isfile(acl_path):
+    with open(acl_path, encoding="utf-8") as existing:
+        for raw in existing:
+            line = raw.rstrip("\n")
+            if not line or line.lstrip().startswith("#"):
+                continue
+            parts = line.split()
+            if len(parts) < 2 or parts[0] != "user":
+                preserved.append(line)
+                continue
+            name = parts[1]
+            if name in ("default", user):
+                continue
+            preserved.append(line)
+
+with open(acl_path, "w", encoding="utf-8") as out:
+    out.write("user default off\n")
+    out.write(f"user {user} on #{pw_hash} ~* &* +@all\n")
+    for line in preserved:
+        out.write(f"{line}\n")
+PY
+
+  chmod 0600 "${acl_path}"
+  if [[ -n "${USER_NAME:-}" ]]; then
+    chown "${USER_NAME}:${USER_NAME}" "${acl_path}" 2>/dev/null || true
+  fi
+}
+
+# Declaration converge ACL rewrite: default off + admin (+ Workload users).
 # Intent-run claimants (#222): cert-only `on` (resetpass, ~basename:*, whitelist).
 # Non-claimants with durable client material (#224): `off` until Orphan Reap (#225).
-# Idle standing (#221): omit claimants_file → every Persist client user is `off`.
-# Args: env_file [claimants_file]
+# Empty claimants file (#221 / #232): every Persist client user is `off` — explicit
+# idle converge, not a standing-restart side effect.
+# Args: env_file claimants_file
 cache_write_acl_file() {
   local env_file="${1:?cache_write_acl_file: EnvironmentFile required}"
-  local claimants_file="${2:-}"
+  local claimants_file="${2:?cache_write_acl_file: claimants file required (empty file = zero claimants)}"
   local acl_path="${DATA_ROOT}/conf/users.acl"
   local clients_root="${DATA_ROOT}/clients"
   local conf_dir
@@ -71,6 +147,10 @@ cache_write_acl_file() {
 
   [[ -f "${env_file}" ]] || {
     echo "cache_write_acl_file: missing ${env_file}" >&2
+    return 1
+  }
+  [[ -f "${claimants_file}" ]] || {
+    echo "cache_write_acl_file: claimants file missing: ${claimants_file}" >&2
     return 1
   }
   [[ -n "${DATA_ROOT:-}" ]] || {
@@ -113,12 +193,11 @@ if any(ch in password for ch in " \t\r\n"):
 
 unsafe = set("*?[]:")
 claimants = set()
-if claimants_path:
-    with open(claimants_path, encoding="utf-8") as cf:
-        for raw in cf:
-            name = raw.rstrip("\n")
-            if name:
-                claimants.add(name)
+with open(claimants_path, encoding="utf-8") as cf:
+    for raw in cf:
+        name = raw.rstrip("\n")
+        if name:
+            claimants.add(name)
 
 retained = []
 if os.path.isdir(clients_root):
