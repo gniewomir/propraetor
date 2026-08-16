@@ -25,10 +25,28 @@ cleanup_art() {
 }
 trap cleanup_art EXIT
 
-mkdir -p "${ART}/www"
-printf '{ "directories": { "www": "static" } }\n' >"${ART}/provides.json"
+mkdir -p "${ART}/www" "${ART}/systemd"
+printf '{ "directories": { "www": "static", "systemd": "units" } }\n' >"${ART}/provides.json"
 printf '{ "database": false, "cache": false }\n' >"${ART}/requires.json"
 printf 'from-acceptance-path-zip\n' >"${ART}/www/index.html"
+# Materialize requires ≥1 allowlisted unit after projection (ADR-0054).
+cat >"${ART}/systemd/${WL}.container" <<EOF
+[Unit]
+Description=Propraetor path zip Source probe
+
+[Container]
+Image=docker.io/library/busybox:1.36
+ContainerName=${WL}
+Network=service-network.network
+Entrypoint=/bin/sleep
+Exec=infinity
+
+[Service]
+Restart=on-failure
+
+[Install]
+WantedBy=default.target
+EOF
 mkdir -p "${FIX_DIR}/${WL}"
 (cd "${ART}" && zip -qr "${FIX_DIR}/${WL}/artifact.zip" .)
 printf '{}\n' >"${FIX_DIR}/${WL}/binding.json"
@@ -52,6 +70,8 @@ REMOTE
 
 host_ssh "grep -Fxq from-acceptance-path-zip /host-volume/workloads/${WL}/www/index.html" \
   || fail "path zip Provides directories must materialize on Host"
+host_ssh "test -f /host-volume/workloads/${WL}/systemd/${WL}.container" \
+  || fail "path zip Provides directories must materialize systemd bag"
 host_ssh "grep -Fq static /host-volume/workloads/${WL}/provides.json" \
   || fail "path zip Artifact Provides must land on Host"
 host_ssh "test -f /host-volume/workloads/${WL}/requires.json" \
