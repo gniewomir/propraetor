@@ -5,3 +5,7 @@ Propraetor’s Host-side ladder is **Substrate** → **Fabric** → **Component*
 **Amends:** ADR-0007 (Service Network is Fabric, not a Component peer of Edge); ADR-0010 (ensure path must distinguish Fabric Setup from Component Setup; network is not a Component); ADR-0022 (Setup that gathers Routes is Edge Component Setup — not Workload Setup installing into Edge). Operator-authored Route content and Manifest-free projection stay as in ADR-0022 / ADR-0053.
 
 **Rejected:** Collapsing Component and Workload into one kind; Workload Intent on Components; keeping Route fulfillment in Workload Setup; defining Fabric as “everything IHP does”; putting the Host Volume mount in Fabric; collapsing Substrate into Fabric or into the IHP Done gate.
+
+**Amended by ADR-0055:** Cache is a further Declaration-fulfilling Component (Requires `cache`).
+
+**Amended by ADR-0057:** Identity is a further Declaration-fulfilling Component (Requires `identity`; Environment-authored issuer hostname on the Domain want-list).
