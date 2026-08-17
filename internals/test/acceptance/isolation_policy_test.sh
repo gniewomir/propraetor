@@ -49,11 +49,11 @@ require_data_track() {
   pass "${case_file} registers survive-Deploy data/ via acceptance_data_track"
 }
 
-require_data_track "75-edge-acme-foundation.sh" \
+require_data_track "1700-edge-acme-foundation.sh" \
   "components/edge/persist/acme-www/.well-known/acme-challenge/edge-acme-foundation-probe"
-require_data_track "77-https-fixture-pem.sh" \
+require_data_track "2100-https-fixture-pem.sh" \
   "components/edge/persist/acme-www/.well-known/acme-challenge/"
-require_data_track "83-domain-front-healthcheck.sh" \
+require_data_track "2000-domain-front-healthcheck.sh" \
   "components/edge/persist/acme-www/.well-known/acme-challenge/"
 
 # --- diagnose-runnable cases must not write Environment SoT (ADR-0042 / #176) ---

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Lifecycle Test suite runner — Park / Apply-after-Park / Teardown (destructive; opt-in).
-# Invoked via ./test.sh lifecycle […] (ADR-0036). See README.md.
+# Invoked via ./test.sh lifecycle […] (ADR-0036 / ADR-0056). See README.md.
 # Suite baseline (ADR-0042 / #161 / #177): test Environment only; suite confirm 'teardown'
 # after case inventory and before credential / Host work; Teardown via ./teardown.sh
 # before each case (Stack absent).
@@ -20,6 +20,8 @@ source "${REPO_ROOT}/internals/lib/operator/operator-dotenv.sh"
 source "${REPO_ROOT}/internals/lib/operator/operator-configuration.sh"
 # shellcheck source=../run-buffered-case.sh
 source "${REPO_ROOT}/internals/test/run-buffered-case.sh"
+# shellcheck source=../suite-cases.sh
+source "${REPO_ROOT}/internals/test/suite-cases.sh"
 # shellcheck source=lib/baseline.sh
 source "${CASE_DIR}/lib/baseline.sh"
 
@@ -30,47 +32,41 @@ environments_forbid_relocated_root || exit 1
 
 CLI_env=""
 CLI_selector=""
-cli_operator_parse CLI pos:selector:optional -- "$@" || exit 1
+CLI_from=""
+CLI_from_set=0
+cli_operator_parse CLI pos:selector:optional flag:from:value -- "$@" || exit 1
 # Fail closed before selecting a non-test workspace (ADR-0042 / #161).
 PLATFORM_ENV="$(environment_slug_for "${CLI_env}")" || exit 1
 export PLATFORM_ENV
 lifecycle_require_test_environment || exit 1
 environment_activate "${STACK_DIR}" "${CLI_env}" || exit 1
-if [[ -n "${CLI_selector}" ]]; then
-  set -- "${CLI_selector}"
-else
-  set --
-fi
 
 export REPO_ROOT STACK_DIR PLATFORM_ENV
 
 ALL_CASES=()
+_list="$(suite_cases_list "${CASE_DIR}")" || exit 1
 while IFS= read -r case_path; do
   [[ -n "${case_path}" ]] || continue
   ALL_CASES+=("${case_path}")
-done < <(find "${CASE_DIR}" -maxdepth 1 -type f -name '[0-9]*.sh' | LC_ALL=C sort)
+done <<< "${_list}"
 
-[[ ${#ALL_CASES[@]} -gt 0 ]] || fail "no Lifecycle Test cases found in ${CASE_DIR}"
+if [[ -n "${CLI_selector}" && "${CLI_from_set}" -eq 1 ]]; then
+  fail "case-selector and --from are mutually exclusive"
+fi
 
 CASES=()
-if [[ $# -eq 0 ]]; then
-  CASES=("${ALL_CASES[@]}")
+if [[ -n "${CLI_selector}" ]]; then
+  start="$(suite_cases_resolve "${CLI_selector}" "${ALL_CASES[@]}")" || exit 1
+  CASES=("${start}")
+elif [[ "${CLI_from_set}" -eq 1 ]]; then
+  start="$(suite_cases_resolve "${CLI_from}" "${ALL_CASES[@]}")" || exit 1
+  _slice="$(suite_cases_from "${start}" "${ALL_CASES[@]}")" || exit 1
+  while IFS= read -r case_path; do
+    [[ -n "${case_path}" ]] || continue
+    CASES+=("${case_path}")
+  done <<< "${_slice}"
 else
-  SELECTOR="$1"
-  for case_path in "${ALL_CASES[@]}"; do
-    base="$(basename "${case_path}")"
-    if [[ "${base}" == *"${SELECTOR}"* ]]; then
-      CASES+=("${case_path}")
-    fi
-  done
-  [[ ${#CASES[@]} -gt 0 ]] || fail "no Lifecycle Test matches selector: ${SELECTOR}"
-  if [[ ${#CASES[@]} -ne 1 ]]; then
-    matched=""
-    for case_path in "${CASES[@]}"; do
-      matched+=" $(basename "${case_path}")"
-    done
-    fail "selector ${SELECTOR} matched multiple cases:${matched}"
-  fi
+  CASES=("${ALL_CASES[@]}")
 fi
 
 echo "Lifecycle Tests (destructive; may leave Stack Parked or empty)."

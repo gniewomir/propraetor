@@ -1,22 +1,24 @@
 # Testing
 
-How agents run and extend Propraetor’s executable checks. Glossary: **Acceptance Test**, **Lifecycle Test**, **Unit Test** in root `CONTEXT.md`. Decisions: [ADR-0036](../adr/0036-unified-test-entrypoint.md) (entrypoint), [ADR-0042](../adr/0042-suite-baselines-and-test-isolation.md) (suite baselines / isolation). Argv grammar: [ADR-0039](../adr/0039-operator-cli-positionals-then-flags.md).
+How agents run and extend Propraetor’s executable checks. Glossary: **Acceptance Test**, **Lifecycle Test**, **Unit Test** in root `CONTEXT.md`. Decisions: [ADR-0036](../adr/0036-unified-test-entrypoint.md) (entrypoint), [ADR-0042](../adr/0042-suite-baselines-and-test-isolation.md) (suite baselines / isolation), [ADR-0056](../adr/0056-ordered-suite-prefixes-and-from.md) (four-digit prefixes / `--from`). Argv grammar: [ADR-0039](../adr/0039-operator-cli-positionals-then-flags.md).
 
 ## Entrypoint
 
 From the repo root:
 
 ```bash
-./test.sh <suite> [<case-selector>] [--verbose] [--env <slug>]
+./test.sh <suite> [<case-selector>] [--from <token>] [--verbose] [--env <slug>]
+./test.sh <suite> [--from <token>] [--verbose] [--env <slug>]
 ./test.sh <suite> [--verbose] [--env <slug>]
 ```
 
 - `<suite>` is **mandatory** — the name of a subdirectory of `internals/test/` (`acceptance`, `lifecycle`, or `unit`).
-- `<case-selector>` is optional — unique substring of one case filename (Acceptance/Lifecycle) or of a Unit Test path/basename; multiple matches fail.
+- `<case-selector>` is optional — exactly one case. For Acceptance/Lifecycle: an all-digit token matches the numeric prefix (`100` == `0100`); otherwise a unique substring of the filename. For Unit: unique substring of path/basename. Multiple matches fail.
+- `--from <token>` (Acceptance/Lifecycle only) uses the same token rule, then runs that case through the end of the suite (inclusive). Invalid for `unit`. Mutually exclusive with `<case-selector>`.
 - Positionals come first; flags follow; flag order is free (ADR-0039).
 - `--verbose` (or `TEST_VERBOSE=1`) streams each case live instead of quiet-on-pass buffering.
 - `--env <slug>` is optional. Valid for `acceptance` (ADR-0019; non-**test** requires typed `diagnose <slug>` — ADR-0042). Valid for `lifecycle` only as **test** / `default` (any other slug fail closed — ADR-0042). Passing `--env` to `unit` is invalid.
-- Any other shape (missing suite, unknown suite, flag before positional, unknown flag) → print help and exit non-zero.
+- Any other shape (missing suite, unknown suite, flag before positional, unknown flag, selector plus `--from`) → print help and exit non-zero.
 
 `./test.sh` is a thin dispatcher: it validates the suite directory, then execs `internals/test/<suite>/run.sh` with the remaining args.
 
@@ -34,7 +36,7 @@ Peer-pollution cleanup is banned. Full policy: ADR-0042 / issue #159. Acceptance
 
 ### Acceptance / Lifecycle cases
 
-Numeric-prefixed `NN-short-name.sh` under the suite directory; fail-fast; filename sort is order. Shared helpers live beside the suite (`acceptance/lib.sh`; Lifecycle under `lifecycle/lib/`). Acceptance: cases restore Environment SoT before exit; runner Deploy restores Host. Lifecycle: cases Apply when they need a Stack (`ensure_stack_applied`); runner Teardown baselines between cases — do not assume a standing Applied Stack in CI.
+Numeric-prefixed `NNNN-short-name.sh` under the suite directory (exactly four digits, unique prefix, default gap 100 — ADR-0056); fail-fast; filename sort is order. Shared helpers live beside the suite (`acceptance/lib.sh`; Lifecycle under `lifecycle/lib/`). Inventory (list / resolve / `--from` slice) is `internals/test/suite-cases.sh`. Acceptance: cases restore Environment SoT before exit; runner Deploy restores Host. On non-test Acceptance, `--from` skips fixture-class cases (`SKIP`, including a named start); an explicit selector still refuses them (ADR-0042). Lifecycle: cases Apply when they need a Stack (`ensure_stack_applied`); runner Teardown baselines between cases — do not assume a standing Applied Stack in CI.
 
 ### Unit Tests
 

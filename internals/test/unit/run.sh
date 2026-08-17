@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Unit Test suite runner — colocated internals/**/*_test.sh (ADR-0036).
-# Invoked via ./test.sh unit [<case-selector>]. No --env (dispatcher rejects it).
+# Invoked via ./test.sh unit [<case-selector>]. No --env / --from (dispatcher rejects them).
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"

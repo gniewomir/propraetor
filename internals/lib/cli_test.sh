@@ -30,10 +30,10 @@ pass "bool/value defaults"
 
 # --- positionals then flags ---
 cli_parse T pos:suite:required pos:selector:optional flag:verbose:bool flag:env:value -- \
-  acceptance 70-podman --verbose --env test \
+  acceptance 1100-podman --verbose --env test \
   || fail "pos then flags"
 [[ "${T_suite}" == "acceptance" ]] || fail "suite"
-[[ "${T_selector}" == "70-podman" ]] || fail "selector"
+[[ "${T_selector}" == "1100-podman" ]] || fail "selector"
 [[ "${T_verbose}" == "1" && "${T_env}" == "test" ]] || fail "flags after pos"
 pass "positionals then flags"
 
@@ -43,6 +43,13 @@ cli_parse T pos:suite:required pos:selector:optional flag:verbose:bool flag:env:
 [[ "${T_suite}" == "acceptance" && -z "${T_selector}" && "${T_env}" == "test" ]] \
   || fail "optional omitted values"
 pass "optional positional omitted"
+
+cli_parse T pos:suite:required pos:selector:optional flag:verbose:bool flag:from:value flag:env:value -- \
+  acceptance --from 1100 --verbose --env test \
+  || fail "from flag"
+[[ "${T_suite}" == "acceptance" && -z "${T_selector}" ]] || fail "from: suite/selector"
+[[ "${T_from}" == "1100" && "${T_from_set}" == "1" && "${T_verbose}" == "1" ]] || fail "from flag values"
+pass "--from after optional selector omitted"
 
 # --- reject bad shapes ---
 if cli_parse T pos:suite:required flag:env:value -- --env test acceptance 2>/dev/null; then

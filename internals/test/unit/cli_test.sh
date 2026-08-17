@@ -33,7 +33,9 @@ assert_help_and_fail "unit rejects --env" unit --env test
 assert_help_and_fail "unit rejects --env with selector" unit environment_test --env test
 assert_help_and_fail "--env missing slug" acceptance --env
 assert_help_and_fail "too many positionals" acceptance one two
-assert_help_and_fail "selector after flags" acceptance --env test 70-podman
+assert_help_and_fail "selector after flags" acceptance --env test 1100-podman
+assert_help_and_fail "unit rejects --from" unit --from 1100
+assert_help_and_fail "selector and --from together" acceptance 1100-podman --from 2000
 assert_help_and_fail "unknown flag" unit --bogus
 
 # Dispatch reached the unit runner (unknown selector is a suite-level error, not Usage).

@@ -4,7 +4,7 @@
 # Case-owned Park → stage domains.override.json → Apply with invalid Host Image
 # (Recreatable fault after Durable convergence) → restore image → normal Apply →
 # empty re-Apply → Teardown with override → remove override → committed re-Apply.
-# Recovery-only: clean Parked-additive happy path is 14-parked-additive-domain.sh (#65).
+# Recovery-only: clean Parked-additive happy path is 0200-parked-additive-domain.sh (#65).
 # Leftover Stack state on success: Applied (committed Domains only; no fixture Durable).
 # On failure: may leave Parked, Applied with override, empty after Teardown, or mid-Apply —
 # remove environments/<slug>/domains.override.json if present, then

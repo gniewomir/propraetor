@@ -29,19 +29,19 @@ grep -Eq 'ensure-components\.sh"[[:space:]]+post-workloads|ensure-components\.sh
 pass "ensure_edge_route_fulfillment composes Component Setup post-workloads"
 
 # --- Deploy-alone product proof case exists and does not heal via the helper ---
-PROOF="${CASE_DIR}/96-deploy-route-https.sh"
+PROOF="${CASE_DIR}/2400-deploy-route-https.sh"
 [[ -f "${PROOF}" ]] || fail "missing Deploy-alone Route HTTPS proof case ${PROOF}"
 grep -Fq 'ensure.sh' "${PROOF}" \
-  || fail "96-deploy-route-https must re-run Deploy ladder (ensure.sh)"
+  || fail "2400-deploy-route-https must re-run Deploy ladder (ensure.sh)"
 # Call sites only (ignore comments): bare helper name as a command token.
 if grep -E '^[[:space:]]*ensure_edge_route_fulfillment([[:space:]]|$)' "${PROOF}" >/dev/null; then
-  fail "96-deploy-route-https must not call ensure_edge_route_fulfillment"
+  fail "2400-deploy-route-https must not call ensure_edge_route_fulfillment"
 fi
 pass "Deploy-alone Route HTTPS proof case avoids fulfillment-helper heal"
 
 # --- Intent-transition Edge refresh uses post-workloads (helper or direct) ---
 refresh_cases=(
-  "${CASE_DIR}/78-workload-intent-run-stop.sh"
+  "${CASE_DIR}/2600-workload-intent-run-stop.sh"
 )
 for case_path in "${refresh_cases[@]}"; do
   [[ -f "${case_path}" ]] || fail "missing Intent-transition case ${case_path}"

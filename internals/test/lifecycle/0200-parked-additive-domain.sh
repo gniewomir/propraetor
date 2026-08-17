@@ -5,7 +5,7 @@
 # Recreatable input → prior Durables unchanged, fixture Domain present,
 # Recreatables restored → empty re-Apply → Teardown with override → remove
 # override → committed re-Apply.
-# No fault injection (contrast 16-parked-additive-partial-apply.sh / #64).
+# No fault injection (contrast 0400-parked-additive-partial-apply.sh / #64).
 # Leftover Stack state on success: Applied (committed Domains only; no fixture Durable).
 # On failure: may leave Parked, Applied with override, empty after Teardown, or mid-Apply —
 # remove environments/<slug>/domains.override.json if present, then

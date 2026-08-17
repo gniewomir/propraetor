@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Acceptance Test suite runner — Applied Stack external behavior after Apply (./apply.sh).
-# Runs [0-9]*.sh as subprocesses in sort order (fail-fast).
-# Invoked via ./test.sh acceptance […] (ADR-0036).
+# Runs NNNN-*.sh as subprocesses in sort order (fail-fast).
+# Invoked via ./test.sh acceptance […] (ADR-0036 / ADR-0056).
 # Suite baseline (ADR-0042 / #162 / #176): Deploy via ensure.sh before each case; non-test
 # requires exact 'diagnose <slug>' once at suite start (test/default skips); fixture-class
 # cases skipped (full suite) or refused (selector); Environment tree must match HEAD
@@ -18,6 +18,8 @@ source "${TEST_DIR}/lib.sh"
 source "${TEST_DIR}/baseline.sh"
 # shellcheck source=../run-buffered-case.sh
 source "${REPO_ROOT}/internals/test/run-buffered-case.sh"
+# shellcheck source=../suite-cases.sh
+source "${REPO_ROOT}/internals/test/suite-cases.sh"
 # shellcheck source=internals/lib/cli.sh
 source "${REPO_ROOT}/internals/lib/cli.sh"
 # shellcheck source=internals/lib/environment/environment.sh
@@ -37,14 +39,11 @@ environments_forbid_relocated_root || exit 1
 
 CLI_env=""
 CLI_selector=""
-cli_operator_parse CLI pos:selector:optional -- "$@" || exit 1
+CLI_from=""
+CLI_from_set=0
+cli_operator_parse CLI pos:selector:optional flag:from:value -- "$@" || exit 1
 environment_activate "${STACK_DIR}" "${CLI_env}" || exit 1
 acceptance_confirm_diagnose || exit 1
-if [[ -n "${CLI_selector}" ]]; then
-  set -- "${CLI_selector}"
-else
-  set --
-fi
 
 command -v terraform >/dev/null || fail "terraform not found"
 command -v jq >/dev/null || fail "jq not found"
@@ -73,15 +72,38 @@ propraetor_ssh_forget_host "${IP}"
 echo "Checking Reserved IP ${IP} (Environment ${PLATFORM_ENV}) ..."
 
 ALL_CASES=()
+_list="$(suite_cases_list "${TEST_DIR}")" || exit 1
 while IFS= read -r case_path; do
   [[ -n "${case_path}" ]] || continue
   ALL_CASES+=("${case_path}")
-done < <(find "${TEST_DIR}" -maxdepth 1 -type f -name '[0-9]*.sh' | LC_ALL=C sort)
+done <<< "${_list}"
 
-[[ ${#ALL_CASES[@]} -gt 0 ]] || fail "no Acceptance Tests found in ${TEST_DIR}"
+if [[ -n "${CLI_selector}" && "${CLI_from_set}" -eq 1 ]]; then
+  fail "case-selector and --from are mutually exclusive"
+fi
 
 CASES=()
-if [[ $# -eq 0 ]]; then
+if [[ -n "${CLI_selector}" ]]; then
+  start="$(suite_cases_resolve "${CLI_selector}" "${ALL_CASES[@]}")" || exit 1
+  CASES=("${start}")
+  acceptance_refuse_if_diagnose_fixture_selector "${CASES[0]}" || exit 1
+elif [[ "${CLI_from_set}" -eq 1 ]]; then
+  start="$(suite_cases_resolve "${CLI_from}" "${ALL_CASES[@]}")" || exit 1
+  _slice="$(suite_cases_from "${start}" "${ALL_CASES[@]}")" || exit 1
+  SLICE=()
+  while IFS= read -r case_path; do
+    [[ -n "${case_path}" ]] || continue
+    SLICE+=("${case_path}")
+  done <<< "${_slice}"
+  FILTERED_CASES=()
+  while IFS= read -r case_path; do
+    [[ -n "${case_path}" ]] || continue
+    FILTERED_CASES+=("${case_path}")
+  done < <(acceptance_filter_diagnose_cases "${SLICE[@]}")
+  CASES=("${FILTERED_CASES[@]}")
+  [[ ${#CASES[@]} -gt 0 ]] \
+    || fail "no diagnose-runnable Acceptance Tests remain after skipping fixture-class cases"
+else
   CASES=("${ALL_CASES[@]}")
   FILTERED_CASES=()
   while IFS= read -r case_path; do
@@ -91,23 +113,6 @@ if [[ $# -eq 0 ]]; then
   CASES=("${FILTERED_CASES[@]}")
   [[ ${#CASES[@]} -gt 0 ]] \
     || fail "no diagnose-runnable Acceptance Tests remain after skipping fixture-class cases"
-else
-  SELECTOR="$1"
-  for case_path in "${ALL_CASES[@]}"; do
-    base="$(basename "${case_path}")"
-    if [[ "${base}" == *"${SELECTOR}"* ]]; then
-      CASES+=("${case_path}")
-    fi
-  done
-  [[ ${#CASES[@]} -gt 0 ]] || fail "no Acceptance Test matches selector: ${SELECTOR}"
-  if [[ ${#CASES[@]} -ne 1 ]]; then
-    matched=""
-    for case_path in "${CASES[@]}"; do
-      matched+=" $(basename "${case_path}")"
-    done
-    fail "selector ${SELECTOR} matched multiple cases:${matched}"
-  fi
-  acceptance_refuse_if_diagnose_fixture_selector "${CASES[0]}" || exit 1
 fi
 
 for case_path in "${CASES[@]}"; do

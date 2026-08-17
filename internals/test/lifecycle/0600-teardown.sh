@@ -2,7 +2,7 @@
 # Lifecycle Test: Teardown from Parked wipes Durables and empties State (#65 / ADR-0025).
 # Suite baseline: Stack absent (runner Teardown); this case Applies via ensure_stack_applied.
 # Case-owned Park first, then Teardown. Applied→Teardown coverage remains in
-# 15-additive-domain.sh / 16-parked-additive-partial-apply.sh (and 14) cleanup.
+# 0300-additive-domain.sh / 0400-parked-additive-partial-apply.sh (and 0200) cleanup.
 # Leftover Stack state on success: empty (no managed addresses; Durables gone at provider).
 # On failure: may leave Applied, Parked, or mid-Teardown — restore with:
 #   Prefer Park if Durables remain; full wipe: ./teardown.sh; then ./apply.sh.

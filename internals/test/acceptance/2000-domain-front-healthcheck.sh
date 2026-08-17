@@ -18,7 +18,7 @@ source "${REPO_ROOT}/internals/lib/domains/domain_front_target.sh"
 # shellcheck source=../../lib/domains/domain_front_staging_hc.sh
 source "${REPO_ROOT}/internals/lib/domains/domain_front_staging_hc.sh"
 
-DATA_ROOT=/host-volume/components/edge
+DATA_ROOT=/host-volume/components/edge/persist
 DOMAINS_HOST="${DATA_ROOT}/domains"
 CERTS_HOST="${DATA_ROOT}/certs"
 STAGING_CA="${REPO_ROOT}/internals/test/acceptance/fixtures/le-staging-roots/le-staging-roots.pem"

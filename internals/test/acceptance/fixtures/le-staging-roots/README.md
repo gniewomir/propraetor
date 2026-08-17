@@ -1,7 +1,7 @@
 # Let’s Encrypt staging root trust bundle
 
 Official **self-signed** Let’s Encrypt staging roots for Acceptance Tier B
-(`test/83-domain-front-healthcheck.sh`). Concatenated as `le-staging-roots.pem`
+(`test/2000-domain-front-healthcheck.sh`). Concatenated as `le-staging-roots.pem`
 for OpenSSL `-CAfile`. Do **not** pin intermediates. Do **not** install into
 ordinary OS trust stores.
 

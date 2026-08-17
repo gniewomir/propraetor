@@ -2,7 +2,7 @@
 
 Executable checks of Stack lifecycle operations that deliberately change Stack presence: **Park**, **Apply** after Park, and **Teardown**. Opt-in and destructive.
 
-**Entrypoint:** `./test.sh lifecycle` — see [docs/agents/testing.md](../../../docs/agents/testing.md) (ADR-0036). Suite baselines: [ADR-0042](../../../docs/adr/0042-suite-baselines-and-test-isolation.md).
+**Entrypoint:** `./test.sh lifecycle` — see [docs/agents/testing.md](../../../docs/agents/testing.md) (ADR-0036 / ADR-0056). Suite baselines: [ADR-0042](../../../docs/adr/0042-suite-baselines-and-test-isolation.md).
 
 **Suite baseline (ADR-0042):** Stack **absent** (post-**Teardown**). Runner Teardown **before each case**. **test Environment only** (fail closed on any other `--env`). Suite start: after case inventory, type exact `teardown` once (before credential / Host work). Cases that need an Applied Stack **Apply** themselves. Slow by design.
 
@@ -10,27 +10,27 @@ Executable checks of Stack lifecycle operations that deliberately change Stack p
 
 ## Status
 
-- Stable Applied / Parked + Park → Apply round-trip: `10-park-apply.sh`
+- Stable Applied / Parked + Park → Apply round-trip: `0100-park-apply.sh`
   (empty repeated Apply/Park plans; Cloud Project / Reserved IP / Host Volume /
   Domain identities; Host Volume marker; Host and Reserved IP memberships by
   lifecycle class)
-- Parked Additive Domain happy path: `14-parked-additive-domain.sh`
-  (case-owned Park; same override fixture as `15`; one normal Apply; prior Durables
+- Parked Additive Domain happy path: `0200-parked-additive-domain.sh`
+  (case-owned Park; same override fixture as `0300`; one normal Apply; prior Durables
   unchanged; fixture present; Recreatables restored; empty re-Apply; Teardown cleanup
-  as in `15-additive-domain.sh`)
-- Applied Additive Domain: `15-additive-domain.sh`
+  as in `0300-additive-domain.sh`)
+- Applied Additive Domain: `0300-additive-domain.sh`
   (derived `domains.override.json` fixture; prior identities/memberships preserved;
   empty re-Apply; Teardown with override → drop override → committed re-Apply)
-- Parked additive partial Apply recovery: `16-parked-additive-partial-apply.sh`
+- Parked additive partial Apply recovery: `0400-parked-additive-partial-apply.sh`
   (case-owned Park; same override fixture; Apply with invalid
   `TF_VAR_host_image` after Durable converge; restore default image → Apply;
-  empty re-Apply; Teardown cleanup as in `15-additive-domain.sh`)
-- Subtractive Durable fail-closed: `17-subtractive-durable.sh`
+  empty re-Apply; Teardown cleanup as in `0300-additive-domain.sh`)
+- Subtractive Durable fail-closed: `0500-subtractive-durable.sh`
   (narrower `domains.override.json` drops lex-first committed apex; Apply fails with
   `prevent_destroy`; Durables unchanged; drop override → committed re-Apply; empty re-Apply)
-- Teardown from Parked (Durables wiped, State empty): `20-teardown.sh`
+- Teardown from Parked (Durables wiped, State empty): `0600-teardown.sh`
   (case-owned Park → Teardown; Cloud Project, Reserved IP, Host Volume, Domain when
-  configured). Applied→Teardown remains covered by additive-case cleanup (`14`/`15`/`16`).
+  configured). Applied→Teardown remains covered by additive-case cleanup (`0200`/`0300`/`0400`).
 
 Domain Durable asserts run when Domains are in State (declare them in `environments/<cloud-slug>/domains.json`; each case Applies from the absent suite baseline via `ensure_stack_applied`). With zero Domains configured, those asserts skip — Reserved IP / Host Volume coverage still runs. The Additive Domain case requires a non-empty committed Domain assignment (base apex for `lifecycle-test.<apex>`).
 
@@ -43,6 +43,8 @@ Credentials must already be in the environment or root `.env` (`DIGITALOCEAN_TOK
 ```bash
 ./test.sh lifecycle                 # all Lifecycle Tests on the test Environment (default)
 ./test.sh lifecycle park-apply      # one slice (substring match on the filename)
+./test.sh lifecycle 100             # one slice (numeric prefix; 100 == 0100-park-apply)
+./test.sh lifecycle --from 400      # 0400-parked-additive-partial-apply through the end
 ./test.sh lifecycle teardown        # Teardown-focused case (suite still prompts 'teardown' once)
 ./test.sh lifecycle --env test      # same Environment as omitting --env (`default` also aliases)
 ./test.sh lifecycle park-apply --env test
@@ -56,7 +58,7 @@ The runner asks for exact `teardown` once at suite start (every invocation wipes
 
 ## Add a case
 
-1. Add `NN-short-name.sh` in this directory.
+1. Add `NNNN-short-name.sh` in this directory (default gap 100; append last+100; insert with a spare — ADR-0056).
 2. Use observable outcomes (provider presence/absence, Reserved IP value, volume marker bytes, SSH reachability) — not Terraform internals. Exception: Teardown leftover emptiness may be asserted via empty State (glossary Teardown).
 3. Document leftover Stack state in the case header (Parked vs Applied vs empty).
 4. If the case needs Applied presence, call `ensure_stack_applied` (do not fail closed asking the operator to Apply first).
