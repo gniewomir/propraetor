@@ -8,4 +8,4 @@ Propraetor’s Host-side ladder is **Substrate** → **Fabric** → **Component*
 
 **Amended by ADR-0055:** Cache is a further Declaration-fulfilling Component (Requires `cache`).
 
-**Amended by ADR-0057:** Identity is a further Declaration-fulfilling Component (Requires `identity`; Environment-authored issuer hostname on the Domain want-list).
+**Amended by ADR-0057:** Identity is a further Declaration-fulfilling Component (Requires `identity`; Service Network dial name `identity`; issuer hostname declared in `identity.json`; Edge owns that FQDN's Domain front proxy and fails closed on Workload Route collisions).
