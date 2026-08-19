@@ -10,4 +10,4 @@ Workloads still bind to many Domains, but an external Artifact must not encode P
 
 **Amended by ADR-0055:** Requires also carries required boolean `cache` (Cache Component; peer of `database`).
 
-**Amended by ADR-0057:** Provides gains `permissions` and `oidc_callback`; Requires gains `identity` and optional client `permissions`; a resource server has exactly one Binding FQDN.
+**Amended by ADR-0057:** Provides gains `permissions` and `oidc_callback`; Requires gains `identity` and optional client `permissions`; Binding no longer determines token audience/resource for permission catalogs (Identity audience is Environment-scoped).
