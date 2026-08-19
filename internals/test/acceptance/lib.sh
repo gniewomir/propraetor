@@ -445,6 +445,29 @@ acceptance_write_artifact_stubs() {
   printf '{ "database": false, "cache": false }\n' >"${tree}/requires.json"
 }
 
+# Minimal Quadlet container so internal-source Workload materialize passes (ADR-0054).
+# Args: tree [container_basename]
+acceptance_write_minimal_workload_quadlet() {
+  local tree="${1:?acceptance_write_minimal_workload_quadlet: Workload tree required}"
+  local name="${2:-$(basename "${tree}")}"
+  mkdir -p "${tree}/systemd"
+  cat >"${tree}/systemd/${name}.container" <<EOF
+[Unit]
+Description=Propraetor Workload ${name}
+
+[Container]
+Image=docker.io/library/nginx:1.31.3-alpine
+ContainerName=${name}
+Network=service-network.network
+
+[Service]
+Restart=on-failure
+
+[Install]
+WantedBy=default.target
+EOF
+}
+
 # Artifact stubs with Requires database: true (Database Component claimant).
 acceptance_write_database_claim() {
   local tree="${1:?acceptance_write_database_claim: Workload tree required}"
