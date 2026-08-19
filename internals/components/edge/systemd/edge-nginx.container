@@ -3,7 +3,7 @@ Description=Propraetor Edge nginx
 After=network-online.target
 
 [Container]
-Image=docker.io/library/nginx:1.31.3-alpine
+Image=docker.io/library/nginx:1.31.4-alpine
 Pod=edge.pod
 Volume=../nginx.conf:/etc/nginx/nginx.conf:ro
 Volume=../persist/domains:/etc/nginx/edge-domains:ro
