@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Host-local half of ensure-components. Invoked after Host delivery unpacks the stage.
 # Installs staged Component trees onto the Host Volume, places ACME want-list /
-# ACME EnvironmentFile (and Database/Cache admin EnvironmentFiles when selected)
+# identity.json, Identity admin EnvironmentFile, ACME EnvironmentFile (and Database/Cache
+# admin EnvironmentFiles when selected) into the Component Setup handoff root on the Host
 # into the Component Setup handoff root on the Host Volume, ships host-scripts, then
 # applies one Component Setup slot (pre-workloads | post-workloads) — ADR-0043 /
 # ADR-0040 / ADR-0010 / ADR-0054 / ADR-0045 / ADR-0049 / ADR-0055 / #181 / #188 / #215 / #221.
@@ -62,6 +63,9 @@ WORKLOADS_ROOT="$(host_volume_workloads_sot_root)"
 HOST_SCRIPTS_ROOT="$(host_volume_host_scripts_root)"
 WANT_STAGE="${HERE}/platform-acme-want-list"
 ACME_ENV_STAGE="${HERE}/platform-acme.env"
+IDENTITY_CONFIG_STAGE="${HERE}/platform-identity.json"
+IDENTITY_ADMIN_STAGE="${HERE}/platform-identity-admin.env"
+ENVIRONMENT_SLUG_STAGE="${HERE}/platform-environment-slug"
 DB_ADMIN_STAGE="${HERE}/platform-database-admin.env"
 CACHE_ADMIN_STAGE="${HERE}/platform-cache-admin.env"
 SETUP_SCRIPT="${SLOT}.sh"
@@ -87,6 +91,8 @@ mkdir -p \
   "${HOST_SCRIPTS_ROOT}"
 
 component_handoff_install_acme "${WANT_STAGE}" "${ACME_ENV_STAGE}"
+component_handoff_install_environment_slug "${ENVIRONMENT_SLUG_STAGE}"
+component_handoff_install_identity "${IDENTITY_CONFIG_STAGE}" "${IDENTITY_ADMIN_STAGE}"
 if [[ "${need_database}" == "1" ]]; then
   component_handoff_install_database_admin "${DB_ADMIN_STAGE}"
 fi
@@ -134,8 +140,9 @@ done
 chown -R "${USER_NAME}:${USER_NAME}" \
   "${COMPONENTS_ROOT}" "${WORKLOADS_ROOT}" "${HOST_SCRIPTS_ROOT}"
 
-# Fail closed if ACME handoffs are missing before Component Setup.
+# Fail closed if ACME / Identity handoffs are missing before Component Setup.
 component_handoff_require_acme
+component_handoff_require_identity
 
 for name in "${COMPONENTS[@]}"; do
   [[ -f "${COMPONENTS_ROOT}/${name}/${SETUP_SCRIPT}" ]] || {

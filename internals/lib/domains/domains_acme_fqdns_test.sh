@@ -35,6 +35,7 @@ assert_fqdns() {
 # Committed test Environment Domain assignment (independent expected literals).
 assert_fqdns test \
   api.enraged.dev \
+  auth.enraged.dev \
   enraged.dev \
   test-acme.enraged.dev \
   www.enraged.dev

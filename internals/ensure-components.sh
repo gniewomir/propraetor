@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # Ensure Components on the Host after Initial Host Provisioning.
 # Waits for IHP Done (Host is Substrate), ships Component source, host-scripts, the
-# ACME want-list, ACME EnvironmentFile, and Database admin credentials via Host
-# delivery, then runs one Component Setup slot (pre-workloads | post-workloads).
+# ACME want-list, identity.json, Identity admin credentials, ACME EnvironmentFile, and
+# Database / Cache admin credentials via Host delivery, then runs one Component Setup
+# slot (pre-workloads | post-workloads).
 # Idempotent — re-run freely. Does not run Fabric Setup (see ensure-fabric.sh). No
 # combined "full" mode — Deploy (or the caller) runs both slots in order when
 # Components must be fully correct (ADR-0043 / #181 / ADR-0049 / #188).
@@ -10,6 +11,8 @@
 # Usage: ./internals/ensure-components.sh <pre-workloads|post-workloads> [--env <slug>]
 # Optional: PLATFORM_USER=platform
 # Requires: Operator Configuration private key path (PROPRAETOR_PRIVATE_KEY_PATH).
+# Requires: committed identity.json with a want-list issuer FQDN for the Environment.
+# Requires: Identity admin credentials ROOT_IDENTITY_* (Environment .env or shell).
 # Requires: Database admin credentials ROOT_DB_USER / ROOT_DB_PASSWORD (Environment .env or shell).
 # Requires: Cache admin credentials ROOT_CACHE_USER / ROOT_CACHE_PASSWORD (Environment .env or shell).
 set -euo pipefail
@@ -17,7 +20,7 @@ set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 STACK_DIR="${REPO_ROOT}/internals/terraform"
 USER_NAME="${PLATFORM_USER:-platform}"
-COMPONENTS=(edge database cache)
+COMPONENTS=(edge database cache identity)
 HOST_SCRIPT="${REPO_ROOT}/internals/host-scripts/ensure-components-host.sh"
 # shellcheck source=lib/cli.sh
 source "${REPO_ROOT}/internals/lib/cli.sh"
@@ -31,6 +34,10 @@ source "${REPO_ROOT}/internals/lib/acme/acme.sh"
 source "${REPO_ROOT}/internals/lib/database/database-admin-credentials.sh"
 # shellcheck source=lib/cache/cache-admin-credentials.sh
 source "${REPO_ROOT}/internals/lib/cache/cache-admin-credentials.sh"
+# shellcheck source=lib/identity/identity-config.sh
+source "${REPO_ROOT}/internals/lib/identity/identity-config.sh"
+# shellcheck source=lib/identity/identity-admin-credentials.sh
+source "${REPO_ROOT}/internals/lib/identity/identity-admin-credentials.sh"
 # shellcheck source=lib/ssh.sh
 source "${REPO_ROOT}/internals/lib/ssh.sh"
 # shellcheck source=lib/host-delivery.sh
@@ -59,6 +66,9 @@ case "${CLI_slot}" in
     ;;
 esac
 environment_activate "${STACK_DIR}" "${CLI_env}" || exit 1
+
+ENV_DIR="$(environments_dir_for "${PLATFORM_ENV}")" || exit 1
+IDENTITY_ISSUER_FQDN="$(identity_config_issuer_fqdn_for "${PLATFORM_ENV}")" || exit 1
 
 command -v terraform >/dev/null || { echo "terraform not found" >&2; exit 1; }
 command -v ssh >/dev/null || { echo "ssh not found" >&2; exit 1; }
@@ -103,16 +113,28 @@ trap 'rm -rf "${STAGE}"' EXIT
 domains_acme_fqdns_for "${PLATFORM_ENV}" >"${STAGE}/platform-acme-want-list"
 acme_config_dotenv_for "${PLATFORM_ENV}" >"${STAGE}/platform-acme.env"
 
+# Identity issuer hostname (ADR-0057 / #251): committed identity.json → Host handoff.
+identity_config_stage_for "${PLATFORM_ENV}" "${STAGE}/platform-identity.json" || exit 1
+
+# Identity admin credentials (ADR-0057 / #251): Environment .env + shell → Pocket ID keys.
+# Not Environment Configuration — never remapped by Binding into Workloads.
+identity_admin_credentials_dotenv_for \
+  "${ENV_DIR}" \
+  "${IDENTITY_ISSUER_FQDN}" \
+  "${STAGE}/platform-identity-admin.env" || exit 1
+
+printf '%s\n' "${PLATFORM_ENV}" >"${STAGE}/platform-environment-slug"
+
 # Database admin credentials (ADR-0049 / #188): Environment .env + shell → Postgres EnvironmentFile.
 # Not Environment Configuration — never remapped by Binding into Workloads.
 database_admin_credentials_dotenv_for \
-  "$(environments_dir_for "${PLATFORM_ENV}")" \
+  "${ENV_DIR}" \
   "${STAGE}/platform-database-admin.env"
 
 # Cache admin credentials (ADR-0055 / #221): Environment .env + shell → Persist EnvironmentFile.
 # Not Environment Configuration — never remapped by Binding into Workloads.
 cache_admin_credentials_dotenv_for \
-  "$(environments_dir_for "${PLATFORM_ENV}")" \
+  "${ENV_DIR}" \
   "${STAGE}/platform-cache-admin.env"
 
 cp -a "${REPO_ROOT}/internals/host-scripts/lib" "${STAGE}/lib"
@@ -121,6 +143,7 @@ cp -a "${REPO_ROOT}/internals/host-scripts/lib" "${STAGE}/lib"
 cp "${REPO_ROOT}/internals/lib/artifact/binding.sh" "${STAGE}/lib/binding.sh"
 cp "${REPO_ROOT}/internals/lib/artifact/provides.sh" "${STAGE}/lib/provides.sh"
 cp "${REPO_ROOT}/internals/lib/artifact/requires.sh" "${STAGE}/lib/requires.sh"
+cp "${REPO_ROOT}/internals/lib/identity/identity-resource.sh" "${STAGE}/lib/identity-resource.sh"
 cp "${HOST_SCRIPT}" "${STAGE}/ensure-components-host.sh"
 for name in "${COMPONENTS[@]}"; do
   cp -a "${REPO_ROOT}/internals/components/${name}" "${STAGE}/${name}"

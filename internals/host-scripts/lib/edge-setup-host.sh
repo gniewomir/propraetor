@@ -108,6 +108,7 @@ edge_setup() {
   # Domain-front reconcile also drops legacy 00-empty include stubs (empty globs OK).
   # Template SoT ships with the Edge Component tree (fail closed if missing).
   DOMAIN_FRONT_TEMPLATE="${component_tree}/domain-template.conf"
+  IDENTITY_DOMAIN_FRONT_TEMPLATE="${component_tree}/identity-domain-template.conf"
   edge_plant_placeholder_pems
   edge_reconcile_domain_fronts
 

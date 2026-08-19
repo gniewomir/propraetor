@@ -1,5 +1,5 @@
 {
   "enraged.dev": {
-    "names": ["@", "www", "api", "test-acme"]
+    "names": ["@", "www", "api", "test-acme", "auth"]
   }
 }

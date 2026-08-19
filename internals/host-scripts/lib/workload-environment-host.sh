@@ -71,8 +71,8 @@ workload_environment_remove_dropins_for_dir() {
 # When REQUIRES is set: full-fulfill Binding.environment onto Requires.environment.
 # When omitted: Binding.environment only (zip Setup; Host full-fulfills later).
 # Print bag_key=Requires_name one per line (Requires-name order). Empty
-# environment → no lines. ROOT_DB_* / ROOT_CACHE_* bag keys or RHS names fail
-# closed (ADR-0049 / ADR-0055).
+# environment → no lines. ROOT_DB_* / ROOT_CACHE_* / ROOT_IDENTITY_* bag keys or
+# RHS names fail closed (ADR-0049 / ADR-0055 / ADR-0057).
 environment_configuration_remap() {
   local binding="${1:?environment_configuration_remap: Binding path required}"
   local requires="${2-}"
@@ -100,6 +100,9 @@ reserved = (
     "ROOT_DB_PASSWORD",
     "ROOT_CACHE_USER",
     "ROOT_CACHE_PASSWORD",
+    "ROOT_IDENTITY_API_KEY",
+    "ROOT_IDENTITY_ENCRYPTION_KEY",
+    "ROOT_IDENTITY_ADMIN_EMAIL",
 )
 for line in sys.argv[1].splitlines():
     if not line or "=" not in line:
@@ -107,6 +110,11 @@ for line in sys.argv[1].splitlines():
     bag_key, _, req_name = line.partition("=")
     if bag_key in reserved or req_name in reserved:
         name = bag_key if bag_key in reserved else req_name
+        if name.startswith("ROOT_IDENTITY_"):
+            raise SystemExit(
+                f"Binding must not remap Identity admin credential {name} into a "
+                "Workload (ADR-0057)"
+            )
         if name.startswith("ROOT_CACHE_"):
             raise SystemExit(
                 f"Binding must not remap Cache admin credential {name} into a "

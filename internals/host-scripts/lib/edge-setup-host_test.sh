@@ -148,6 +148,8 @@ mkdir -p "${TREE}/systemd"
 printf 'worker_processes 1;\n' >"${TREE}/nginx.conf"
 cp "${REPO_ROOT}/internals/components/edge/domain-template.conf" \
   "${TREE}/domain-template.conf"
+cp "${REPO_ROOT}/internals/components/edge/identity-domain-template.conf" \
+  "${TREE}/identity-domain-template.conf"
 printf '#!/usr/bin/env bash\nexit 0\n' >"${TREE}/acme-run.sh"
 chmod a+x "${TREE}/acme-run.sh"
 printf '[Container]\nImage=docker.io/library/nginx:1.31.3-alpine\n' >"${TREE}/systemd/edge-nginx.container"
@@ -159,7 +161,10 @@ DATA_ROOT="${TMP}/edge-data"
 WORKLOADS_ROOT="${TMP}/workloads"
 USER_NAME="$(id -un)"
 STAGE="${TMP}/staged-want-list"
-printf '%s\n' 'alpha.example.test' '# comment' 'beta.example.test' >"${STAGE}"
+printf '%s\n' 'alpha.example.test' '# comment' 'beta.example.test' 'auth.example.test' >"${STAGE}"
+export HV_ROOT="${TMP}/hv"
+mkdir -p "${HV_ROOT}/components/handoff"
+printf '%s\n' '{"fqdn":"auth.example.test"}' >"${HV_ROOT}/components/handoff/identity.json"
 
 # Pre-plant lego at the expected version so Setup never hits the network.
 mkdir -p "${DATA_ROOT}/acme/bin" "${WORKLOADS_ROOT}"
@@ -189,6 +194,10 @@ grep -Fxq 'EDGE_ACME_DIRECTORY=staging' "${ACME_ENV_FILE}" \
   || fail "expected Domain front for alpha.example.test"
 [[ -f "${DATA_ROOT}/domains/beta.example.test.conf" ]] \
   || fail "expected Domain front for beta.example.test"
+[[ -f "${DATA_ROOT}/domains/auth.example.test.conf" ]] \
+  || fail "expected Domain front for auth.example.test (issuer)"
+grep -Fq 'proxy_pass http://identity:1411;' "${DATA_ROOT}/domains/auth.example.test.conf" \
+  || fail "issuer Domain front must proxy to Identity"
 [[ -f "${DATA_ROOT}/certs/alpha.example.test/fullchain.pem" ]] \
   || fail "expected placeholder fullchain for alpha"
 [[ -f "${DATA_ROOT}/certs/alpha.example.test/privkey.pem" ]] \

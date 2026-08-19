@@ -19,6 +19,8 @@ cat >"${TREE}/manifest.json" <<'EOF'
 { "intent": "run", "source": "internal" }
 EOF
 printf '[Container]\nImage=localhost/demo\n' >"${TREE}/systemd/demo.container"
+printf '{}\n' >"${TREE}/provides.json"
+printf '{ "database": false, "cache": false }\n' >"${TREE}/requires.json"
 
 host_volume_workloads_sot_root() { printf '%s\n' "${TMP}/workloads"; }
 host_volume_workload_persist() { printf '%s\n' "${TMP}/persist/${1:?}"; }

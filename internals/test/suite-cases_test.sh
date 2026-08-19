@@ -109,10 +109,10 @@ while IFS= read -r p; do
   [[ -n "${p}" ]] || continue
   life_n=$((life_n + 1))
 done <<< "${life_list}"
-[[ "${acc_n}" -eq 55 ]] || fail "acceptance case count want 55 got ${acc_n}"
+[[ "${acc_n}" -eq 63 ]] || fail "acceptance case count want 63 got ${acc_n}"
 [[ "${life_n}" -eq 6 ]] || fail "lifecycle case count want 6 got ${life_n}"
 [[ "${acc_first}" == "0100-host-metadata.sh" ]] || fail "acceptance first want 0100-host-metadata.sh got ${acc_first}"
-[[ "${acc_last}" == "5500-cache-operator-console.sh" ]] || fail "acceptance last want 5500-cache-operator-console.sh got ${acc_last}"
+[[ "${acc_last}" == "5670-identity-lifecycle-stop-reap.sh" ]] || fail "acceptance last want 5670-identity-lifecycle-stop-reap.sh got ${acc_last}"
 pass "live Acceptance/Lifecycle trees are NNNN- unique and layered"
 
 echo "All suite-cases checks passed."
