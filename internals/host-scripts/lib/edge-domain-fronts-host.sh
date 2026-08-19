@@ -9,6 +9,8 @@
 _edge_domain_fronts_lib_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=edge-want-list-host.sh
 source "${_edge_domain_fronts_lib_dir}/edge-want-list-host.sh"
+# shellcheck source=edge-identity-issuer-host.sh
+source "${_edge_domain_fronts_lib_dir}/edge-identity-issuer-host.sh"
 
 # Create-if-missing self-signed PEMs for each want-list FQDN (ADR-0029).
 # Both fullchain.pem + privkey.pem present → never touch.
@@ -60,14 +62,20 @@ EOF
   fi
 }
 
-# Render DOMAIN_FRONT_TEMPLATE for one FQDN (__FQDN__ → fqdn).
+# Render template for one FQDN (__FQDN__ → fqdn).
+# Args: fqdn template_path
 # Idempotent: skips rewrite when on-disk bytes already match.
 _edge_write_domain_front() {
   local fqdn="$1"
+  local template_path="$2"
   local dest="${DOMAINS_DIR}/${fqdn}.conf"
   local template desired tmp
 
-  template="$(cat "${DOMAIN_FRONT_TEMPLATE}")"
+  [[ -n "${template_path}" && -f "${template_path}" ]] || {
+    echo "_edge_write_domain_front: Domain front template missing: ${template_path:-<unset>}" >&2
+    return 1
+  }
+  template="$(cat "${template_path}")"
   desired="${template//__FQDN__/${fqdn}}"
 
   if [[ -f "${dest}" ]] && [[ "$(cat "${dest}")" == "${desired}" ]]; then
@@ -80,16 +88,21 @@ _edge_write_domain_front() {
 }
 
 # Reconcile Domain-front drop-ins for the want-list under DOMAINS_DIR (ADR-0028).
-# SoT is DOMAIN_FRONT_TEMPLATE (Edge Component); missing template fails closed.
+# SoT is DOMAIN_FRONT_TEMPLATE (Edge Component); issuer FQDN uses
+# IDENTITY_DOMAIN_FRONT_TEMPLATE (ADR-0057). Missing template fails closed.
 # Empty nginx wildcard includes are valid (parent dirs exist); no 00-empty stubs.
 # Does not prune Domain fronts for names that left the want-list.
 # Removes legacy include stubs from earlier Setup generations.
 edge_reconcile_domain_fronts() {
-  local fqdn
+  local fqdn issuer_fqdn=""
   local -a names=()
 
   if [[ -z "${DOMAIN_FRONT_TEMPLATE:-}" || ! -f "${DOMAIN_FRONT_TEMPLATE}" ]]; then
     echo "edge_reconcile_domain_fronts: Domain front template missing: ${DOMAIN_FRONT_TEMPLATE:-<unset>}" >&2
+    return 1
+  fi
+  if [[ -z "${IDENTITY_DOMAIN_FRONT_TEMPLATE:-}" || ! -f "${IDENTITY_DOMAIN_FRONT_TEMPLATE}" ]]; then
+    echo "edge_reconcile_domain_fronts: Identity Domain front template missing: ${IDENTITY_DOMAIN_FRONT_TEMPLATE:-<unset>}" >&2
     return 1
   fi
 
@@ -101,13 +114,19 @@ edge_reconcile_domain_fronts() {
     rm -f "${ROUTES_DIR}/00-empty--"*.conf
   fi
 
+  issuer_fqdn="$(edge_identity_issuer_fqdn_from_handoff)" || return 1
+
   while IFS= read -r fqdn || [[ -n "${fqdn}" ]]; do
     [[ -n "${fqdn}" ]] || continue
     names+=("${fqdn}")
   done < <(edge_want_list_fqdns)
 
   for fqdn in "${names[@]+"${names[@]}"}"; do
-    _edge_write_domain_front "${fqdn}"
+    if [[ "${fqdn}" == "${issuer_fqdn}" ]]; then
+      _edge_write_domain_front "${fqdn}" "${IDENTITY_DOMAIN_FRONT_TEMPLATE}"
+    else
+      _edge_write_domain_front "${fqdn}" "${DOMAIN_FRONT_TEMPLATE}"
+    fi
   done
 
   if [[ -n "${USER_NAME:-}" ]]; then

@@ -15,6 +15,8 @@ _edge_routes_lib_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${_edge_routes_lib_dir}/edge-want-list-host.sh"
 # shellcheck source=workload-manifest-host.sh
 source "${_edge_routes_lib_dir}/workload-manifest-host.sh"
+# shellcheck source=edge-identity-issuer-host.sh
+source "${_edge_routes_lib_dir}/edge-identity-issuer-host.sh"
 # Host Volume ships copies of internals/lib/artifact/{binding,provides,requires}.sh
 # beside this file (ensure-fabric / ensure-components). Unit Tests source in-tree.
 _binding_lib="${_edge_routes_lib_dir}/binding.sh"
@@ -222,6 +224,10 @@ edge_gather_workload_routes() {
   mkdir -p "${ROUTES_DIR}"
   EDGE_ROUTES_CHANGED=0
   routes_before="$(_edge_routes_fingerprint)"
+
+  local issuer_fqdn=""
+  issuer_fqdn="$(edge_identity_issuer_fqdn_from_handoff)" || return 1
+  edge_routes_reject_issuer_collision "${workloads_root}" "${issuer_fqdn}" || return 1
 
   if [[ -d "${workloads_root}" ]]; then
     for wl_dir in "${workloads_root}"/*; do

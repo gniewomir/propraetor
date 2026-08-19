@@ -74,7 +74,13 @@ pass "does not prune PEMs when a name leaves the want-list"
 DOMAINS_DIR="${TMP}/domains"
 ROUTES_DIR="${TMP}/routes"
 DOMAIN_FRONT_TEMPLATE="${REPO_ROOT}/internals/components/edge/domain-template.conf"
-mkdir -p "${DOMAINS_DIR}" "${ROUTES_DIR}"
+IDENTITY_DOMAIN_FRONT_TEMPLATE="${REPO_ROOT}/internals/components/edge/identity-domain-template.conf"
+HANDOFF_ROOT="${TMP}/handoff-root"
+mkdir -p "${HANDOFF_ROOT}" "${DOMAINS_DIR}" "${ROUTES_DIR}"
+printf '%s\n' '{"fqdn":"gamma.example.test"}' >"${HANDOFF_ROOT}/identity.json"
+export HV_ROOT="${TMP}/hv"
+mkdir -p "${HV_ROOT}/components/handoff"
+cp "${HANDOFF_ROOT}/identity.json" "${HV_ROOT}/components/handoff/identity.json"
 printf '%s\n' 'alpha.example.test' 'gamma.example.test' >"${WANT_LIST}"
 
 # Legacy stubs must be cleared on reconcile.
@@ -114,6 +120,14 @@ echo "${front}" | grep -Fq '__FQDN__' \
   && fail "Domain front must not leave __FQDN__ unsubstituted"
 pass "reconciles Domain fronts with TLS paths, /healthcheck, redirect, ACME, and Route includes"
 
+issuer_front="$(cat "${DOMAINS_DIR}/gamma.example.test.conf")"
+echo "${issuer_front}" | grep -Fq 'proxy_pass http://identity:1411;' \
+  || fail "Identity issuer Domain front must proxy to Identity dial name"
+if echo "${issuer_front}" | grep -Fq 'edge-routes/*--gamma.example.test.conf'; then
+  fail "Identity issuer Domain front must not include Workload Route fragments"
+fi
+pass "issuer FQDN Domain front proxies to Identity; no Workload Routes"
+
 # --- Domain-front bytes stay stable across re-reconcile (ACME must not churn drop-ins either) ---
 before="$(cat "${DOMAINS_DIR}/alpha.example.test.conf")"
 edge_reconcile_domain_fronts
@@ -122,6 +136,14 @@ after="$(cat "${DOMAINS_DIR}/alpha.example.test.conf")"
 pass "Domain-front drop-ins are byte-stable across re-reconcile"
 
 # --- Missing Domain front template fails closed ---
+DOMAIN_FRONT_TEMPLATE="${REPO_ROOT}/internals/components/edge/domain-template.conf"
+unset IDENTITY_DOMAIN_FRONT_TEMPLATE
+if edge_reconcile_domain_fronts 2>"${TMP}/missing-identity-template.err"; then
+  fail "reconcile must fail when IDENTITY_DOMAIN_FRONT_TEMPLATE is unset"
+fi
+grep -Fq 'Identity Domain front template missing' "${TMP}/missing-identity-template.err" \
+  || fail "missing Identity template error must name the template"
+IDENTITY_DOMAIN_FRONT_TEMPLATE="${REPO_ROOT}/internals/components/edge/identity-domain-template.conf"
 unset DOMAIN_FRONT_TEMPLATE
 if edge_reconcile_domain_fronts 2>"${TMP}/missing-template.err"; then
   fail "reconcile must fail when DOMAIN_FRONT_TEMPLATE is unset"
@@ -134,6 +156,7 @@ if edge_reconcile_domain_fronts 2>"${TMP}/missing-template2.err"; then
 fi
 grep -Fq 'Domain front template missing' "${TMP}/missing-template2.err" \
   || fail "absent-template error must name the template"
+DOMAIN_FRONT_TEMPLATE="${REPO_ROOT}/internals/components/edge/domain-template.conf"
 pass "fails closed when Domain front template is missing"
 
 echo "All Domain front helper checks passed."

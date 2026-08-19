@@ -18,6 +18,8 @@ source "${REPO_ROOT}/internals/lib/cli.sh"
 source "${REPO_ROOT}/internals/lib/environment/environment.sh"
 # shellcheck source=lib/environment/environment-workloads.sh
 source "${REPO_ROOT}/internals/lib/environment/environment-workloads.sh"
+# shellcheck source=host-scripts/lib/workload-identity-host.sh
+source "${REPO_ROOT}/internals/host-scripts/lib/workload-identity-host.sh"
 # shellcheck source=lib/operator/operator-dotenv.sh
 source "${REPO_ROOT}/internals/lib/operator/operator-dotenv.sh"
 # shellcheck source=lib/operator/operator-configuration.sh
@@ -36,6 +38,11 @@ environment_activate "${STACK_DIR}" "${CLI_env}" || exit 1
 }
 
 ENV_DIR="$(environments_dir_for "${PLATFORM_ENV}")" || exit 1
+
+# Fail-fast Identity permission marker contracts + uniqueness within this
+# Environment before applying any workload.
+environment_identity_permission_catalogs_validate "${ENV_DIR}" || exit 1
+export PROPRAETOR_IDENTITY_PERMISSION_CATALOGS_UNIQUENESS_VALIDATED=1
 
 count=0
 while IFS= read -r wl_name; do

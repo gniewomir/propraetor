@@ -30,6 +30,14 @@ cp "${REPO_ROOT}/internals/host-scripts/lib/component-handoff-host.sh" \
 printf '# ensure unit stub lib\n' >"${TMP}/lib/stub.sh"
 printf '%s\n' 'alpha.example.test' >"${TMP}/platform-acme-want-list"
 printf '%s\n' 'EDGE_ACME_DIRECTORY=staging' >"${TMP}/platform-acme.env"
+printf '%s\n' '{"fqdn":"auth.alpha.example.test"}' >"${TMP}/platform-identity.json"
+printf '%s\n' 'test' >"${TMP}/platform-environment-slug"
+printf '%s\n' \
+  'STATIC_API_KEY=0123456789abcdef' \
+  'ENCRYPTION_KEY=enckey' \
+  'IDENTITY_ADMIN_EMAIL=ops@example.com' \
+  'APP_URL=https://auth.alpha.example.test' \
+  >"${TMP}/platform-identity-admin.env"
 
 # Runnable copy; Host Volume via ambient HV_ROOT (#214 path vocabulary).
 cp "${HOST_SCRIPT}" "${TMP}/ensure-run.sh"
@@ -51,6 +59,8 @@ EOF
 chmod +x "${TMP}/edge/post-workloads.sh"
 printf 'edge-nginx\n' >"${TMP}/edge/nginx.conf"
 printf '# Domain front for __FQDN__\n' >"${TMP}/edge/domain-template.conf"
+printf '# Identity issuer Domain front for __FQDN__\nlocation / { proxy_pass http://identity:1411; }\n' \
+  >"${TMP}/edge/identity-domain-template.conf"
 # Staged Fabric must be ignored by ensure-components.
 cat >"${TMP}/fabric/setup.sh" <<EOF
 #!/usr/bin/env bash
@@ -114,6 +124,8 @@ fi
 [[ -f "${HV}/components/edge/nginx.conf" ]] || fail "edge nginx.conf not installed"
 [[ -f "${HV}/components/edge/domain-template.conf" ]] \
   || fail "edge domain-template.conf not installed"
+[[ -f "${HV}/components/edge/identity-domain-template.conf" ]] \
+  || fail "edge identity-domain-template.conf not installed"
 [[ ! -e "${HV}/fabric/setup.sh" ]] || fail "ensure-components must not install Fabric"
 [[ -d "${HV}/host-scripts/lib" ]] || fail "host-scripts lib not installed on Host Volume"
 [[ -d "${HV}/workloads" ]] || fail "workloads SoT root missing on Host Volume"
@@ -123,6 +135,10 @@ fi
   || fail "ACME want-list handoff missing under Host Volume"
 [[ -f "${HV}/components/handoff/acme.env" ]] \
   || fail "ACME env handoff missing under Host Volume"
+[[ -f "${HV}/components/handoff/identity.json" ]] \
+  || fail "Identity config handoff missing under Host Volume"
+[[ -f "${HV}/components/handoff/identity-admin.env" ]] \
+  || fail "Identity admin handoff missing under Host Volume"
 grep -Fxq 'alpha.example.test' "${HV}/components/handoff/acme-want-list" \
   || fail "ACME want-list handoff content wrong"
 [[ ! -e "${HV}/internals" ]] || fail "retired internals/ must not exist after ensure"
@@ -139,6 +155,26 @@ grep -Eqi 'ACME EnvironmentFile|platform-acme\.env' "${TMP}/stderr-acme-env" \
   || fail "missing ACME env rejection unclear: $(cat "${TMP}/stderr-acme-env")"
 mv "${TMP}/platform-acme.env.bak" "${TMP}/platform-acme.env"
 pass "missing staged ACME EnvironmentFile fails closed"
+
+# --- missing staged Identity config fails closed ---
+mv "${TMP}/platform-identity.json" "${TMP}/platform-identity.json.bak"
+if bash "${TMP}/ensure-run.sh" "${USER_NAME}" pre-workloads --component edge 2>"${TMP}/stderr-id-config"; then
+  fail "missing platform-identity.json must fail closed"
+fi
+grep -Eqi 'identity\.json|Identity config|platform-identity' "${TMP}/stderr-id-config" \
+  || fail "missing Identity config rejection unclear: $(cat "${TMP}/stderr-id-config")"
+mv "${TMP}/platform-identity.json.bak" "${TMP}/platform-identity.json"
+pass "missing staged identity.json fails closed"
+
+# --- missing staged Identity admin EnvironmentFile fails closed ---
+mv "${TMP}/platform-identity-admin.env" "${TMP}/platform-identity-admin.env.bak"
+if bash "${TMP}/ensure-run.sh" "${USER_NAME}" pre-workloads --component edge 2>"${TMP}/stderr-id-admin"; then
+  fail "missing platform-identity-admin.env must fail closed"
+fi
+grep -Eqi 'Identity admin|platform-identity-admin' "${TMP}/stderr-id-admin" \
+  || fail "missing Identity admin rejection unclear: $(cat "${TMP}/stderr-id-admin")"
+mv "${TMP}/platform-identity-admin.env.bak" "${TMP}/platform-identity-admin.env"
+pass "missing staged Identity admin EnvironmentFile fails closed"
 
 # --- missing staged Database admin EnvironmentFile fails closed when Database selected ---
 printf '%s\n' 'POSTGRES_USER=dbadmin' 'POSTGRES_PASSWORD=secret' >"${TMP}/platform-database-admin.env"

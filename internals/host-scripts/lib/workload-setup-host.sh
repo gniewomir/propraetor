@@ -99,6 +99,11 @@ workload_setup_apply() {
   # writing colliding systemd/ into Host Volume SoT first.
   workload_materialize_tree "${tree}" "${mat_tree}" || return 1
   environment_configuration_fulfill_after_materialize "${mat_tree}" || return 1
+
+  # Identity contract (permission markers + shapes) must be validated fail-closed
+  # against the materialized Artifact contracts (including external zip Sources).
+  workload_identity_claim_validate "${mat_tree}" "${wl_name}" || return 1
+
   export WORKLOAD_UNITS_PREV_OWNED="${prev_owned}"
   workload_units_preflight "${wl_name}" "${mat_tree}/systemd" || return 1
   workload_project_commit "${mat_tree}" "${sot_tree}" || return 1

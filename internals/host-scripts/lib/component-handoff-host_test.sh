@@ -26,6 +26,12 @@ root="$(component_handoff_root)"
   || fail "database admin path wrong"
 [[ "$(component_handoff_cache_admin_env)" == "${root}/cache-admin.env" ]] \
   || fail "cache admin path wrong"
+[[ "$(component_handoff_identity_config)" == "${root}/identity.json" ]] \
+  || fail "identity config path wrong"
+[[ "$(component_handoff_identity_admin_env)" == "${root}/identity-admin.env" ]] \
+  || fail "identity admin path wrong"
+[[ "$(component_handoff_environment_slug_file)" == "${root}/environment-slug" ]] \
+  || fail "environment slug path wrong"
 pass "path helpers resolve under Host Volume handoff root"
 
 # --- require ACME fails closed when missing ---
@@ -107,6 +113,42 @@ fi
 grep -Eqi 'Cache admin|missing' "${TMP}/err-cache" \
   || fail "cache admin rejection unclear: $(cat "${TMP}/err-cache")"
 pass "install_cache_admin fails closed on missing stage"
+
+# --- install Identity config + admin ---
+printf '%s\n' '{"fqdn":"auth.example.test"}' >"${STAGE}/identity.json"
+printf '%s\n' \
+  'STATIC_API_KEY=0123456789abcdef' \
+  'ENCRYPTION_KEY=enckey' \
+  'IDENTITY_ADMIN_EMAIL=ops@example.com' \
+  'APP_URL=https://auth.example.test' \
+  >"${STAGE}/identity-admin.env"
+component_handoff_install_identity "${STAGE}/identity.json" "${STAGE}/identity-admin.env" \
+  || fail "install_identity failed"
+[[ -f "$(component_handoff_identity_config)" ]] || fail "identity.json not installed"
+[[ -f "$(component_handoff_identity_admin_env)" ]] || fail "identity admin not installed"
+grep -Fq 'auth.example.test' "$(component_handoff_identity_config)" \
+  || fail "identity.json content wrong"
+grep -Fq 'STATIC_API_KEY=0123456789abcdef' "$(component_handoff_identity_admin_env)" \
+  || fail "identity admin content wrong"
+printf 'test\n' >"${STAGE}/environment-slug"
+component_handoff_install_environment_slug "${STAGE}/environment-slug" \
+  || fail "install_environment_slug failed"
+component_handoff_require_identity || fail "require_identity should pass after install"
+pass "install_identity + environment slug handoff require_identity accepts"
+
+[[ "$(component_handoff_environment_slug)" == "test" ]] \
+  || fail "environment slug readback"
+pass "install_environment_slug writes handoff slug"
+
+if component_handoff_install_identity "${STAGE}/missing.json" "${STAGE}/identity-admin.env" \
+  2>"${TMP}/err-id-config"; then
+  fail "install_identity must fail on missing identity.json stage"
+fi
+if component_handoff_install_identity "${STAGE}/identity.json" "${STAGE}/missing-admin.env" \
+  2>"${TMP}/err-id-admin"; then
+  fail "install_identity must fail on missing admin stage"
+fi
+pass "install_identity fails closed on missing stage"
 
 # --- no /tmp/platform-* in this module ---
 if grep -E '/tmp/platform-' \

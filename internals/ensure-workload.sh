@@ -49,6 +49,13 @@ WL_NAME="${CLI_workload}"
 workload_identity_require "${WL_NAME}" || exit 1
 
 ENV_DIR="$(environments_dir_for "${PLATFORM_ENV}")" || exit 1
+
+if [[ "${PROPRAETOR_IDENTITY_PERMISSION_CATALOGS_UNIQUENESS_VALIDATED:-0}" != "1" ]]; then
+  # Uniqueness + marker contracts must hold for the whole Environment so
+  # downstream Identity behavior can assume a consistent permission catalog.
+  environment_identity_permission_catalogs_validate "${ENV_DIR}" || exit 1
+fi
+
 MANIFEST_DIR="${ENV_DIR}/${WL_NAME}"
 MANIFEST_ABS="${MANIFEST_DIR}/manifest.json"
 [[ -d "${MANIFEST_DIR}" ]] || {

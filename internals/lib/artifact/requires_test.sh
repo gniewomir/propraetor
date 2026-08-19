@@ -28,6 +28,22 @@ artifact_requires_validate "${REQUIRES}" || fail "minimal Requires must pass"
 
 cat >"${REQUIRES}" <<'EOF'
 {
+  "environment": {},
+  "database": false,
+  "cache": false,
+  "identity": true,
+  "permissions": { "api-a:read": "Read permission" }
+}
+EOF
+artifact_requires_validate "${REQUIRES}" || fail "Requires identity+permissions must pass"
+[[ "$(artifact_requires_has_permissions "${REQUIRES}")" == "1" ]] \
+  || fail "requires has_permissions must be 1"
+keys="$(artifact_requires_permission_keys "${REQUIRES}")"
+[[ "${keys}" == "api-a:read" ]] || fail "permission keys reader"
+pass "Requires permission key helpers"
+
+cat >"${REQUIRES}" <<'EOF'
+{
   "environment": { "API_KEY": "human description", "APP_URL": "Public URL" },
   "database": true,
   "cache": true
@@ -103,6 +119,27 @@ EOF
 if artifact_requires_validate "${REQUIRES}" >/dev/null 2>&1; then
   fail "unknown Requires key must fail closed"
 fi
+
+cat >"${REQUIRES}" <<'EOF'
+{ "environment": {}, "database": false, "cache": false, "identity": "true" }
+EOF
+if artifact_requires_validate "${REQUIRES}" >/dev/null 2>&1; then
+  fail "Requires.identity must be boolean"
+fi
+
+cat >"${REQUIRES}" <<'EOF'
+{ "environment": {}, "database": false, "cache": false, "permissions": [] }
+EOF
+if artifact_requires_validate "${REQUIRES}" >/dev/null 2>&1; then
+  fail "Requires.permissions must be object"
+fi
+
+cat >"${REQUIRES}" <<'EOF'
+{ "environment": {}, "database": false, "cache": false, "permissions": { "k": "" } }
+EOF
+if artifact_requires_validate "${REQUIRES}" >/dev/null 2>&1; then
+  fail "Requires.permissions empty description must fail closed"
+fi
 pass "invalid Requires fails closed"
 
 # --- Manifest does not declare Cache need (ADR-0055 / #220) ---
@@ -113,5 +150,19 @@ if artifact_manifest_validate "${MANIFEST}" >/dev/null 2>&1; then
   fail "Manifest cache must fail closed"
 fi
 pass "Manifest does not declare Cache need"
+
+cat >"${REQUIRES}" <<'EOF'
+{ "environment": {}, "database": false, "cache": false, "identity": true }
+EOF
+[[ "$(artifact_requires_identity "${REQUIRES}")" == "1" ]] || fail "identity true"
+cat >"${REQUIRES}" <<'EOF'
+{ "environment": {}, "database": false, "cache": false, "identity": false }
+EOF
+[[ "$(artifact_requires_identity "${REQUIRES}")" == "0" ]] || fail "identity false"
+cat >"${REQUIRES}" <<'EOF'
+{ "environment": {}, "database": false, "cache": false, "permissions": { "x:api": "API" } }
+EOF
+[[ "$(artifact_requires_has_permissions "${REQUIRES}")" == "1" ]] || fail "requires permissions"
+pass "Requires identity and permissions readers"
 
 echo "All artifact Requires offline tests passed."

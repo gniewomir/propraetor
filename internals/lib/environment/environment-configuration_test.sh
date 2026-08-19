@@ -186,6 +186,30 @@ fi
 pass "stage fails closed on ROOT_CACHE_* remap"
 
 cat >"${BINDING}" <<'EOF'
+{ "environment": { "ROOT_IDENTITY_API_KEY": "PROC_A", "BAG_B": "PROC_B" } }
+EOF
+if envcfg_stage_and_apply >/dev/null 2>&1; then
+  fail "stage→apply with ROOT_IDENTITY_API_KEY remap should fail closed"
+fi
+pass "stage fails closed on ROOT_IDENTITY_* remap"
+
+cat >"${BINDING}" <<'EOF'
+{ "environment": { "BAG_A": "ROOT_IDENTITY_ADMIN_EMAIL", "BAG_B": "PROC_B" } }
+EOF
+cat >"${REQUIRES}" <<'EOF'
+{
+  "environment": { "ROOT_IDENTITY_ADMIN_EMAIL": "must not inject", "PROC_B": "b" },
+  "database": false,
+  "cache": false
+}
+EOF
+printf 'BAG_A=x\nBAG_B=y\n' >"${ENV_DIR}/.env"
+if envcfg_stage_and_apply >/dev/null 2>&1; then
+  fail "stage with Requires name ROOT_IDENTITY_ADMIN_EMAIL must fail closed"
+fi
+pass "stage fails closed when Requires name is ROOT_IDENTITY_*"
+
+cat >"${BINDING}" <<'EOF'
 { "environment": { "BAG_A": "ROOT_DB_USER", "BAG_B": "PROC_B" } }
 EOF
 cat >"${REQUIRES}" <<'EOF'

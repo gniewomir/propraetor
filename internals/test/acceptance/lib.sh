@@ -550,6 +550,60 @@ ensure_cache_fulfillment() {
   "${REPO_ROOT}/internals/ensure-components.sh" pre-workloads --env "${PLATFORM_ENV:-test}"
 }
 
+# Artifact stubs with Identity API permission catalog (Provides.permissions).
+acceptance_write_identity_api_catalog_claim() {
+  local tree="${1:?acceptance_write_identity_api_catalog_claim: Workload tree required}"
+  local wl_name="${2:?acceptance_write_identity_api_catalog_claim: workload basename required}"
+  acceptance_write_artifact_stubs "${tree}"
+  printf '{ "identity": true, "database": false, "cache": false }\n' >"${tree}/requires.json"
+  cat >"${tree}/provides.json" <<EOF
+{
+  "permissions": {
+    "${wl_name}:api": "API access",
+    "${wl_name}:read": "Read access"
+  }
+}
+EOF
+}
+
+# Artifact stubs with Identity OIDC client (Provides.oidc_callback + Requires.permissions).
+acceptance_write_identity_oidc_client_claim() {
+  local tree="${1:?acceptance_write_identity_oidc_client_claim: Workload tree required}"
+  local callback_path="${2:?acceptance_write_identity_oidc_client_claim: callback path required}"
+  shift 2
+  local -a perms=("$@")
+  acceptance_write_artifact_stubs "${tree}"
+  python3 - "${tree}/requires.json" "${perms[@]}" <<'PY'
+import json, sys
+keys = sys.argv[2:]
+permissions = {}
+for item in keys:
+    key, _, label = item.partition("=")
+    permissions[key] = label or key
+with open(sys.argv[1], "w", encoding="utf-8") as f:
+    json.dump({"identity": True, "database": False, "cache": False, "permissions": permissions}, f)
+    f.write("\n")
+PY
+  python3 - "${tree}/provides.json" "${callback_path}" <<'PY'
+import json, sys
+with open(sys.argv[1], "w", encoding="utf-8") as f:
+    json.dump({"oidc_callback": sys.argv[2]}, f)
+    f.write("\n")
+PY
+}
+
+# Re-run Component Setup pre-workloads so Identity gathers permission catalogs (#253).
+ensure_identity_fulfillment() {
+  [[ -n "${REPO_ROOT:-}" ]] || fail "ensure_identity_fulfillment: REPO_ROOT required"
+  "${REPO_ROOT}/internals/ensure-components.sh" pre-workloads --env "${PLATFORM_ENV:-test}"
+}
+
+# Re-run Component Setup post-workloads for Identity orphan cleanup (#253).
+ensure_identity_post_workloads() {
+  [[ -n "${REPO_ROOT:-}" ]] || fail "ensure_identity_post_workloads: REPO_ROOT required"
+  "${REPO_ROOT}/internals/ensure-components.sh" post-workloads --env "${PLATFORM_ENV:-test}"
+}
+
 # Re-run Component Setup post-workloads so Database drops Orphan fulfillment (ADR-0049 / #191).
 # Orphan Reap removes SoT only; role/db/client drop is Database Component Setup.
 ensure_database_post_workloads() {
@@ -562,4 +616,75 @@ ensure_database_post_workloads() {
 ensure_cache_post_workloads() {
   [[ -n "${REPO_ROOT:-}" ]] || fail "ensure_cache_post_workloads: REPO_ROOT required"
   "${REPO_ROOT}/internals/ensure-components.sh" post-workloads --env "${PLATFORM_ENV:-test}"
+}
+
+# Copy example API auth probe application into a Workload tree (ADR-0057 / #255).
+acceptance_stage_identity_api_auth_app() {
+  local tree="${1:?acceptance_stage_identity_api_auth_app: Workload tree required}"
+  local app_dir="${tree}/app"
+  mkdir -p "${app_dir}"
+  cp "${REPO_ROOT}/internals/lib/identity/identity_api_auth.py" "${app_dir}/"
+  cp "${REPO_ROOT}/internals/lib/identity/identity_api_auth_server.py" "${app_dir}/server.py"
+  printf '%s\n' 'PyJWT[crypto]>=2.8.0' >"${app_dir}/requirements.txt"
+}
+
+# Identity API catalog + example auth server artifact (Provides.directories app/).
+acceptance_write_identity_api_auth_probe() {
+  local tree="${1:?acceptance_write_identity_api_auth_probe: Workload tree required}"
+  local wl_name="${2:?acceptance_write_identity_api_auth_probe: workload basename required}"
+  acceptance_write_identity_api_catalog_claim "${tree}" "${wl_name}"
+  acceptance_stage_identity_api_auth_app "${tree}"
+  python3 - "${tree}/provides.json" <<'PY'
+import json, sys
+with open(sys.argv[1], encoding="utf-8") as f:
+    provides = json.load(f)
+provides.setdefault("directories", {})["app"] = "Example API authorization probe"
+with open(sys.argv[1], "w", encoding="utf-8") as f:
+    json.dump(provides, f, indent=2)
+    f.write("\n")
+PY
+}
+
+# Mint a Pocket ID client-credentials access token with the given scope (Service Network).
+# Prints JSON token response on stdout. Requires Identity admin key on Host.
+acceptance_identity_mint_token() {
+  local scope="${1:?acceptance_identity_mint_token: scope required}"
+  local resource="${2:?acceptance_identity_mint_token: resource required}"
+  local perm_key="${3:?acceptance_identity_mint_token: permission key required}"
+  local api_key="${4:?acceptance_identity_mint_token: api key required}"
+  local client="${5:-acceptance-identity-probe}"
+  host_ssh bash -s <<REMOTE
+set -euo pipefail
+UID_NUM=\$(id -u platform)
+HOME_DIR=\$(getent passwd platform | cut -d: -f6)
+export XDG_RUNTIME_DIR=/run/user/\${UID_NUM}
+runuser -u platform -- env HOME=\${HOME_DIR} XDG_RUNTIME_DIR=\$XDG_RUNTIME_DIR \
+  DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/\${UID_NUM}/bus \
+  bash -c '
+set -euo pipefail
+cd "\$HOME"
+curl_json() {
+  podman run --rm --network service-network docker.io/curlimages/curl:8.12.1 \
+    curl -fsS -H "X-API-Key: ${api_key}" -H "Content-Type: application/json" "\$@"
+}
+CLIENT="${client}"
+if ! curl_json "http://identity:1411/api/oidc/clients/\${CLIENT}" >/dev/null 2>&1; then
+  curl_json -X POST http://identity:1411/api/oidc/clients \
+    -d "{\"id\":\"\${CLIENT}\",\"name\":\"Acceptance probe\",\"isPublic\":false,\"isGroupRestricted\":false,\"callbackURLs\":[],\"logoutCallbackURLs\":[]}" >/dev/null
+fi
+SECRET=\$(curl_json -X POST "http://identity:1411/api/oidc/clients/\${CLIENT}/secret" | python3 -c "import json,sys; print(json.load(sys.stdin)[\"secret\"])")
+API_JSON=\$(curl_json "http://identity:1411/api/apis?pagination[limit]=100")
+PERM_ID=\$(printf "%s" "\$API_JSON" | python3 -c "import json,sys; r=sys.argv[1]; k=sys.argv[2]; d=json.load(sys.stdin); api=next(a for a in d[\"data\"] if a[\"resource\"]==r); print(next(p[\"id\"] for p in api[\"permissions\"] if p[\"key\"]==k))" "${resource}" "${perm_key}")
+curl_json -X PUT "http://identity:1411/api/api-access/\${CLIENT}" \
+  -d "{\"userDelegatedPermissionIds\":[\"\$PERM_ID\"],\"clientPermissionIds\":[\"\$PERM_ID\"]}" >/dev/null
+podman run --rm --network service-network docker.io/curlimages/curl:8.12.1 \
+  curl -fsS -X POST http://identity:1411/api/oidc/token \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  --data-urlencode "client_id=\${CLIENT}" \
+  --data-urlencode "client_secret=\${SECRET}" \
+  --data-urlencode "grant_type=client_credentials" \
+  --data-urlencode "resource=${resource}" \
+  --data-urlencode "scope=${scope}"
+'
+REMOTE
 }

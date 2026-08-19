@@ -23,6 +23,30 @@ artifact_provides_validate "${PROVIDES}" || fail "empty Provides must be valid"
   || fail "empty Provides routes must print nothing"
 pass "empty Provides"
 
+cat >"${PROVIDES}" <<'EOF'
+{
+  "permissions": {
+    "api-a:read": "Read permission"
+  }
+}
+EOF
+artifact_provides_validate "${PROVIDES}" || fail "Provides.permissions must be valid"
+pass "valid Provides.permissions"
+
+cat >"${PROVIDES}" <<'EOF'
+{
+  "oidc_callback": "/callback"
+}
+EOF
+artifact_provides_validate "${PROVIDES}" || fail "Provides.oidc_callback must be valid"
+pass "valid Provides.oidc_callback"
+
+[[ "$(artifact_provides_has_oidc_callback "${PROVIDES}")" == "1" ]] \
+  || fail "has_oidc_callback must be 1"
+[[ "$(artifact_provides_oidc_callback "${PROVIDES}")" == "/callback" ]] \
+  || fail "oidc_callback reader"
+pass "Provides oidc_callback helpers"
+
 # --- valid directories + routes ---
 cat >"${PROVIDES}" <<'EOF'
 {
@@ -68,6 +92,44 @@ if artifact_provides_validate "${PROVIDES}" >/dev/null 2>&1; then
   fail "unknown Provides key must fail closed"
 fi
 pass "invalid Provides fails closed"
+
+# --- fail closed: Identity keys ---
+cat >"${PROVIDES}" <<'EOF'
+{ "permissions": [] }
+EOF
+if artifact_provides_validate "${PROVIDES}" >/dev/null 2>&1; then
+  fail "Provides.permissions array must fail closed"
+fi
+
+cat >"${PROVIDES}" <<'EOF'
+{ "permissions": { "k": "" } }
+EOF
+if artifact_provides_validate "${PROVIDES}" >/dev/null 2>&1; then
+  fail "Provides.permissions empty description must fail closed"
+fi
+
+cat >"${PROVIDES}" <<'EOF'
+{ "oidc_callback": "" }
+EOF
+if artifact_provides_validate "${PROVIDES}" >/dev/null 2>&1; then
+  fail "Provides.oidc_callback empty string must fail closed"
+fi
+
+cat >"${PROVIDES}" <<'EOF'
+{ "oidc_callback": "cb" }
+EOF
+if artifact_provides_validate "${PROVIDES}" >/dev/null 2>&1; then
+  fail "Provides.oidc_callback not /… must fail closed"
+fi
+
+# Still rejects unknown keys.
+cat >"${PROVIDES}" <<'EOF'
+{ "extra": {} }
+EOF
+if artifact_provides_validate "${PROVIDES}" >/dev/null 2>&1; then
+  fail "unknown Provides key must fail closed"
+fi
+pass "Identity-related Provides keys fail/accept as expected"
 
 # --- reserved basenames ---
 want=$'binding.json\nmanifest.json\npersist\nprovides.json\nrequires.json'
@@ -117,5 +179,20 @@ EOF
 artifact_provides_reserved_collision "${DEST}" "${PROVIDES}" \
   || fail "root pull with empty dest must be allowed"
 pass "reserved destination collision"
+
+cat >"${PROVIDES}" <<'EOF'
+{
+  "permissions": {
+    "demo:api": "API",
+    "demo:read": "Read"
+  }
+}
+EOF
+[[ "$(artifact_provides_has_permissions "${PROVIDES}")" == "1" ]] || fail "has permissions"
+cat >"${PROVIDES}" <<'EOF'
+{ "routes": { "/x": "x" } }
+EOF
+[[ "$(artifact_provides_has_permissions "${PROVIDES}")" == "0" ]] || fail "no permissions"
+pass "Provides permissions reader"
 
 echo "All artifact Provides offline tests passed."

@@ -6,12 +6,24 @@
 #
 # artifact_provides_validate PATH
 #   Fail closed on invalid Provides JSON shape.
+#   Allows Workload directories/routes, plus Identity:
+#     optional permissions map (key → human description) and optional
+#     oidc_callback path (string, /… only).
 #
 # artifact_provides_directories PATH
 #   Print directory keys (sorted), one per line. Validates first.
 #
 # artifact_provides_routes PATH
 #   Print route paths (sorted), one per line. Validates first.
+#
+# artifact_provides_has_permissions PATH
+#   Print 1 when permissions map is non-empty, else 0. Validates first.
+#
+# artifact_provides_has_oidc_callback PATH
+#   Print 1 when oidc_callback is present, else 0. Validates first.
+#
+# artifact_provides_oidc_callback PATH
+#   Print Provides.oidc_callback path. Validates first.
 #
 # artifact_provides_reserved_collision DEST PROVIDES
 #   Fail closed when applying Provides directories would collide with reserved
@@ -38,10 +50,11 @@ with open(path, encoding="utf-8") as f:
 if not isinstance(raw, dict):
     raise SystemExit(f"Provides must be a JSON object: {path}")
 
-extra = sorted(set(raw) - {"directories", "routes"})
+allowed = {"directories", "routes", "permissions", "oidc_callback"}
+extra = sorted(set(raw) - allowed)
 if extra:
     raise SystemExit(
-        f"Provides allows only directories/routes in {path}; unexpected: {', '.join(extra)}"
+        f"Provides allows only directories/routes/permissions/oidc_callback in {path}; unexpected: {', '.join(extra)}"
     )
 
 if "directories" in raw:
@@ -82,6 +95,29 @@ for key, val in routes.items():
         raise SystemExit(
             f"Provides routes values must be non-empty description strings: {path}"
         )
+
+if "permissions" in raw:
+    permissions = raw["permissions"]
+    if not isinstance(permissions, dict):
+        raise SystemExit(f"Provides.permissions must be an object: {path}")
+    for key, val in permissions.items():
+        if not isinstance(key, str) or key == "":
+            raise SystemExit(
+                f"Provides.permissions keys must be non-empty strings: {path}"
+            )
+        if not isinstance(val, str) or val == "":
+            raise SystemExit(
+                f"Provides.permissions values must be non-empty description strings: {path}"
+            )
+
+if "oidc_callback" in raw:
+    oidc_callback = raw["oidc_callback"]
+    if not isinstance(oidc_callback, str) or oidc_callback == "":
+        raise SystemExit(f"Provides.oidc_callback must be a non-empty string: {path}")
+    if not oidc_callback.startswith("/"):
+        raise SystemExit(
+            f"Provides.oidc_callback must be a path starting with '/': {path}"
+        )
 PY
 }
 
@@ -110,6 +146,46 @@ with open(sys.argv[1], encoding="utf-8") as f:
 routes = raw.get("routes") or {}
 for key in sorted(routes):
     print(key)
+PY
+}
+
+artifact_provides_has_permissions() {
+  local path="${1:?artifact_provides_has_permissions: Provides path required}"
+  artifact_provides_validate "${path}" || return 1
+  python3 - "${path}" <<'PY'
+import json, sys
+
+with open(sys.argv[1], encoding="utf-8") as f:
+    raw = json.load(f)
+perms = raw.get("permissions") or {}
+print("1" if isinstance(perms, dict) and len(perms) > 0 else "0")
+PY
+}
+
+artifact_provides_has_oidc_callback() {
+  local path="${1:?artifact_provides_has_oidc_callback: Provides path required}"
+  artifact_provides_validate "${path}" || return 1
+  python3 - "${path}" <<'PY'
+import json, sys
+
+with open(sys.argv[1], encoding="utf-8") as f:
+    raw = json.load(f)
+print("1" if "oidc_callback" in raw else "0")
+PY
+}
+
+artifact_provides_oidc_callback() {
+  local path="${1:?artifact_provides_oidc_callback: Provides path required}"
+  artifact_provides_validate "${path}" || return 1
+  python3 - "${path}" <<'PY'
+import json, sys
+
+with open(sys.argv[1], encoding="utf-8") as f:
+    raw = json.load(f)
+callback = raw.get("oidc_callback")
+if not isinstance(callback, str) or callback == "":
+    raise SystemExit(f"Provides.oidc_callback missing or invalid: {sys.argv[1]}")
+print(callback)
 PY
 }
 

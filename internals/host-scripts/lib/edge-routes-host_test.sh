@@ -18,6 +18,10 @@ WANT_LIST="${TMP}/want-list"
 mkdir -p "${ROUTES_DIR}"
 printf '%s\n' 'alpha.example.test' 'beta.example.test' >"${WANT_LIST}"
 
+export HV_ROOT="${TMP}/hv"
+mkdir -p "${HV_ROOT}/components/handoff"
+printf '%s\n' '{"fqdn":"issuer.example.test"}' >"${HV_ROOT}/components/handoff/identity.json"
+
 # Plant Binding×Provides Route offer (stable fragment path; FQDN is Binding-only).
 plant_bound_route() {
   local wl_dir="$1" fqdn="$2" body="$3"
@@ -187,7 +191,7 @@ fi
   || fail "gather fail-closed must leave other Workloads' fulfillments"
 pass "gather fail-closed preserves prior good fulfillments"
 
-# --- gather noop when inputs and interior already match ---
+# --- gather fail-closed preserves prior good fulfillments ---
 plant_bound_route "${WL_ROOT}/alpha" "alpha.example.test" 'location /a { return 200 "a"; }'
 edge_gather_workload_routes "${WL_ROOT}"
 [[ -f "${ROUTES_DIR}/alpha--alpha.example.test.conf" ]] \
@@ -199,6 +203,33 @@ edge_gather_workload_routes "${WL_ROOT}"
 [[ "${EDGE_ROUTES_CHANGED}" == "0" ]] \
   || fail "unchanged gather inputs must set EDGE_ROUTES_CHANGED=0 (noop)"
 pass "gather is a noop when inputs are unchanged"
+
+# --- issuer FQDN route collision fails closed during gather ---
+ISSUER="${TMP}/issuer-collision"
+mkdir -p "${ISSUER}/handoff" "${ISSUER}/workloads/offender/routes" "${ISSUER}/routes"
+printf '%s\n' '{"fqdn":"auth.example.test"}' >"${ISSUER}/handoff/identity.json"
+HV_ROOT_SAVE="${HV_ROOT-}"
+export HV_ROOT="${ISSUER}/hv"
+mkdir -p "${HV_ROOT}/components/handoff"
+cp "${ISSUER}/handoff/identity.json" "${HV_ROOT}/components/handoff/identity.json"
+ROUTES_DIR_SAVE="${ROUTES_DIR}"
+WANT_LIST_SAVE="${WANT_LIST}"
+ROUTES_DIR="${ISSUER}/routes"
+WANT_LIST="${ISSUER}/want-list"
+printf '%s\n' 'alpha.example.test' 'auth.example.test' >"${WANT_LIST}"
+printf '%s\n' '{"intent":"run"}' >"${ISSUER}/workloads/offender/manifest.json"
+printf '%s\n' '{ "database": false, "cache": false }' >"${ISSUER}/workloads/offender/requires.json"
+printf '%s\n' 'location / { return 200 "x"; }' >"${ISSUER}/workloads/offender/routes/fragment.conf"
+printf '%s\n' '{"routes":{"routes/fragment.conf":"test"}}' >"${ISSUER}/workloads/offender/provides.json"
+printf '%s\n' '{"domains":{"auth.example.test":["routes/fragment.conf"]}}' >"${ISSUER}/workloads/offender/binding.json"
+if edge_gather_workload_routes "${ISSUER}/workloads" 2>/dev/null; then
+  fail "gather must fail closed when Binding attaches Routes to issuer FQDN"
+fi
+pass "gather fails closed on issuer FQDN route collision"
+export HV_ROOT="${HV_ROOT_SAVE}"
+ROUTES_DIR="${ROUTES_DIR_SAVE}"
+WANT_LIST="${WANT_LIST_SAVE}"
+unset HV_ROOT_SAVE ROUTES_DIR_SAVE WANT_LIST_SAVE
 
 # --- ordered Binding array concatenates Provides fragments onto one FQDN ---
 ORD="${WL_ROOT}/ordered"
