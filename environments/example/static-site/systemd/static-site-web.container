@@ -2,7 +2,7 @@
 Description=Propraetor example static-site web
 
 [Container]
-Image=docker.io/library/nginx:1.31.3-alpine
+Image=docker.io/library/nginx:1.31.4-alpine
 ContainerName=static-site-web
 Pod=static-site.pod
 Volume=../persist:/var/lib/workload:rw

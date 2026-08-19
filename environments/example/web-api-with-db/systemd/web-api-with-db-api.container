@@ -2,7 +2,7 @@
 Description=Propraetor example web-api-with-db app
 
 [Container]
-Image=docker.io/library/nginx:1.31.3-alpine
+Image=docker.io/library/nginx:1.31.4-alpine
 ContainerName=web-api-with-db-api
 Pod=web-api-with-db.pod
 Volume=../persist:/var/lib/workload:rw
