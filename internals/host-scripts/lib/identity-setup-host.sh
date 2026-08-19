@@ -24,6 +24,55 @@ source "${_identity_setup_lib_dir}/identity-admin-env-host.sh"
 # shellcheck source=identity-fulfill-host.sh
 source "${_identity_setup_lib_dir}/identity-fulfill-host.sh"
 
+# True when the identity-pocket-id container is running.
+identity_pocket_id_container_running() {
+  quadlet_user env "HOME=${HOME_DIR:?}" bash -c \
+    'podman ps -q --filter name=identity-pocket-id' 2>/dev/null | grep -q .
+}
+
+# Pocket ID v2 holds a SQLite application_lock; a fast restart can fail while the
+# prior instance still holds (or has not yet released) the lock. Stop gracefully,
+# wait for the container to exit, then clear a stale lock when nothing is running.
+identity_stop_pod_gracefully() {
+  local _
+
+  quadlet_user systemctl --user stop identity-pocket-id.service 2>/dev/null || true
+  quadlet_user systemctl --user stop identity-pod.service 2>/dev/null || true
+  for _ in $(seq 1 30); do
+    if ! identity_pocket_id_container_running; then
+      break
+    fi
+    sleep 1
+  done
+  sleep 2
+}
+
+# Remove a leftover application_lock row when Pocket ID is not running.
+identity_clear_stale_app_lock_if_idle() {
+  local db="${DATA_ROOT:?}/data/pocket-id.db"
+
+  identity_pocket_id_container_running && return 0
+  [[ -f "${db}" ]] || return 0
+  command -v sqlite3 >/dev/null || return 0
+  sqlite3 "${db}" "DELETE FROM kv WHERE key = 'application_lock';" 2>/dev/null || true
+}
+
+# Start the Identity pod (never restart — Pocket ID lock release needs a clean stop).
+identity_start_pod() {
+  quadlet_user systemctl --user reset-failed \
+    identity-pod.service identity-pocket-id.service 2>/dev/null || true
+  quadlet_user systemctl --user start identity-pod.service
+}
+
+# True when Pocket ID already answers OIDC discovery (skip unnecessary recycle).
+identity_pod_already_ready() {
+  quadlet_user systemctl --user is-active --quiet identity-pod.service 2>/dev/null \
+    && quadlet_user systemctl --user is-active --quiet identity-pocket-id.service 2>/dev/null \
+    && quadlet_user env "HOME=${HOME_DIR:?}" bash -c \
+      "cd \"\$HOME\" && podman exec identity-pocket-id wget -q -O - http://127.0.0.1:1411/.well-known/openid-configuration" \
+      2>/dev/null | grep -Fq '"issuer"'
+}
+
 # Wait until Pocket ID answers OIDC discovery inside the identity-pocket-id container.
 identity_wait_ready() {
   local _
@@ -70,10 +119,15 @@ identity_standing_ensure() {
   WORKLOADS_ROOT="${WORKLOADS_ROOT:-$(host_volume_workloads_sot_root)}"
   ADMIN_ENV="${DATA_ROOT}/admin/environment"
   ENV_SLUG="${ENV_SLUG:-$(component_handoff_environment_slug)}"
+  local admin_env_unchanged=0
 
   quadlet_user_session_begin
 
   mkdir -p "${DATA_ROOT}" "${DATA_ROOT}/admin" "${DATA_ROOT}/data"
+
+  if [[ -f "${ADMIN_ENV}" && -f "${staged_admin_env}" ]] && cmp -s "${staged_admin_env}" "${ADMIN_ENV}"; then
+    admin_env_unchanged=1
+  fi
 
   identity_install_admin_env "${staged_admin_env}" || return 1
 
@@ -88,10 +142,14 @@ identity_standing_ensure() {
   chown "${USER_NAME}:${USER_NAME}" "${DATA_ROOT}" 2>/dev/null || true
 
   quadlet_user_session_reload
-  quadlet_user systemctl --user reset-failed \
-    identity-pod.service identity-pocket-id.service 2>/dev/null || true
 
-  quadlet_user systemctl --user restart identity-pod.service
+  if [[ "${admin_env_unchanged}" == "1" ]] && identity_pod_already_ready; then
+    return 0
+  fi
+
+  identity_stop_pod_gracefully
+  identity_clear_stale_app_lock_if_idle
+  identity_start_pod
   quadlet_user systemctl --user --quiet is-active identity-pod.service || {
     echo "Identity: identity-pod.service is not active" >&2
     quadlet_user systemctl --user status identity-pod.service identity-pocket-id.service --no-pager >&2 || true
@@ -99,8 +157,13 @@ identity_standing_ensure() {
   }
 
   identity_wait_ready || {
-    quadlet_user systemctl --user status identity-pod.service identity-pocket-id.service --no-pager >&2 || true
-    return 1
+    identity_stop_pod_gracefully
+    identity_clear_stale_app_lock_if_idle
+    identity_start_pod || true
+    identity_wait_ready || {
+      quadlet_user systemctl --user status identity-pod.service identity-pocket-id.service --no-pager >&2 || true
+      return 1
+    }
   }
 }
 
