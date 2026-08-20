@@ -72,7 +72,9 @@ api_key_line="$(host_ssh "grep -E '^STATIC_API_KEY=' /host-volume/components/ide
 [[ -n "${api_key_line}" ]] || fail "Identity admin STATIC_API_KEY missing on Host"
 api_key="${api_key_line#STATIC_API_KEY=}"
 
-api_json="$(host_ssh bash -s <<REMOTE
+api_json=""
+for _ in $(seq 1 10); do
+  api_json="$(host_ssh bash -s <<REMOTE 2>/dev/null || true
 set -euo pipefail
 UID_NUM=\$(id -u platform)
 HOME_DIR=\$(getent passwd platform | cut -d: -f6)
@@ -82,9 +84,19 @@ runuser -u platform -- env HOME=\${HOME_DIR} XDG_RUNTIME_DIR=\$XDG_RUNTIME_DIR \
   bash -c 'cd "\$HOME" && podman run --rm --network service-network \
     docker.io/curlimages/curl:8.12.1 \
     curl -fsS -H "X-API-Key: ${api_key}" \
-    "http://identity:1411/api/apis?pagination[limit]=100"' 
+    "http://identity:1411/api/apis?pagination[limit]=100" || true'
 REMOTE
-)"
+  )" || true
+  if printf '%s\n' "${api_json}" | python3 -c 'import json,sys; json.load(sys.stdin)' >/dev/null 2>&1; then
+    break
+  fi
+  sleep 1
+done
+
+[[ -n "${api_json}" ]] || fail "Pocket ID admin /api/apis returned empty body"
+if ! printf '%s\n' "${api_json}" | python3 -c 'import json,sys; json.load(sys.stdin)' >/dev/null 2>&1; then
+  fail "Pocket ID admin /api/apis returned non-JSON body: ${api_json}"
+fi
 printf '%s\n' "${api_json}" | python3 - "${RESOURCE}" "${WL}" <<'PY'
 import json, sys
 resource, wl = sys.argv[1], sys.argv[2]
