@@ -139,7 +139,17 @@ if ! curl_json "http://identity:1411/api/oidc/clients/${CLIENT}" >/dev/null 2>&1
     -d "{\"id\":\"${CLIENT}\",\"name\":\"Acceptance probe\",\"isPublic\":false,\"isGroupRestricted\":false,\"callbackURLs\":[],\"logoutCallbackURLs\":[]}" >/dev/null
 fi
 SECRET=$(curl_json -X POST "http://identity:1411/api/oidc/clients/${CLIENT}/secret" | python3 -c "import json,sys; print(json.load(sys.stdin)[\"secret\"])")
-API_JSON=$(curl_json "http://identity:1411/api/apis")
+
+api_json_retry=""
+for _ in $(seq 1 30); do
+  api_json_retry="$(curl_json "http://identity:1411/api/apis" 2>/dev/null || true)"
+  if printf '%s\n' "${api_json_retry}" | python3 -c 'import json,sys; json.load(sys.stdin)' >/dev/null 2>&1; then
+    break
+  fi
+  sleep 1
+done
+[[ -n "${api_json_retry}" ]] || { echo "token stage: Pocket ID admin /api/apis returned empty body" >&2; exit 1; }
+API_JSON="${api_json_retry}"
 PERM_ID=$(printf "%s" "$API_JSON" | python3 -c "import json,sys; r=sys.argv[1]; wl=sys.argv[2]; d=json.load(sys.stdin); api=next(a for a in d[\"data\"] if a[\"resource\"]==r); print(next(p[\"id\"] for p in api[\"permissions\"] if p[\"key\"]==f\"{wl}:api\"))" "$RESOURCE" "$WL")
 curl_json -X PUT "http://identity:1411/api/api-access/${CLIENT}" \
   -d "{\"userDelegatedPermissionIds\":[\"$PERM_ID\"],\"clientPermissionIds\":[\"$PERM_ID\"]}" >/dev/null
