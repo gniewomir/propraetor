@@ -118,7 +118,9 @@ identity_pocket_id_discovery_issuer() {
 
 identity_pocket_id_api_list_all() {
   local page=1
-  local limit=100
+  # Keep payload small: transient admin list slowness can lead to curl header
+  # extraction failures and empty HTTP codes (HTTP unknown).
+  local limit=20
   local combined=""
   while :; do
     local chunk total_pages
