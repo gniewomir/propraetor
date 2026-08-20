@@ -1,4 +1,9 @@
 {
   "database": true,
-  "cache": false
+  "cache": false,
+  "identity": true,
+  "permissions": {
+    "panel:api": "Access panel API",
+    "panel:usage": "Read host usage"
+  }
 }
