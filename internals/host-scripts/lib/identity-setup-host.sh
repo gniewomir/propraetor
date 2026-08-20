@@ -83,7 +83,7 @@ identity_admin_api_ready() {
 
   local api_json
   api_json="$(
-    identity_pocket_id_admin_curl GET "/api/apis?pagination[page]=1&pagination[limit]=1" 2>/dev/null \
+    identity_pocket_id_admin_curl GET "/api/apis?pagination[page]=1&pagination[limit]=100" 2>/dev/null \
       || return 1
   )" || return 1
 
@@ -96,7 +96,7 @@ identity_wait_ready() {
   local cname="identity-pocket-id"
   local state=""
 
-  for _ in $(seq 1 360); do
+  for _ in $(seq 1 180); do
     state="$(quadlet_user systemctl --user show -p ActiveState --value identity-pocket-id.service 2>/dev/null || true)"
     if [[ "${state}" == "failed" ]]; then
       echo "Identity: identity-pocket-id.service failed before ready" >&2
