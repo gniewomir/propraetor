@@ -432,8 +432,27 @@ identity_converge_resource_server() {
 
   api_json="$(identity_pocket_id_api_find_by_resource "${resource}" || true)"
   if [[ -z "${api_json}" ]]; then
-    api_json="$(identity_pocket_id_api_create "${api_name}" "${resource}")" || return 1
+    # /api/apis list may transiently fail while Pocket ID is settling.
+    # If we can't find the API yet, attempt create, but treat 409-conflict
+    # as "already exists" and re-find until we can proceed.
+    for _ in $(seq 1 5); do
+      api_json="$(identity_pocket_id_api_find_by_resource "${resource}" || true)" || true
+      [[ -n "${api_json}" ]] && break
+      sleep 1
+    done
   fi
+
+  if [[ -z "${api_json}" ]]; then
+    api_json="$(identity_pocket_id_api_create "${api_name}" "${resource}" || true)"
+  fi
+  if [[ -z "${api_json}" ]]; then
+    for _ in $(seq 1 5); do
+      api_json="$(identity_pocket_id_api_find_by_resource "${resource}" || true)" || true
+      [[ -n "${api_json}" ]] && break
+      sleep 1
+    done
+  fi
+  [[ -n "${api_json}" ]] || return 1
 
   api_id="$(printf '%s\n' "${api_json}" | python3 -c 'import json,sys; print(json.load(sys.stdin)["id"])')" \
     || return 1
