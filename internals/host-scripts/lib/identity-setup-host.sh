@@ -71,7 +71,8 @@ identity_pod_already_ready() {
     && quadlet_user env "HOME=${HOME_DIR:?}" bash -c \
       "cd \"\$HOME\" && podman exec identity-pocket-id wget -q --timeout=5 --tries=1 -O - http://127.0.0.1:1411/.well-known/openid-configuration" \
       2>/dev/null | grep -Fq '"issuer"' \
-    && identity_admin_api_ready
+    # OIDC discovery is reachable; later converge steps may still retry
+    # Pocket ID admin API calls if needed.
 }
 
 # True when Pocket ID admin API responds with JSON.
@@ -105,7 +106,7 @@ identity_wait_ready() {
     if quadlet_user env "HOME=${HOME_DIR}" bash -c \
       "cd \"\$HOME\" && podman exec ${cname} wget -q --timeout=5 --tries=1 -O - http://127.0.0.1:1411/.well-known/openid-configuration" \
       2>/dev/null | grep -Fq '"issuer"'; then
-      identity_admin_api_ready && return 0
+      return 0
     fi
     sleep 1
   done
