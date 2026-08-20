@@ -29,6 +29,11 @@ if grep -Eq '^PublishPort=' \
   "${REPO_ROOT}/internals/components/identity/systemd/identity.pod"; then
   fail "identity.pod must not PublishPort"
 fi
+CONTAINER_UNIT="${REPO_ROOT}/internals/components/identity/systemd/identity-pocket-id.container"
+grep -Eq '^Environment=PUID=0$' "${CONTAINER_UNIT}" \
+  || fail "identity-pocket-id.container must set PUID=0 for rootless :U bind mounts"
+grep -Eq '^Environment=PGID=0$' "${CONTAINER_UNIT}" \
+  || fail "identity-pocket-id.container must set PGID=0 for rootless :U bind mounts"
 
 pre_body="$(awk '/^identity_setup_pre_workloads\(\)/,/^}/' "${SETUP}")"
 printf '%s\n' "${pre_body}" | grep -Fq 'identity_standing_ensure' \
