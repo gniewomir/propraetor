@@ -8,6 +8,12 @@ ContainerName=identity-pocket-id
 Pod=identity.pod
 EnvironmentFile=/host-volume/components/identity/persist/admin/environment
 Environment=TRUST_PROXY=true
+# Rootless + Volume :U owns /app/data as container UID 0 (Host Platform User).
+# Pocket ID's entrypoint defaults to PUID/PGID 1000 and su-exec's there; uploads/
+# is mode 700 so UID 1000 cannot open seeded images → openat EACCES → HTTP 500
+# (not 404). Stay UID 0 inside the user namespace (ADR-0006).
+Environment=PUID=0
+Environment=PGID=0
 Volume=../persist/data:/app/data:U
 
 [Service]
