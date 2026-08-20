@@ -215,10 +215,10 @@ runuser -u platform -- env HOME=\${HOME_DIR} XDG_RUNTIME_DIR=\$XDG_RUNTIME_DIR \
     "http://identity:1411/api/apis?pagination[limit]=100"'
 REMOTE
 )"
-printf '%s\n' "${api_json}" | python3 - "${RESOURCE}" "${WL}" <<'PY'
+python3 - "${RESOURCE}" "${WL}" "${api_json}" <<'PY'
 import json, sys
-resource, wl = sys.argv[1], sys.argv[2]
-payload = json.loads(sys.stdin.read())
+resource, wl, payload_raw = sys.argv[1], sys.argv[2], sys.argv[3]
+payload = json.loads(payload_raw)
 match = [a for a in payload.get("data") or [] if a.get("resource") == resource]
 if len(match) != 1:
     raise SystemExit(f"expected one Pocket ID API for {resource!r}, got {len(match)}")
@@ -263,10 +263,10 @@ host_ssh "test -f /host-volume/workloads/${WL}/manifest.json" \
 host_ssh "test ! -e /host-volume/workloads/${WL}" \
   || fail "Orphan Reap must remove orphan SoT"
 
-perm_before_post="$(printf '%s\n' "${api_json}" | python3 - "${RESOURCE}" "${WL}" <<'PY'
+perm_before_post="$(python3 - "${RESOURCE}" "${WL}" "${api_json}" <<'PY'
 import json, sys
-resource, wl = sys.argv[1], sys.argv[2]
-payload = json.loads(sys.stdin.read())
+resource, wl, payload_raw = sys.argv[1], sys.argv[2], sys.argv[3]
+payload = json.loads(payload_raw)
 match = next(a for a in payload.get("data") or [] if a.get("resource") == resource)
 keys = {p.get("key") for p in match.get("permissions") or []}
 print("yes" if f"{wl}:api" in keys else "no")
@@ -291,10 +291,10 @@ runuser -u platform -- env HOME=\${HOME_DIR} XDG_RUNTIME_DIR=\$XDG_RUNTIME_DIR \
     "http://identity:1411/api/apis?pagination[limit]=100"'
 REMOTE
 )"
-printf '%s\n' "${api_json_after}" | python3 - "${RESOURCE}" "${WL}" "${KEEP}" <<'PY'
+python3 - "${RESOURCE}" "${WL}" "${KEEP}" "${api_json_after}" <<'PY'
 import json, sys
-resource, orphan, keep = sys.argv[1], sys.argv[2], sys.argv[3]
-payload = json.loads(sys.stdin.read())
+resource, orphan, keep, payload_raw = sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4]
+payload = json.loads(payload_raw)
 match = [a for a in payload.get("data") or [] if a.get("resource") == resource]
 if len(match) != 1:
     raise SystemExit(f"expected retained Environment API, got {len(match)}")

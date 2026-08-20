@@ -186,10 +186,10 @@ identity_converge_oidc_client() {
   local client_id="${1:?identity_converge_oidc_client: client id required}"
   local callback_urls_json="${2:?identity_converge_oidc_client: callback urls required}"
   local display_name="${3:-${client_id}}"
-  local existing=""
 
-  if existing="$(identity_pocket_id_oidc_client_get "${client_id}" 2>/dev/null || true)" && \
-    [[ -n "${existing}" ]]; then
+  # Existence is the GET exit status only. Admin curl prints 404 JSON bodies to
+  # stdout on failure, so a non-empty capture must not mean "client exists".
+  if identity_pocket_id_oidc_client_get "${client_id}" >/dev/null 2>&1; then
     identity_pocket_id_oidc_client_update "${client_id}" "${display_name}" true \
       "${callback_urls_json}" || return 1
   else

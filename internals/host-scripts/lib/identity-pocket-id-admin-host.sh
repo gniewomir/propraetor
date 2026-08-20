@@ -50,25 +50,25 @@ identity_pocket_id_admin_api_key_from_env() {
 
 # Default: curl Pocket ID on Service Network dial name identity.
 # Prints response body to stdout; returns non-zero on HTTP >= 400.
+#
+# Body must travel on the curl container's stdout: a host-side -o path is not
+# mounted into `podman run`, so writing there silently yields an empty body
+# while still returning HTTP 200. Shape: "<body>\n<http_code>" via -w.
 identity_pocket_id_admin_curl() {
   local method="${1:?identity_pocket_id_admin_curl: method required}"
   local path="${2:?identity_pocket_id_admin_curl: path required}"
   local body="${3:-}"
-  local api_key env_path code tmp_body tmp_hdr
+  local api_key env_path code combined response_body
   env_path="${ADMIN_ENV:?identity_pocket_id_admin_curl: ADMIN_ENV required}"
   api_key="$(identity_pocket_id_admin_api_key_from_env "${env_path}")" || return 1
-  tmp_body="$(mktemp "${TMPDIR:-/tmp}/pocket-id-body.XXXXXX")"
-  tmp_hdr="$(mktemp "${TMPDIR:-/tmp}/pocket-id-hdr.XXXXXX")"
-  # shellcheck disable=SC2064
-  trap "rm -f '${tmp_body}' '${tmp_hdr}'" RETURN
 
   if [[ -n "${body}" ]]; then
-    code="$(
+    combined="$(
       quadlet_user env "HOME=${HOME_DIR}" bash -c \
         "cd \"\$HOME\" && podman run --rm --network service-network \
           docker.io/curlimages/curl:8.12.1 \
           curl -sS --connect-timeout 5 --max-time 25 --retry 0 \
-            -o $(printf '%q' "${tmp_body}") -w '%{http_code}' \
+            -w '\n%{http_code}' \
           -X $(printf '%q' "${method}") \
           -H $(printf '%q' "X-API-Key: ${api_key}") \
           -H 'Content-Type: application/json' \
@@ -77,12 +77,12 @@ identity_pocket_id_admin_curl() {
         2>/dev/null"
     )"
   else
-    code="$(
+    combined="$(
       quadlet_user env "HOME=${HOME_DIR}" bash -c \
         "cd \"\$HOME\" && podman run --rm --network service-network \
           docker.io/curlimages/curl:8.12.1 \
           curl -sS --connect-timeout 5 --max-time 25 --retry 0 \
-            -o $(printf '%q' "${tmp_body}") -w '%{http_code}' \
+            -w '\n%{http_code}' \
           -X $(printf '%q' "${method}") \
           -H $(printf '%q' "X-API-Key: ${api_key}") \
           $(printf '%q' "http://identity:1411${path}") \
@@ -90,16 +90,23 @@ identity_pocket_id_admin_curl() {
     )"
   fi
 
+  if [[ -z "${combined}" ]]; then
+    echo "Identity Pocket ID admin ${method} ${path} failed (HTTP unknown)" >&2
+    return 1
+  fi
+  code="$(printf '%s\n' "${combined}" | tail -n1)"
+  response_body="$(printf '%s\n' "${combined}" | sed '$d')"
+
   if [[ -z "${code}" || "${code}" -ge 400 ]]; then
     echo "Identity Pocket ID admin ${method} ${path} failed (HTTP ${code:-unknown})" >&2
-    if [[ -s "${tmp_body}" ]]; then
+    if [[ -n "${response_body}" ]]; then
       # Print failure body to stdout so callers that capture output (e.g.
       # create-then-conflict) can parse IDs without relying on a follow-up GET.
-      cat "${tmp_body}"
+      printf '%s\n' "${response_body}"
     fi
     return 1
   fi
-  cat "${tmp_body}"
+  printf '%s\n' "${response_body}"
 }
 
 identity_pocket_id_discovery_issuer() {
@@ -129,10 +136,14 @@ identity_pocket_id_api_find_by_resource() {
   local resource="${1:?identity_pocket_id_api_find_by_resource: resource required}"
   local list_json
   list_json="$(identity_pocket_id_api_list_all)" || return 1
+  [[ -n "${list_json}" ]] || return 1
   python3 - "${resource}" "${list_json}" <<'PY'
 import json, sys
 resource, payload_raw = sys.argv[1], sys.argv[2]
-payload = json.loads(payload_raw)
+try:
+    payload = json.loads(payload_raw)
+except json.JSONDecodeError:
+    sys.exit(1)
 for item in payload.get("data") or []:
     if item.get("resource") == resource:
         print(json.dumps(item))
