@@ -114,6 +114,75 @@ identity_wait_ready() {
   return 1
 }
 
+# First-admin bootstrap (ADR-0057): when Pocket ID has zero real users, create
+# the operator admin from IDENTITY_ADMIN_EMAIL and print a one-time login URL
+# https://<fqdn>/lc/{token} on stderr. Noop when setup is already completed.
+# Ambient: ADMIN_ENV (must contain IDENTITY_ADMIN_EMAIL + APP_URL).
+identity_bootstrap_first_admin() {
+  local status email app_url username user_json user_id token login_url
+  status="$(identity_pocket_id_signup_setup_status)" || return 1
+  case "${status}" in
+    completed) return 0 ;;
+    available) ;;
+    *)
+      echo "Identity: unexpected signup setup status: ${status}" >&2
+      return 1
+      ;;
+  esac
+
+  [[ -n "${ADMIN_ENV:-}" && -f "${ADMIN_ENV}" ]] || {
+    echo "Identity: ADMIN_ENV required for first-admin bootstrap" >&2
+    return 1
+  }
+  email="$(grep -E '^IDENTITY_ADMIN_EMAIL=' "${ADMIN_ENV}" | head -n1 | cut -d= -f2- || true)"
+  app_url="$(grep -E '^APP_URL=' "${ADMIN_ENV}" | head -n1 | cut -d= -f2- || true)"
+  [[ -n "${email}" ]] || {
+    echo "Identity: IDENTITY_ADMIN_EMAIL missing for first-admin bootstrap" >&2
+    return 1
+  }
+  [[ -n "${app_url}" ]] || {
+    echo "Identity: APP_URL missing for first-admin bootstrap" >&2
+    return 1
+  }
+  app_url="${app_url%/}"
+
+  username="$(python3 - "${email}" <<'PY'
+import re, sys
+email = sys.argv[1]
+local = email.split("@", 1)[0]
+# Pocket ID username: ^[a-zA-Z0-9]([a-zA-Z0-9_.@-]*[a-zA-Z0-9])?$
+cleaned = re.sub(r"[^a-zA-Z0-9_.@-]", "", local)
+cleaned = re.sub(r"^[^a-zA-Z0-9]+", "", cleaned)
+cleaned = re.sub(r"[^a-zA-Z0-9]+$", "", cleaned)
+if not cleaned:
+    cleaned = "admin"
+print(cleaned[:50])
+PY
+)"
+
+  user_json="$(identity_pocket_id_user_create "${username}" "${email}")" || {
+    echo "Identity: failed to create first admin user (${email})" >&2
+    return 1
+  }
+  user_id="$(printf '%s\n' "${user_json}" | python3 -c \
+    'import json,sys; print(json.load(sys.stdin)["id"])')" || {
+    echo "Identity: first admin create response missing id" >&2
+    return 1
+  }
+  [[ -n "${user_id}" ]] || {
+    echo "Identity: first admin create returned empty id" >&2
+    return 1
+  }
+
+  token="$(identity_pocket_id_one_time_access_token_create "${user_id}")" || {
+    echo "Identity: failed to mint first-admin one-time access token" >&2
+    return 1
+  }
+  login_url="${app_url}/lc/${token}"
+  echo "Identity: first-admin one-time login URL (open once to register a passkey):" >&2
+  echo "${login_url}" >&2
+}
+
 # Standing ensure: units / admin env / data dir — not Declaration converge.
 # Args: component_tree [staged_admin_env_src]
 identity_standing_ensure() {
@@ -162,6 +231,7 @@ identity_standing_ensure() {
   quadlet_user_session_reload
 
   if [[ "${admin_env_unchanged}" == "1" ]] && identity_pod_already_ready; then
+    identity_bootstrap_first_admin || return 1
     return 0
   fi
 
@@ -183,6 +253,8 @@ identity_standing_ensure() {
       return 1
     }
   }
+
+  identity_bootstrap_first_admin || return 1
 }
 
 identity_setup_pre_workloads() {
