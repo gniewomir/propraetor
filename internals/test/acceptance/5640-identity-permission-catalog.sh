@@ -191,15 +191,11 @@ import base64, json, sys
 resource, wl = sys.argv[1], sys.argv[2]
 marker = f"{wl}:api"
 raw = sys.stdin.read()
-lines = [ln for ln in raw.splitlines() if ln.strip()]
-last_json = ""
-for ln in reversed(lines):
-    if ln.lstrip().startswith("{"):
-        last_json = ln
-        break
-if not last_json:
-    raise SystemExit("token response empty")
-payload = json.loads(last_json)
+start = raw.find("{")
+end = raw.rfind("}")
+if start == -1 or end == -1 or end <= start:
+    raise SystemExit("token response non-JSON")
+payload = json.loads(raw[start : end + 1])
 token = payload.get("access_token")
 if not token:
     raise SystemExit("token response missing access_token")
