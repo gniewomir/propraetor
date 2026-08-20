@@ -70,7 +70,24 @@ identity_pod_already_ready() {
     && quadlet_user systemctl --user is-active --quiet identity-pocket-id.service 2>/dev/null \
     && quadlet_user env "HOME=${HOME_DIR:?}" bash -c \
       "cd \"\$HOME\" && podman exec identity-pocket-id wget -q -O - http://127.0.0.1:1411/.well-known/openid-configuration" \
-      2>/dev/null | grep -Fq '"issuer"'
+      2>/dev/null | grep -Fq '"issuer"' \
+    && identity_admin_api_ready
+}
+
+# True when Pocket ID admin API responds with JSON.
+identity_admin_api_ready() {
+  # When Pocket ID is up but admin routes are not yet usable, later catalog
+  # converge steps can fail with non-JSON bodies (causing downstream python
+  # decode crashes in Acceptance).
+  command -v python3 >/dev/null || return 1
+
+  local api_json
+  api_json="$(
+    identity_pocket_id_admin_curl GET "/api/apis?pagination[page]=1&pagination[limit]=1" 2>/dev/null \
+      || return 1
+  )" || return 1
+
+  printf '%s\n' "${api_json}" | python3 -c 'import json,sys; json.load(sys.stdin)' >/dev/null
 }
 
 # Wait until Pocket ID answers OIDC discovery inside the identity-pocket-id container.
@@ -88,7 +105,7 @@ identity_wait_ready() {
     if quadlet_user env "HOME=${HOME_DIR}" bash -c \
       "cd \"\$HOME\" && podman exec ${cname} wget -q -O - http://127.0.0.1:1411/.well-known/openid-configuration" \
       2>/dev/null | grep -Fq '"issuer"'; then
-      return 0
+      identity_admin_api_ready && return 0
     fi
     sleep 1
   done
