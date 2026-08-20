@@ -122,8 +122,7 @@ identity_pocket_id_api_list_all() {
   # Pocket ID admin list endpoint has shown transient flakiness/timeouts when
   # passing pagination[page]. The acceptance suite probe uses a single request
   # without pagination[page], so match that shape here.
-  local limit=20
-  identity_pocket_id_admin_curl GET "/api/apis?pagination[limit]=${limit}"
+  identity_pocket_id_admin_curl GET "/api/apis"
 }
 
 identity_pocket_id_api_find_by_resource() {
