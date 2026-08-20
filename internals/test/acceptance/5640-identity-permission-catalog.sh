@@ -192,10 +192,14 @@ resource, wl = sys.argv[1], sys.argv[2]
 marker = f"{wl}:api"
 raw = sys.stdin.read()
 lines = [ln for ln in raw.splitlines() if ln.strip()]
-last = lines[-1] if lines else ""
-if not last:
+last_json = ""
+for ln in reversed(lines):
+    if ln.lstrip().startswith("{"):
+        last_json = ln
+        break
+if not last_json:
     raise SystemExit("token response empty")
-payload = json.loads(last)
+payload = json.loads(last_json)
 token = payload.get("access_token")
 if not token:
     raise SystemExit("token response missing access_token")
