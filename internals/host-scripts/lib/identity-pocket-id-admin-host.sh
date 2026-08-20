@@ -93,7 +93,9 @@ identity_pocket_id_admin_curl() {
   if [[ -z "${code}" || "${code}" -ge 400 ]]; then
     echo "Identity Pocket ID admin ${method} ${path} failed (HTTP ${code:-unknown})" >&2
     if [[ -s "${tmp_body}" ]]; then
-      cat "${tmp_body}" >&2
+      # Print failure body to stdout so callers that capture output (e.g.
+      # create-then-conflict) can parse IDs without relying on a follow-up GET.
+      cat "${tmp_body}"
     fi
     return 1
   fi
