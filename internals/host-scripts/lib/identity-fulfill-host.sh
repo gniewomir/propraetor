@@ -452,7 +452,10 @@ identity_converge_resource_server() {
       sleep 1
     done
   fi
-  [[ -n "${api_json}" ]] || return 1
+  if [[ -z "${api_json}" ]]; then
+    echo "Identity: cannot resolve existing Pocket ID API for resource '${resource}'; skipping permissions update" >&2
+    return 0
+  fi
 
   api_id="$(printf '%s\n' "${api_json}" | python3 -c '
 import json,sys
@@ -464,7 +467,10 @@ except Exception:
     sys.exit(0)
 print(d.get("id") or (d.get("data") or {}).get("id") or (d.get("api") or {}).get("id") or "")
 ')" || return 1
-  [[ -n "${api_id}" ]] || return 1
+  if [[ -z "${api_id}" ]]; then
+    echo "Identity: Pocket ID API JSON has no resolvable id for resource '${resource}'; skipping permissions update" >&2
+    return 0
+  fi
   api_json="$(identity_pocket_id_api_update_permissions "${api_id}" "${permissions_json}")" || return 1
   printf '%s\n' "${api_json}"
 }
