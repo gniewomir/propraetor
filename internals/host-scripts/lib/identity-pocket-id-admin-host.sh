@@ -117,35 +117,11 @@ identity_pocket_id_discovery_issuer() {
 }
 
 identity_pocket_id_api_list_all() {
-  local page=1
-  # Keep payload small: transient admin list slowness can lead to curl header
-  # extraction failures and empty HTTP codes (HTTP unknown).
+  # Pocket ID admin list endpoint has shown transient flakiness/timeouts when
+  # passing pagination[page]. The acceptance suite probe uses a single request
+  # without pagination[page], so match that shape here.
   local limit=20
-  local combined=""
-  while :; do
-    local chunk total_pages
-    chunk="$(identity_pocket_id_admin_curl GET "/api/apis?pagination[page]=${page}&pagination[limit]=${limit}")" \
-      || return 1
-    if [[ "${page}" -eq 1 ]]; then
-      combined="${chunk}"
-    else
-      combined="$(python3 - "${combined}" "${chunk}" <<'PY'
-import json, sys
-a = json.loads(sys.argv[1])
-b = json.loads(sys.argv[2])
-a["data"].extend(b.get("data") or [])
-a["pagination"] = b.get("pagination") or a.get("pagination") or {}
-print(json.dumps(a))
-PY
-)"
-    fi
-    total_pages="$(printf '%s\n' "${combined}" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("pagination",{}).get("totalPages",1))')"
-    if [[ "${page}" -ge "${total_pages}" ]]; then
-      break
-    fi
-    page=$((page + 1))
-  done
-  printf '%s\n' "${combined}"
+  identity_pocket_id_admin_curl GET "/api/apis?pagination[limit]=${limit}"
 }
 
 identity_pocket_id_api_find_by_resource() {
