@@ -142,7 +142,9 @@ def find_api_by_resource(resource):
             return api
     return None
 
-if path.startswith("/api/apis?"):
+# Production list uses bare GET /api/apis (identity_pocket_id_api_list_all);
+# setup readiness may still pass pagination query params.
+if method == "GET" and (path == "/api/apis" or path.startswith("/api/apis?")):
     print(json.dumps({
         "data": [{"id": a["id"], "name": a["name"], "resource": a["resource"],
                   "permissions": a.get("permissions", [])} for a in state["apis"]],
