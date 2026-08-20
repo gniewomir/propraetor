@@ -68,13 +68,13 @@ identity_pocket_id_admin_curl() {
         "cd \"\$HOME\" && podman run --rm --network service-network \
           docker.io/curlimages/curl:8.12.1 \
           curl -sS --connect-timeout 2 --max-time 12 --retry 0 \
-            -D - -o $(printf '%q' "${tmp_body}") \
+            -o $(printf '%q' "${tmp_body}") -w '%{http_code}' \
           -X $(printf '%q' "${method}") \
           -H $(printf '%q' "X-API-Key: ${api_key}") \
           -H 'Content-Type: application/json' \
           --data $(printf '%q' "${body}") \
-          $(printf '%q' "http://identity:1411${path}")" \
-        2>/dev/null | awk 'NR==1 { print $2; exit }'
+          $(printf '%q' "http://identity:1411${path}") \
+        2>/dev/null"
     )"
   else
     code="$(
@@ -82,11 +82,11 @@ identity_pocket_id_admin_curl() {
         "cd \"\$HOME\" && podman run --rm --network service-network \
           docker.io/curlimages/curl:8.12.1 \
           curl -sS --connect-timeout 2 --max-time 12 --retry 0 \
-            -D - -o $(printf '%q' "${tmp_body}") \
+            -o $(printf '%q' "${tmp_body}") -w '%{http_code}' \
           -X $(printf '%q' "${method}") \
           -H $(printf '%q' "X-API-Key: ${api_key}") \
-          $(printf '%q' "http://identity:1411${path}")" \
-        2>/dev/null | awk 'NR==1 { print $2; exit }'
+          $(printf '%q' "http://identity:1411${path}") \
+        2>/dev/null"
     )"
   fi
 
