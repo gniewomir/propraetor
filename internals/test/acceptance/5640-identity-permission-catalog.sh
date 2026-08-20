@@ -190,7 +190,12 @@ import base64, json, sys
 
 resource, wl = sys.argv[1], sys.argv[2]
 marker = f"{wl}:api"
-payload = json.loads(sys.stdin.read())
+raw = sys.stdin.read()
+lines = [ln for ln in raw.splitlines() if ln.strip()]
+last = lines[-1] if lines else ""
+if not last:
+    raise SystemExit("token response empty")
+payload = json.loads(last)
 token = payload.get("access_token")
 if not token:
     raise SystemExit("token response missing access_token")
