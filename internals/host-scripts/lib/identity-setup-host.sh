@@ -69,7 +69,7 @@ identity_pod_already_ready() {
   quadlet_user systemctl --user is-active --quiet identity-pod.service 2>/dev/null \
     && quadlet_user systemctl --user is-active --quiet identity-pocket-id.service 2>/dev/null \
     && quadlet_user env "HOME=${HOME_DIR:?}" bash -c \
-      "cd \"\$HOME\" && podman exec identity-pocket-id wget -q -O - http://127.0.0.1:1411/.well-known/openid-configuration" \
+      "cd \"\$HOME\" && podman exec identity-pocket-id wget -q --timeout=5 --tries=1 -O - http://127.0.0.1:1411/.well-known/openid-configuration" \
       2>/dev/null | grep -Fq '"issuer"' \
     && identity_admin_api_ready
 }
@@ -103,7 +103,7 @@ identity_wait_ready() {
       return 1
     fi
     if quadlet_user env "HOME=${HOME_DIR}" bash -c \
-      "cd \"\$HOME\" && podman exec ${cname} wget -q -O - http://127.0.0.1:1411/.well-known/openid-configuration" \
+      "cd \"\$HOME\" && podman exec ${cname} wget -q --timeout=5 --tries=1 -O - http://127.0.0.1:1411/.well-known/openid-configuration" \
       2>/dev/null | grep -Fq '"issuer"'; then
       identity_admin_api_ready && return 0
     fi
