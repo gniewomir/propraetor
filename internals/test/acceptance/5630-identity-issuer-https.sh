@@ -15,7 +15,8 @@ ISSUER_FQDN="$(identity_config_issuer_fqdn_for "${ENV_SLUG}")" \
   || fail "committed identity.json must validate for Environment ${ENV_SLUG}"
 
 # Public HTTPS through Edge → Identity Service Network (OIDC discovery).
-body="$(curl -fsS --max-time 30 "https://${ISSUER_FQDN}/.well-known/openid-configuration" 2>/dev/null)" \
+body="$(curl -kfsS --max-time 30 --resolve "${ISSUER_FQDN}:443:${IP}" \
+  "https://${ISSUER_FQDN}/.well-known/openid-configuration" 2>/dev/null)" \
   || fail "HTTPS GET issuer OIDC discovery failed for ${ISSUER_FQDN}"
 printf '%s\n' "${body}" | grep -Fq "\"issuer\":\"https://${ISSUER_FQDN}\"" \
   || printf '%s\n' "${body}" | grep -Fq "\"issuer\": \"https://${ISSUER_FQDN}\"" \
