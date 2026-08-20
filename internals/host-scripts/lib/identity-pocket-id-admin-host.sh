@@ -67,7 +67,8 @@ identity_pocket_id_admin_curl() {
       quadlet_user env "HOME=${HOME_DIR}" bash -c \
         "cd \"\$HOME\" && podman run --rm --network service-network \
           docker.io/curlimages/curl:8.12.1 \
-          curl -sS -D - -o $(printf '%q' "${tmp_body}") \
+          curl -sS --connect-timeout 5 --max-time 15 --retry 0 \
+            -D - -o $(printf '%q' "${tmp_body}") \
           -X $(printf '%q' "${method}") \
           -H $(printf '%q' "X-API-Key: ${api_key}") \
           -H 'Content-Type: application/json' \
@@ -80,7 +81,8 @@ identity_pocket_id_admin_curl() {
       quadlet_user env "HOME=${HOME_DIR}" bash -c \
         "cd \"\$HOME\" && podman run --rm --network service-network \
           docker.io/curlimages/curl:8.12.1 \
-          curl -sS -D - -o $(printf '%q' "${tmp_body}") \
+          curl -sS --connect-timeout 5 --max-time 15 --retry 0 \
+            -D - -o $(printf '%q' "${tmp_body}") \
           -X $(printf '%q' "${method}") \
           -H $(printf '%q' "X-API-Key: ${api_key}") \
           $(printf '%q' "http://identity:1411${path}")" \
