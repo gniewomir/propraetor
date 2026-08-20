@@ -454,8 +454,17 @@ identity_converge_resource_server() {
   fi
   [[ -n "${api_json}" ]] || return 1
 
-  api_id="$(printf '%s\n' "${api_json}" | python3 -c 'import json,sys; print(json.load(sys.stdin)["id"])')" \
-    || return 1
+  api_id="$(printf '%s\n' "${api_json}" | python3 -c '
+import json,sys
+s=sys.stdin.read()
+try:
+    d=json.loads(s)
+except Exception:
+    print("")
+    sys.exit(0)
+print(d.get("id") or (d.get("data") or {}).get("id") or (d.get("api") or {}).get("id") or "")
+')" || return 1
+  [[ -n "${api_id}" ]] || return 1
   api_json="$(identity_pocket_id_api_update_permissions "${api_id}" "${permissions_json}")" || return 1
   printf '%s\n' "${api_json}"
 }
