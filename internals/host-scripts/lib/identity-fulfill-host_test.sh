@@ -198,6 +198,12 @@ elif path.startswith("/api/oidc/clients/") and method == "GET":
     client_id = path.rsplit("/", 1)[-1]
     client = state["clients"].get(client_id)
     if not client:
+        # Match Pocket ID: 404 body on stdout + non-zero exit (admin curl).
+        print(json.dumps({
+            "error": "OIDC client not found",
+            "code": "not_found",
+            "details": {"resource": "OIDC client"},
+        }))
         raise SystemExit(1)
     print(json.dumps(client))
 elif path == "/api/oidc/clients" and method == "POST":
@@ -220,6 +226,11 @@ elif path == "/api/oidc/clients" and method == "POST":
 elif path.startswith("/api/oidc/clients/") and method == "PUT":
     client_id = path.rsplit("/", 1)[-1]
     if client_id not in state["clients"]:
+        print(json.dumps({
+            "error": "OIDC client not found",
+            "code": "not_found",
+            "details": {"resource": "OIDC client"},
+        }))
         raise SystemExit(1)
     payload = json.loads(body)
     client = state["clients"][client_id]
@@ -413,6 +424,18 @@ if sorted(perm_ids) != sorted(by_key[k] for k in want_keys):
     raise SystemExit("api-access must grant all requested permission keys across APIs")
 PY
 pass "OIDC client registered by basename with multi-API api-access grants"
+
+# Regression (#5650): Pocket ID GET-miss returns JSON on stdout with non-zero
+# exit. Converge must key off exit status (not body non-emptiness), or it PUT
+# updates a missing client. Stub above emits that 404 body; create-path fulfill
+# below is the lock. Also pin admin curl's body+"\n%{http_code}" split shape.
+_split_combined=$'{"id":"api-1","resource":"propreator:test"}\n409'
+_split_code="$(printf '%s\n' "${_split_combined}" | tail -n1)"
+_split_body="$(printf '%s\n' "${_split_combined}" | sed '$d')"
+[[ "${_split_code}" == "409" ]] || fail "curl split must read trailing http code"
+[[ "${_split_body}" == '{"id":"api-1","resource":"propreator:test"}' ]] \
+  || fail "curl split must keep JSON body before http code"
+pass "Pocket ID admin curl body/http_code split shape; GET-404 body must not force PUT"
 
 client_binding="$(workload_identity_binding_dir my-spa)/client.env"
 [[ -f "${client_binding}" ]] || fail "expected client.env binding"

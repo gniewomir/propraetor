@@ -46,7 +46,6 @@ for wl in "${API_A}" "${API_B}"; do
   "description": "Identity API catalog for OIDC client probe"
 }
 EOF
-  acceptance_write_identity_api_catalog_claim "${FIX_DIR}/${wl}" "${wl}"
   cat >"${FIX_DIR}/${wl}/systemd/${wl}.container" <<EOF
 [Unit]
 Description=Identity API catalog probe ${wl}
@@ -65,6 +64,13 @@ Restart=on-failure
 WantedBy=default.target
 EOF
 done
+# Distinct permission shapes across APIs (matches unit gather fixture).
+acceptance_write_identity_api_catalog_claim "${FIX_DIR}/${API_A}" "${API_A}" \
+  "${API_A}:api=API access" \
+  "${API_A}:read=Read access"
+acceptance_write_identity_api_catalog_claim "${FIX_DIR}/${API_B}" "${API_B}" \
+  "${API_B}:api=API access" \
+  "${API_B}:write=Write access"
 
 mkdir -p "${FIX_DIR}/${SPA}/systemd"
 cat >"${FIX_DIR}/${SPA}/manifest.json" <<EOF
@@ -138,10 +144,10 @@ runuser -u platform -- env HOME=\${HOME_DIR} XDG_RUNTIME_DIR=\$XDG_RUNTIME_DIR \
     "http://identity:1411/api/oidc/clients/${SPA}"'
 REMOTE
 )"
-printf '%s\n' "${client_json}" | python3 - "${SPA}" "${ROUTE_FQDN}" <<'PY'
+python3 - "${SPA}" "${ROUTE_FQDN}" "${client_json}" <<'PY'
 import json, sys
-spa, fqdn = sys.argv[1], sys.argv[2]
-client = json.loads(sys.stdin.read())
+spa, fqdn, payload_raw = sys.argv[1], sys.argv[2], sys.argv[3]
+client = json.loads(payload_raw)
 if client.get("id") != spa:
     raise SystemExit(f"client id must be basename {spa!r}, got {client.get('id')!r}")
 if not client.get("isPublic"):

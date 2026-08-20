@@ -574,19 +574,32 @@ ensure_cache_fulfillment() {
 }
 
 # Artifact stubs with Identity API permission catalog (Provides.permissions).
+# Optional trailing key=label args replace the default ${wl}:api + ${wl}:read pair.
 acceptance_write_identity_api_catalog_claim() {
   local tree="${1:?acceptance_write_identity_api_catalog_claim: Workload tree required}"
   local wl_name="${2:?acceptance_write_identity_api_catalog_claim: workload basename required}"
+  shift 2
+  local -a perms=("$@")
   acceptance_write_artifact_stubs "${tree}"
   printf '{ "identity": true, "database": false, "cache": false }\n' >"${tree}/requires.json"
-  cat >"${tree}/provides.json" <<EOF
-{
-  "permissions": {
-    "${wl_name}:api": "API access",
-    "${wl_name}:read": "Read access"
-  }
-}
-EOF
+  if [[ ${#perms[@]} -eq 0 ]]; then
+    perms=("${wl_name}:api=API access" "${wl_name}:read=Read access")
+  fi
+  python3 - "${tree}/provides.json" "${wl_name}" "${perms[@]}" <<'PY'
+import json, sys
+wl_name = sys.argv[2]
+keys = sys.argv[3:]
+permissions = {}
+for item in keys:
+    key, _, label = item.partition("=")
+    permissions[key] = label or key
+marker = f"{wl_name}:api"
+if marker not in permissions:
+    raise SystemExit(f"acceptance_write_identity_api_catalog_claim: missing mandatory {marker}")
+with open(sys.argv[1], "w", encoding="utf-8") as f:
+    json.dump({"permissions": permissions}, f, indent=2)
+    f.write("\n")
+PY
 }
 
 # Artifact stubs with Identity OIDC client (Provides.oidc_callback + Requires.permissions).
