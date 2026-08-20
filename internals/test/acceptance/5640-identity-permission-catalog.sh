@@ -165,14 +165,23 @@ API_JSON="${api_json_retry}"
 PERM_ID=$(printf "%s" "$API_JSON" | python3 -c "import json,sys; r=sys.argv[1]; wl=sys.argv[2]; d=json.load(sys.stdin); api=next(a for a in d[\"data\"] if a[\"resource\"]==r); print(next(p[\"id\"] for p in api[\"permissions\"] if p[\"key\"]==f\"{wl}:api\"))" "$RESOURCE" "$WL")
 curl_json -X PUT "http://identity:1411/api/api-access/${CLIENT}" \
   -d "{\"userDelegatedPermissionIds\":[\"$PERM_ID\"],\"clientPermissionIds\":[\"$PERM_ID\"]}" >/dev/null
-podman run --rm --network service-network docker.io/curlimages/curl:8.12.1 \
-  curl -sS --connect-timeout 2 --max-time 10 -X POST http://identity:1411/api/oidc/token \
-  -H "Content-Type: application/x-www-form-urlencoded" \
-  --data-urlencode "client_id=${CLIENT}" \
-  --data-urlencode "client_secret=${SECRET}" \
-  --data-urlencode "grant_type=client_credentials" \
-  --data-urlencode "resource=${RESOURCE}" \
-  --data-urlencode "scope=${MARKER}"
+token_json_retry=""
+for _ in $(seq 1 30); do
+  token_json_retry="$(podman run --rm --network service-network docker.io/curlimages/curl:8.12.1 \
+    curl -sS --connect-timeout 2 --max-time 10 -X POST http://identity:1411/api/oidc/token \
+    -H "Content-Type: application/x-www-form-urlencoded" \
+    --data-urlencode "client_id=${CLIENT}" \
+    --data-urlencode "client_secret=${SECRET}" \
+    --data-urlencode "grant_type=client_credentials" \
+    --data-urlencode "resource=${RESOURCE}" \
+    --data-urlencode "scope=${MARKER}" 2>/dev/null || true)"
+  if printf '%s\n' "${token_json_retry}" | python3 -c 'import json,sys; d=json.load(sys.stdin); sys.exit(0 if d.get("access_token") else 1)' >/dev/null 2>&1; then
+    break
+  fi
+  sleep 1
+done
+[[ -n "${token_json_retry}" ]] || { echo "token stage: /token returned empty response" >&2; exit 1; }
+printf '%s\n' "${token_json_retry}"
 '
 REMOTE
 )"
