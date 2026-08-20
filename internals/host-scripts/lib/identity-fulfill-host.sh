@@ -435,7 +435,7 @@ identity_converge_resource_server() {
     # /api/apis list may transiently fail while Pocket ID is settling.
     # If we can't find the API yet, attempt create, but treat 409-conflict
     # as "already exists" and re-find until we can proceed.
-    for _ in $(seq 1 10); do
+    for _ in $(seq 1 30); do
       api_json="$(identity_pocket_id_api_find_by_resource "${resource}" || true)" || true
       [[ -n "${api_json}" ]] && break
       sleep 1
@@ -446,7 +446,7 @@ identity_converge_resource_server() {
     api_json="$(identity_pocket_id_api_create "${api_name}" "${resource}" || true)"
   fi
   if [[ -z "${api_json}" ]]; then
-    for _ in $(seq 1 10); do
+    for _ in $(seq 1 15); do
       api_json="$(identity_pocket_id_api_find_by_resource "${resource}" || true)" || true
       [[ -n "${api_json}" ]] && break
       sleep 1
