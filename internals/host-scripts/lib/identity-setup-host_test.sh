@@ -20,6 +20,8 @@ grep -Fq 'restart identity-pod.service' "${SETUP}" \
   && fail "standing ensure must not restart identity-pod (Pocket ID lock race)"
 grep -Fq 'identity_pod_already_ready' "${SETUP}" \
   || fail "standing ensure must skip recycle when admin env unchanged and Pocket ID ready"
+grep -Fq 'identity_admin_api_ready' "${SETUP}" \
+  || fail "standing ensure must gate Pocket ID readiness on admin /api/apis JSON"
 grep -Fq 'identity-pocket-id.service failed before ready' "${SETUP}" \
   || fail "identity_wait_ready must fail closed on ActiveState=failed"
 grep -Fq 'NetworkAlias=identity' \
