@@ -73,7 +73,7 @@ api_key_line="$(host_ssh "grep -E '^STATIC_API_KEY=' /host-volume/components/ide
 api_key="${api_key_line#STATIC_API_KEY=}"
 
 api_json=""
-for _ in $(seq 1 10); do
+for _ in $(seq 1 30); do
   api_json="$(host_ssh bash -s <<REMOTE 2>/dev/null || true
 set -euo pipefail
 UID_NUM=\$(id -u platform)
@@ -83,8 +83,9 @@ runuser -u platform -- env HOME=\${HOME_DIR} XDG_RUNTIME_DIR=\$XDG_RUNTIME_DIR \
   DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/\${UID_NUM}/bus \
   bash -c 'cd "\$HOME" && podman run --rm --network service-network \
     docker.io/curlimages/curl:8.12.1 \
-    curl -fsS -H "X-API-Key: ${api_key}" \
-    "http://identity:1411/api/apis?pagination[limit]=100" || true'
+    curl -sS --connect-timeout 2 --max-time 10 \
+      -H "X-API-Key: ${api_key}" \
+      "http://identity:1411/api/apis?pagination[limit]=20" || true'
 REMOTE
   )" || true
   if printf '%s\n' "${api_json}" | python3 -c 'import json,sys; json.load(sys.stdin)' >/dev/null 2>&1; then
@@ -129,7 +130,8 @@ set -euo pipefail
 cd "$HOME"
 curl_json() {
   podman run --rm --network service-network docker.io/curlimages/curl:8.12.1 \
-    curl -fsS -H "X-API-Key: ${api_key}" -H "Content-Type: application/json" "$@"
+    curl -sS --connect-timeout 2 --max-time 10 \
+      -H "X-API-Key: ${api_key}" -H "Content-Type: application/json" "$@"
 }
 # Ephemeral confidential client for token probe (Setup-owned clients are a separate story).
 if ! curl_json "http://identity:1411/api/oidc/clients/${CLIENT}" >/dev/null 2>&1; then
@@ -137,12 +139,12 @@ if ! curl_json "http://identity:1411/api/oidc/clients/${CLIENT}" >/dev/null 2>&1
     -d "{\"id\":\"${CLIENT}\",\"name\":\"Acceptance probe\",\"isPublic\":false,\"isGroupRestricted\":false,\"callbackURLs\":[],\"logoutCallbackURLs\":[]}" >/dev/null
 fi
 SECRET=$(curl_json -X POST "http://identity:1411/api/oidc/clients/${CLIENT}/secret" | python3 -c "import json,sys; print(json.load(sys.stdin)[\"secret\"])")
-API_JSON=$(curl_json "http://identity:1411/api/apis?pagination[limit]=100")
+API_JSON=$(curl_json "http://identity:1411/api/apis?pagination[limit]=20")
 PERM_ID=$(printf "%s" "$API_JSON" | python3 -c "import json,sys; r=sys.argv[1]; wl=sys.argv[2]; d=json.load(sys.stdin); api=next(a for a in d[\"data\"] if a[\"resource\"]==r); print(next(p[\"id\"] for p in api[\"permissions\"] if p[\"key\"]==f\"{wl}:api\"))" "$RESOURCE" "$WL")
 curl_json -X PUT "http://identity:1411/api/api-access/${CLIENT}" \
   -d "{\"userDelegatedPermissionIds\":[\"$PERM_ID\"],\"clientPermissionIds\":[\"$PERM_ID\"]}" >/dev/null
 podman run --rm --network service-network docker.io/curlimages/curl:8.12.1 \
-  curl -fsS -X POST http://identity:1411/api/oidc/token \
+  curl -sS --connect-timeout 2 --max-time 10 -X POST http://identity:1411/api/oidc/token \
   -H "Content-Type: application/x-www-form-urlencoded" \
   --data-urlencode "client_id=${CLIENT}" \
   --data-urlencode "client_secret=${SECRET}" \
