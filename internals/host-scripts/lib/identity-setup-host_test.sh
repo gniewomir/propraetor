@@ -46,6 +46,10 @@ printf '%s\n' "${post_body}" | grep -Fq 'identity_standing_ensure' \
 printf '%s\n' "${post_body}" | grep -Fq 'identity_drop_absent_fulfillments' \
   || fail "post-workloads must drop Orphan-absent fulfillments"
 
+standing_body="$(awk '/^identity_standing_ensure\(\)/,/^}/' "${SETUP}")"
+printf '%s\n' "${standing_body}" | grep -Fq 'identity_bootstrap_first_admin' \
+  || fail "standing ensure must bootstrap first admin when Pocket ID is ready"
+
 pass "Identity standing ensure uses lock-safe Pocket ID recycle"
 
 echo "All identity-setup-host offline tests passed."

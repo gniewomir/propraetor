@@ -8,6 +8,9 @@
 # Public:
 #   identity_pocket_id_admin_api_key_from_env ENV_PATH
 #   identity_pocket_id_admin_curl METHOD PATH [BODY]
+#   identity_pocket_id_signup_setup_status
+#   identity_pocket_id_user_create USERNAME EMAIL
+#   identity_pocket_id_one_time_access_token_create USER_ID [TTL]
 #   identity_pocket_id_api_list_all
 #   identity_pocket_id_api_find_by_resource RESOURCE
 #   identity_pocket_id_api_create NAME RESOURCE
@@ -107,6 +110,81 @@ identity_pocket_id_admin_curl() {
     return 1
   fi
   printf '%s\n' "${response_body}"
+}
+
+# Probe GET /api/signup/setup (Pocket ID v2.13).
+# Prints "available" (HTTP 204 — zero real users) or "completed" (HTTP 404).
+# Fail closed on any other status / transport error.
+identity_pocket_id_signup_setup_status() {
+  local errf body ec
+  errf="$(mktemp "${TMPDIR:-/tmp}/identity-signup-setup.XXXXXX")"
+  # admin_curl: 204 → success (empty body); 404 → stderr "HTTP 404" + body on stdout.
+  # Capture exit status without tripping set -e on the failing probe.
+  ec=0
+  body="$(identity_pocket_id_admin_curl GET /api/signup/setup 2>"${errf}")" || ec=$?
+  if [[ "${ec}" -eq 0 ]]; then
+    rm -f "${errf}"
+    printf 'available\n'
+    return 0
+  fi
+  if grep -q 'HTTP 404' "${errf}" 2>/dev/null \
+    || printf '%s' "${body}" | grep -Eq 'setup_not_available'; then
+    rm -f "${errf}"
+    printf 'completed\n'
+    return 0
+  fi
+  if [[ -s "${errf}" ]]; then
+    cat "${errf}" >&2 || true
+  fi
+  rm -f "${errf}"
+  echo "identity_pocket_id_signup_setup_status: unexpected failure probing /api/signup/setup" >&2
+  return 1
+}
+
+# Create a Pocket ID user (admin). Prints UserDto JSON.
+identity_pocket_id_user_create() {
+  local username="${1:?identity_pocket_id_user_create: username required}"
+  local email="${2:?identity_pocket_id_user_create: email required}"
+  local body
+  body="$(python3 - "${username}" "${email}" <<'PY'
+import json, sys
+username, email = sys.argv[1], sys.argv[2]
+print(json.dumps({
+    "username": username,
+    "email": email,
+    "emailVerified": True,
+    "firstName": "Admin",
+    "lastName": "",
+    "displayName": "Admin",
+    "isAdmin": True,
+}))
+PY
+)"
+  identity_pocket_id_admin_curl POST /api/users "${body}"
+}
+
+# Mint a one-time access token for a user. Prints the raw token string.
+identity_pocket_id_one_time_access_token_create() {
+  local user_id="${1:?identity_pocket_id_one_time_access_token_create: user id required}"
+  local ttl="${2:-24h}"
+  local body response token
+  body="$(python3 - "${ttl}" <<'PY'
+import json, sys
+print(json.dumps({"ttl": sys.argv[1]}))
+PY
+)"
+  response="$(identity_pocket_id_admin_curl POST \
+    "/api/users/${user_id}/one-time-access-token" "${body}")" || return 1
+  token="$(printf '%s\n' "${response}" | python3 -c \
+    'import json,sys; print(json.load(sys.stdin)["token"])')" || {
+    echo "identity_pocket_id_one_time_access_token_create: token missing in response" >&2
+    return 1
+  }
+  [[ -n "${token}" ]] || {
+    echo "identity_pocket_id_one_time_access_token_create: empty token" >&2
+    return 1
+  }
+  printf '%s\n' "${token}"
 }
 
 identity_pocket_id_discovery_issuer() {
