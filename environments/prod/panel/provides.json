@@ -1,5 +1,10 @@
 {
   "routes": {
     "routes/panel.conf": "Proxy to panel on the Service Network"
+  },
+  "oidc_callback": "/callback",
+  "permissions": {
+    "panel:api": "Access panel API",
+    "panel:usage": "Read host usage"
   }
 }
