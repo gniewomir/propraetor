@@ -3,7 +3,7 @@ Description=Propraetor Identity Pocket ID
 After=network-online.target
 
 [Container]
-Image=ghcr.io/pocket-id/pocket-id:v2.13.0
+Image=ghcr.io/pocket-id/pocket-id:v2.14.0
 ContainerName=identity-pocket-id
 Pod=identity.pod
 EnvironmentFile=/host-volume/components/identity/persist/admin/environment
