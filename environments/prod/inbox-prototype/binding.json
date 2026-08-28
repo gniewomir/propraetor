@@ -1,0 +1,5 @@
+{
+  "domains": {
+    "inbox-prototype.gniewomir.pl": ["routes/inbox-prototype.conf"]
+  }
+}

@@ -1,0 +1,15 @@
+[Unit]
+Description=Inbox prototype static site
+
+[Container]
+Image=docker.io/library/nginx:1.31.3-alpine
+ContainerName=inbox-prototype-web
+Pod=inbox-prototype.pod
+Volume=../www:/usr/share/nginx/html:ro
+Volume=../persist:/var/lib/workload:rw
+
+[Service]
+Restart=on-failure
+
+[Install]
+WantedBy=default.target
