@@ -3,6 +3,9 @@
 !**/.env.example
 !.env.example
 
+# macOS Finder metadata.
+.DS_Store
+
 # Python bytecode caches.
 **/__pycache__/
 *.py[cod]
