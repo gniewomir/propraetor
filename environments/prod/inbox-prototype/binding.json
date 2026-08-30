@@ -1,5 +1,6 @@
 {
   "domains": {
-    "inbox-prototype.gniewomir.pl": ["routes/inbox-prototype.conf"]
+    "inbox-prototype.gniewomir.pl": ["routes/inbox-prototype.conf"],
+    "inbox-prototype.nopile.today": ["routes/inbox-prototype.conf"]
   }
 }
