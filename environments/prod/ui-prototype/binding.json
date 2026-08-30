@@ -1,5 +1,6 @@
 {
   "domains": {
-    "ui-prototype.gniewomir.pl": ["routes/ui-prototype.conf"]
+    "ui-prototype.gniewomir.pl": ["routes/ui-prototype.conf"],
+    "ui-prototype.nopile.today": ["routes/ui-prototype.conf"]
   }
 }
