@@ -3,6 +3,6 @@
   "description": "Inbox domain-driven prototype",
   "source": {
     "kind": "local",
-    "path": "artifacts/inbox-prototype"
+    "path": "tyrant/prototype/inbox-domain-driven"
   }
 }

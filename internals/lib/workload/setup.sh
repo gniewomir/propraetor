@@ -94,7 +94,8 @@ workload_setup_stage_payload() {
 
   if [[ "${wl_kind}" == "local" ]]; then
     artifact_source_stage_local_materials \
-      "${wl_source}" "${stage}/workload-materials/${wl_name}" || return 1
+      "${wl_source}" "${stage}/workload-materials/${wl_name}" \
+      "${stage}/${wl_name}/manifest.json" || return 1
   fi
 
   environment_configuration_stage_for_setup \

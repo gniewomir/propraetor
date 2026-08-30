@@ -1,0 +1,8 @@
+{
+  "intent": "run",
+  "description": "UI domain-driven prototype",
+  "source": {
+    "kind": "local",
+    "path": "tyrant/prototype/ui-domain-driven"
+  }
+}

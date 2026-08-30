@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# Acceptance Test: local Source stages Projects root materials (ADR-0058 / #259).
+# Acceptance Test: local Source stages Project root materials (ADR-0058 / #259).
 # Case-local Projects root + Artifact path; Environment tree is Manifest+Binding only.
+# Operator SoT path is Projects-root-relative; staged Host Manifest is Project-root-relative.
 set -euo pipefail
 # shellcheck source=lib.sh
 source "$(cd "$(dirname "$0")" && pwd)/lib.sh"
@@ -16,21 +17,25 @@ ENV_SLUG="${PLATFORM_ENV:-test}"
 acceptance_wl_track "${WL}"
 
 PROJ="$(umask 077; mktemp -d "${TMPDIR:-/tmp}/wl-local-projects.XXXXXX")"
+REPO="${PROJ}/repo"
 cleanup_local() {
   rm -rf "${PROJ}"
   acceptance_wl_cleanup
 }
 trap cleanup_local EXIT
 
-# Materials = whole Projects root; Artifact at relative path inside it.
-mkdir -p "${PROJ}/pkg/${WL}/www" "${PROJ}/pkg/${WL}/systemd" "${PROJ}/sibling"
-printf 'sibling-marker\n' >"${PROJ}/sibling/keep.txt"
+# Materials = Project root (git toplevel); Artifact at path inside it.
+# Projects root also holds an unrelated tree that must not be staged.
+mkdir -p "${REPO}/pkg/${WL}/www" "${REPO}/pkg/${WL}/systemd" \
+  "${REPO}/in-repo-sibling" "${PROJ}/unrelated"
+printf 'unrelated\n' >"${PROJ}/unrelated/keep.txt"
+printf 'in-repo\n' >"${REPO}/in-repo-sibling/keep.txt"
 printf '{ "directories": { "www": "static", "systemd": "units" } }\n' \
-  >"${PROJ}/pkg/${WL}/provides.json"
+  >"${REPO}/pkg/${WL}/provides.json"
 printf '{ "database": false, "cache": false }\n' \
-  >"${PROJ}/pkg/${WL}/requires.json"
-printf 'from-acceptance-local\n' >"${PROJ}/pkg/${WL}/www/index.html"
-cat >"${PROJ}/pkg/${WL}/systemd/${WL}.container" <<EOF
+  >"${REPO}/pkg/${WL}/requires.json"
+printf 'from-acceptance-local\n' >"${REPO}/pkg/${WL}/www/index.html"
+cat >"${REPO}/pkg/${WL}/systemd/${WL}.container" <<EOF
 [Unit]
 Description=Propraetor local Source probe
 
@@ -47,13 +52,18 @@ Restart=on-failure
 [Install]
 WantedBy=default.target
 EOF
+git -C "${REPO}" init --quiet
+git -C "${REPO}" config user.email "acceptance@example.com"
+git -C "${REPO}" config user.name "acceptance"
+git -C "${REPO}" add .
+git -C "${REPO}" commit --quiet -m init
 
 mkdir -p "${FIX_DIR}/${WL}"
 printf '{}\n' >"${FIX_DIR}/${WL}/binding.json"
 cat >"${FIX_DIR}/${WL}/manifest.json" <<EOF
 {
   "intent": "stop",
-  "source": { "kind": "local", "path": "pkg/${WL}" }
+  "source": { "kind": "local", "path": "repo/pkg/${WL}" }
 }
 EOF
 [[ ! -f "${FIX_DIR}/${WL}/provides.json" ]] \
@@ -77,10 +87,20 @@ host_ssh "grep -Fq static /host-volume/workloads/${WL}/provides.json" \
   || fail "local Artifact Provides must land on Host"
 host_ssh "test -f /host-volume/workloads/${WL}/requires.json" \
   || fail "local Artifact Requires must land on Host"
-host_ssh "test ! -e /host-volume/workloads/${WL}/sibling" \
+host_ssh "test ! -e /host-volume/workloads/${WL}/in-repo-sibling" \
   || fail "local must not land materials siblings on Host Workload tree"
+host_ssh "test ! -e /host-volume/workloads/${WL}/unrelated" \
+  || fail "local must not land Projects-root siblings on Host Workload tree"
 host_ssh "test -f /host-volume/workloads/${WL}/manifest.json" \
   || fail "local Manifest must remain Environment SoT"
-pass "local Source materializes Artifact from staged Projects root"
+host_ssh "python3 -c \"
+import json
+m=json.load(open('/host-volume/workloads/${WL}/manifest.json'))
+assert m['source']['kind']=='local'
+assert m['source']['path']=='pkg/${WL}', m['source']
+\"" || fail "Host Manifest path must be Project-root-relative after stage rewrite"
+[[ "$(python3 -c "import json; print(json.load(open('${FIX_DIR}/${WL}/manifest.json'))['source']['path'])")" == "repo/pkg/${WL}" ]] \
+  || fail "operator SoT Manifest path must stay Projects-root-relative"
+pass "local Source materializes Artifact from staged Project root"
 
 echo "All local Source Acceptance checks passed."

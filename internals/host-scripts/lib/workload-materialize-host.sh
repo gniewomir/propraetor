@@ -9,7 +9,8 @@
 #   (fail closed on reserved collisions). Manifest-less ENV_TREE is bag
 #   upsert only. OUT is replaced.
 #   MATERIALS_DIR is required when Source kind is local (operator-staged
-#   Projects root). Ignored for other kinds.
+#   Project root; staged Manifest path is Project-root-relative). Ignored
+#   for other kinds.
 #
 # Internal Source paths are relative to ENV_TREE; zip paths to zip root
 # (after optional sole-wrapper peel). git/local Artifact root is the

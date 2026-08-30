@@ -265,20 +265,54 @@ if artifact_source_resolve_artifact_root "${MAT}" "/abs" >/dev/null 2>&1; then
 fi
 pass "artifact_source_resolve_artifact_root"
 
-# --- local stage: whole Projects root + path existence ---
+# --- local stage: Project root materials + staged Manifest path rewrite ---
 PROJ="${TMP}/projects-root"
-mkdir -p "${PROJ}/pkg/app" "${PROJ}/sibling"
-printf 'a\n' >"${PROJ}/pkg/app/file"
-printf 'b\n' >"${PROJ}/sibling/x"
+REPO="${PROJ}/repo"
+mkdir -p "${REPO}/pkg/app" "${REPO}/in-repo-sibling" "${PROJ}/unrelated"
+printf 'a\n' >"${REPO}/pkg/app/file"
+printf 'in\n' >"${REPO}/in-repo-sibling/x"
+printf 'out\n' >"${PROJ}/unrelated/y"
+git -C "${REPO}" init --quiet
+git -C "${REPO}" config user.email "test@example.com"
+git -C "${REPO}" config user.name "test"
+git -C "${REPO}" add .
+git -C "${REPO}" commit --quiet -m init
 STAGE_MAT="${TMP}/staged-materials"
+STAGE_MANIFEST="${TMP}/staged-manifest.json"
+cat >"${STAGE_MANIFEST}" <<'EOF'
+{ "intent": "run", "source": { "kind": "local", "path": "repo/pkg/app" } }
+EOF
+# Operator SoT keeps Projects-root-relative path.
+cat >"${LOCAL_TREE}/manifest.json" <<'EOF'
+{ "intent": "run", "source": { "kind": "local", "path": "repo/pkg/app" } }
+EOF
 PROPRAETOR_PROJECTS_ROOT="${PROJ}" artifact_source_stage_local_materials \
-  "$(artifact_source_from_manifest "${LOCAL_TREE}/manifest.json")" "${STAGE_MAT}" \
+  "$(artifact_source_from_manifest "${LOCAL_TREE}/manifest.json")" \
+  "${STAGE_MAT}" "${STAGE_MANIFEST}" \
   || fail "local stage must succeed"
-[[ -f "${STAGE_MAT}/pkg/app/file" ]] || fail "stage must copy Artifact path tree"
-[[ -f "${STAGE_MAT}/sibling/x" ]] || fail "stage must copy whole Projects root"
+[[ -f "${STAGE_MAT}/pkg/app/file" ]] || fail "stage must copy Artifact under Project root"
+[[ -f "${STAGE_MAT}/in-repo-sibling/x" ]] || fail "stage must copy Project root siblings"
+[[ ! -e "${STAGE_MAT}/unrelated" ]] || fail "stage must not copy Projects root outside Project root"
+[[ ! -e "${STAGE_MAT}/repo" ]] || fail "stage materials are Project root contents, not Projects-root-shaped"
+[[ "$(artifact_source_artifact_path "$(artifact_source_from_manifest "${STAGE_MANIFEST}")")" == "pkg/app" ]] \
+  || fail "staged Manifest path must be Project-root-relative"
+[[ "$(artifact_source_artifact_path "$(artifact_source_from_manifest "${LOCAL_TREE}/manifest.json")")" == "repo/pkg/app" ]] \
+  || fail "operator SoT Manifest path must stay Projects-root-relative"
 if PROPRAETOR_PROJECTS_ROOT="${PROJ}" artifact_source_stage_local_materials \
-  '{"kind":"local","path":"missing/pkg"}' "${STAGE_MAT}-bad" >/dev/null 2>&1; then
+  '{"kind":"local","path":"missing/pkg"}' "${STAGE_MAT}-bad" "${STAGE_MANIFEST}" \
+  >/dev/null 2>&1; then
   fail "local stage must fail when Artifact path missing"
+fi
+NO_GIT="${PROJ}/nogit/pkg"
+mkdir -p "${NO_GIT}"
+printf 'x\n' >"${NO_GIT}/file"
+cat >"${STAGE_MANIFEST}.nogit" <<'EOF'
+{ "intent": "run", "source": { "kind": "local", "path": "nogit/pkg" } }
+EOF
+if PROPRAETOR_PROJECTS_ROOT="${PROJ}" artifact_source_stage_local_materials \
+  '{"kind":"local","path":"nogit/pkg"}' "${STAGE_MAT}-nogit" "${STAGE_MANIFEST}.nogit" \
+  >/dev/null 2>&1; then
+  fail "local stage must fail closed when Project root (git toplevel) missing"
 fi
 pass "artifact_source_stage_local_materials"
 

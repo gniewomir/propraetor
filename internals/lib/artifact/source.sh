@@ -18,9 +18,12 @@
 # artifact_source_resolve_artifact_root MATERIALS REL
 #   Resolve REL under MATERIALS; refuse absolute / .. / escape.
 #
-# artifact_source_stage_local_materials SOURCE DEST
-#   Operator-only: copy Projects root into DEST (materials for local Source).
-#   Requires PROPRAETOR_PROJECTS_ROOT; Artifact path must exist under that root.
+# artifact_source_stage_local_materials SOURCE MATERIALS_DEST STAGED_MANIFEST
+#   Operator-only: resolve Artifact under Projects root; Project root = git
+#   toplevel containing that Artifact (fail closed); stage Project root into
+#   MATERIALS_DEST; rewrite STAGED_MANIFEST source.path to Artifact relative
+#   to Project root (operator SoT Manifest unchanged). Host never reads the
+#   workstation path.
 #
 # artifact_source_environment_tree_gate TREE
 #   Fail closed when Source is not internal and the Environment Workload tree
@@ -305,8 +308,9 @@ print(root)
 
 artifact_source_stage_local_materials() {
   local source="${1:?artifact_source_stage_local_materials: Source required}"
-  local dest="${2:?artifact_source_stage_local_materials: destination dir required}"
-  local root path
+  local dest="${2:?artifact_source_stage_local_materials: materials dest required}"
+  local staged_manifest="${3:?artifact_source_stage_local_materials: staged Manifest required}"
+  local root path artifact_abs project_root remapped
 
   # shellcheck source=../environment/environment.sh
   # projects_root lives beside Environments root; callers have REPO_ROOT set.
@@ -322,18 +326,91 @@ artifact_source_stage_local_materials() {
     echo "artifact_source_stage_local_materials: Source kind must be local" >&2
     return 1
   }
+  command -v git >/dev/null || {
+    echo "artifact_source_stage_local_materials: git is required for local Source" >&2
+    return 1
+  }
   path="$(artifact_source_artifact_path "${source}")" || return 1
   root="$(projects_root)" || return 1
-  artifact_source_resolve_artifact_root "${root}" "${path}" >/dev/null || {
+  artifact_abs="$(artifact_source_resolve_artifact_root "${root}" "${path}")" || {
     echo "artifact_source_stage_local_materials: Artifact path missing under Projects root: ${path}" >&2
+    return 1
+  }
+  if ! project_root="$(git -C "${artifact_abs}" rev-parse --show-toplevel 2>/dev/null)"; then
+    echo "artifact_source_stage_local_materials: Project root (git toplevel) cannot be established for Artifact: ${artifact_abs}" >&2
+    return 1
+  fi
+  remapped="$(
+    python3 - "${root}" "${project_root}" "${artifact_abs}" <<'PY'
+import os
+import sys
+from pathlib import Path
+
+projects = Path(sys.argv[1]).resolve()
+project = Path(sys.argv[2]).resolve()
+artifact = Path(sys.argv[3]).resolve()
+
+if not projects.is_dir():
+    raise SystemExit("Projects root is not a directory: %s" % projects)
+if not project.is_dir():
+    raise SystemExit("Project root is not a directory: %s" % project)
+try:
+    common = os.path.commonpath([str(projects), str(project)])
+except ValueError as exc:
+    raise SystemExit("Project root escapes Projects root") from exc
+if common != str(projects):
+    raise SystemExit("Project root escapes Projects root: %s" % project)
+try:
+    common_art = os.path.commonpath([str(project), str(artifact)])
+except ValueError as exc:
+    raise SystemExit("Artifact escapes Project root") from exc
+if common_art != str(project):
+    raise SystemExit("Artifact escapes Project root: %s" % artifact)
+rel = os.path.relpath(str(artifact), str(project))
+if rel == ".":
+    print(".")
+else:
+    if rel.startswith("..") or os.path.isabs(rel):
+        raise SystemExit("Artifact path relative to Project root is invalid: %s" % rel)
+    print(rel.replace(os.sep, "/"))
+PY
+  )" || return 1
+  [[ -f "${staged_manifest}" ]] || {
+    echo "artifact_source_stage_local_materials: staged Manifest missing: ${staged_manifest}" >&2
     return 1
   }
   rm -rf "${dest}"
   mkdir -p "${dest}" || return 1
-  # Whole Projects root = materials (ADR-0058).
-  cp -a "${root}/." "${dest}/" || return 1
-  # Re-resolve under staged copy to confirm landing.
-  artifact_source_resolve_artifact_root "${dest}" "${path}" >/dev/null || return 1
+  # Materials = Project root (git toplevel), not Projects root (ADR-0058).
+  # Exclude install/build trees and VCS — Host Artifact Build recreates what it
+  # needs, and operator node_modules alone can exceed Host /tmp (tmpfs).
+  (
+    cd "${project_root}" && tar cf - \
+      --exclude=node_modules \
+      --exclude=.git \
+      --exclude=dist \
+      --exclude=.DS_Store \
+      .
+  ) | (cd "${dest}" && tar xf -) || return 1
+  artifact_source_resolve_artifact_root "${dest}" "${remapped}" >/dev/null || {
+    echo "artifact_source_stage_local_materials: remapped Artifact path missing under staged materials: ${remapped}" >&2
+    return 1
+  }
+  python3 - "${staged_manifest}" "${remapped}" <<'PY' || return 1
+import json
+import sys
+from pathlib import Path
+
+manifest_path = Path(sys.argv[1])
+remapped = sys.argv[2]
+obj = json.loads(manifest_path.read_text(encoding="utf-8"))
+source = obj.get("source")
+if not isinstance(source, dict) or source.get("kind") != "local":
+    raise SystemExit("staged Manifest source must be kind local")
+source["path"] = remapped
+obj["source"] = source
+manifest_path.write_text(json.dumps(obj, separators=(",", ":")) + "\n", encoding="utf-8")
+PY
   return 0
 }
 

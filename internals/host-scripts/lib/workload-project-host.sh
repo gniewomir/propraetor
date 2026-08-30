@@ -8,7 +8,7 @@
 #
 # workload_project_to_host ENV_TREE DEST [MATERIALS_DIR]
 #   Materialize ENV_TREE then commit. Mirror uses this end-to-end path.
-#   MATERIALS_DIR is required for local Source (operator-staged Projects root).
+#   MATERIALS_DIR is required for local Source (operator-staged Project root).
 #   Workload Setup may materialize → units preflight → commit so foreign
 #   unit basenames are refused before SoT mutation.
 

@@ -27,7 +27,7 @@ resource "digitalocean_project" "propraetor" {
 resource "digitalocean_volume" "web" {
   region                  = var.region
   name                    = var.names.volume
-  size                    = 1
+  size                    = 5
   initial_filesystem_type = "ext4"
   description             = "Host Volume for durable data surviving Host rebuilds (ADR-0009)"
 
