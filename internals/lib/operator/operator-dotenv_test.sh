@@ -14,7 +14,8 @@ trap 'rm -rf "${TMP}"' EXIT
 
 # Missing .env is a no-op
 unset DIGITALOCEAN_TOKEN PROPRAETOR_PUBLIC_KEY_PATH PROPRAETOR_PRIVATE_KEY_PATH \
-  PROPRAETOR_ACME_EMAIL PROPRAETOR_ENVIRONMENTS_ROOT PROPRAETOR_UNIT_TEST
+  PROPRAETOR_ACME_EMAIL PROPRAETOR_ENVIRONMENTS_ROOT PROPRAETOR_PROJECTS_ROOT \
+  PROPRAETOR_UNIT_TEST
 operator_dotenv_load "${TMP}" || fail "missing .env should succeed"
 [[ -z "${DIGITALOCEAN_TOKEN:-}" ]] || fail "missing .env must not set DIGITALOCEAN_TOKEN"
 pass "missing .env is no-op"
@@ -26,10 +27,11 @@ printf '%s\n' \
   'PROPRAETOR_PRIVATE_KEY_PATH=' \
   'PROPRAETOR_ACME_EMAIL=from-file@example.com' \
   'PROPRAETOR_ENVIRONMENTS_ROOT=/tmp/envs-from-file' \
+  'PROPRAETOR_PROJECTS_ROOT=/tmp/projects-from-file' \
   >"${TMP}/.env"
 
 unset DIGITALOCEAN_TOKEN PROPRAETOR_PUBLIC_KEY_PATH PROPRAETOR_PRIVATE_KEY_PATH \
-  PROPRAETOR_ACME_EMAIL PROPRAETOR_ENVIRONMENTS_ROOT
+  PROPRAETOR_ACME_EMAIL PROPRAETOR_ENVIRONMENTS_ROOT PROPRAETOR_PROJECTS_ROOT
 export DIGITALOCEAN_TOKEN=from-shell
 operator_dotenv_load "${TMP}" || fail "valid .env should load"
 [[ "${DIGITALOCEAN_TOKEN}" == "from-shell" ]] || fail "shell must win over file"
@@ -41,6 +43,8 @@ operator_dotenv_load "${TMP}" || fail "valid .env should load"
   || fail "file should fill unset ACME email"
 [[ "${PROPRAETOR_ENVIRONMENTS_ROOT}" == "/tmp/envs-from-file" ]] \
   || fail "file should fill unset Environments root"
+[[ "${PROPRAETOR_PROJECTS_ROOT}" == "/tmp/projects-from-file" ]] \
+  || fail "file should fill unset Projects root"
 pass "shell wins; empty file value unset; baseline fills"
 
 # Shell wins for PROPRAETOR_ACME_EMAIL
@@ -65,7 +69,7 @@ pass "unit test skips Environments root from file"
 # Unknown key fails closed
 printf '%s\n' 'DIGITALOCEAN_TOKEN=x' 'SSH_IDENTITY=/tmp/x' >"${TMP}/.env"
 unset DIGITALOCEAN_TOKEN PROPRAETOR_PUBLIC_KEY_PATH PROPRAETOR_PRIVATE_KEY_PATH \
-  PROPRAETOR_ACME_EMAIL PROPRAETOR_ENVIRONMENTS_ROOT
+  PROPRAETOR_ACME_EMAIL PROPRAETOR_ENVIRONMENTS_ROOT PROPRAETOR_PROJECTS_ROOT
 if operator_dotenv_load "${TMP}" >/dev/null 2>&1; then
   fail "unknown key SSH_IDENTITY must fail closed"
 fi
