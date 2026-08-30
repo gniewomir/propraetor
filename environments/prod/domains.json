@@ -1,5 +1,8 @@
 {
   "gniewomir.pl": {
     "names": ["@", "www", "propreator", "auth", "inbox-prototype", "ui-prototype"]
+  },
+  "nopile.today": {
+    "names": ["@", "inbox-prototype", "ui-prototype"]
   }
 }
