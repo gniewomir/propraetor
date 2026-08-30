@@ -1,5 +1,8 @@
 {
   "intent": "run",
   "description": "Inbox domain-driven prototype",
-  "source": "internal"
+  "source": {
+    "kind": "local",
+    "path": "artifacts/inbox-prototype"
+  }
 }

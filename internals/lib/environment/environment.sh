@@ -117,6 +117,33 @@ environments_root() {
   printf '%s\n' "${expanded}"
 }
 
+# Absolute Projects root (ADR-0058). PROPRAETOR_PROJECTS_ROOT is required (no
+# default): absolute or ~/… only; must be an existing directory. Callers that
+# need Projects root (e.g. Source kind local) invoke this; unset fails closed.
+projects_root() {
+  local raw expanded
+  raw="${PROPRAETOR_PROJECTS_ROOT-}"
+  if [[ -z "${raw}" ]]; then
+    echo "FAIL: PROPRAETOR_PROJECTS_ROOT is not set (required for Projects root)" >&2
+    return 1
+  fi
+  # Match a literal ~/ prefix (do not tilde-expand the pattern — ADR-0038).
+  # shellcheck disable=SC2088  # intentional: compare against literal '~/…'
+  if [[ "${raw}" == '~/'* ]]; then
+    expanded="${HOME:?HOME is not set}/${raw#"~/"}"
+  elif [[ "${raw}" == /* ]]; then
+    expanded="${raw}"
+  else
+    echo "FAIL: PROPRAETOR_PROJECTS_ROOT must be absolute or ~/… (got: ${raw})" >&2
+    return 1
+  fi
+  if [[ ! -d "${expanded}" ]]; then
+    echo "FAIL: PROPRAETOR_PROJECTS_ROOT is not a directory: ${expanded}" >&2
+    return 1
+  fi
+  printf '%s\n' "${expanded}"
+}
+
 # Absolute path to <environments-root>/<slug>/; fail closed if missing (ADR-0051).
 environments_dir_for() {
   local slug="${1-}"

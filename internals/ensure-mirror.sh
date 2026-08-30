@@ -69,6 +69,15 @@ while IFS= read -r wl_name; do
   dest="${STAGE}/workloads/${wl_name}"
   mkdir -p "${dest}"
   cp -a "${src}/." "${dest}/"
+  # local Source: stage whole Projects root as materials (Host never reads workstation path).
+  if [[ -f "${src}/manifest.json" ]]; then
+    wl_source="$(artifact_source_from_manifest "${src}/manifest.json")" || exit 1
+    wl_kind="$(artifact_source_kind "${wl_source}")" || exit 1
+    if [[ "${wl_kind}" == "local" ]]; then
+      mat_dest="${STAGE}/workload-materials/${wl_name}"
+      artifact_source_stage_local_materials "${wl_source}" "${mat_dest}" || exit 1
+    fi
+  fi
   mirrored=$((mirrored + 1))
 done < <(environment_discover_workloads "${ENV_DIR}")
 

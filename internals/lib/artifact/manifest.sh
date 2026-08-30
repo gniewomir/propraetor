@@ -5,8 +5,8 @@
 # artifact_manifest_validate PATH
 #   Fail closed unless Manifest is a JSON object whose keys are a subset of
 #   {intent, description, source}, description is a string when present, and
-#   source is required and valid (internal, relative zip path, or unauthenticated
-#   http(s) zip URI).
+#   source is required and valid (internal, relative zip path, unauthenticated
+#   http(s) zip URI, or object kind git|local).
 
 # shellcheck source=source.sh
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/source.sh"

@@ -24,7 +24,8 @@ for f in \
   unit-consumers-host.sh \
   host-volume-paths-host.sh \
   source.sh \
-  provides.sh; do
+  provides.sh \
+  build.sh; do
   [[ -f "${DEST}/${f}" ]] || fail "missing projected-tree ship file: ${f}"
 done
 pass "projection ship inventory stages required libs"

@@ -117,6 +117,82 @@ pass "artifact_source_from_manifest"
   || fail "kind nested path"
 pass "artifact_source_kind"
 
+# --- git / local object Source (ADR-0058) ---
+GIT_SRC='{"commit":"0123456789abcdef0123456789abcdef01234567","kind":"git","path":"packages/app","url":"https://example.com/repo.git"}'
+cat >"${TMP}/manifest.json" <<EOF
+{ "intent": "run", "source": {
+  "kind": "git",
+  "url": "https://example.com/repo.git",
+  "commit": "0123456789abcdef0123456789abcdef01234567",
+  "path": "packages/app"
+}}
+EOF
+[[ "$(artifact_source_from_manifest "${TMP}/manifest.json")" == "${GIT_SRC}" ]] \
+  || fail "Manifest git Source must canonicalize"
+[[ "$(artifact_source_kind "${GIT_SRC}")" == "git" ]] \
+  || fail "kind git"
+[[ "$(artifact_source_git_url "${GIT_SRC}")" == "https://example.com/repo.git" ]] \
+  || fail "git url field"
+[[ "$(artifact_source_git_commit "${GIT_SRC}")" == "0123456789abcdef0123456789abcdef01234567" ]] \
+  || fail "git commit field"
+[[ "$(artifact_source_artifact_path "${GIT_SRC}")" == "packages/app" ]] \
+  || fail "git path field"
+pass "git Source"
+
+LOCAL_SRC='{"kind":"local","path":"tyrant/prototype/inbox"}'
+cat >"${TMP}/manifest.json" <<EOF
+{ "intent": "run", "source": { "kind": "local", "path": "tyrant/prototype/inbox" } }
+EOF
+[[ "$(artifact_source_from_manifest "${TMP}/manifest.json")" == "${LOCAL_SRC}" ]] \
+  || fail "Manifest local Source must canonicalize"
+[[ "$(artifact_source_kind "${LOCAL_SRC}")" == "local" ]] \
+  || fail "kind local"
+[[ "$(artifact_source_artifact_path "${LOCAL_SRC}")" == "tyrant/prototype/inbox" ]] \
+  || fail "local path field"
+pass "local Source"
+
+# git / local fail closed
+cat >"${TMP}/manifest.json" <<'EOF'
+{ "intent": "run", "source": { "kind": "git", "url": "git@github.com:x/y.git", "commit": "0123456789abcdef0123456789abcdef01234567", "path": "." } }
+EOF
+if artifact_source_from_manifest "${TMP}/manifest.json" >/dev/null 2>&1; then
+  fail "SSH git URL must fail closed"
+fi
+cat >"${TMP}/manifest.json" <<'EOF'
+{ "intent": "run", "source": { "kind": "git", "url": "https://example.com/r.git", "commit": "abc", "path": "." } }
+EOF
+if artifact_source_from_manifest "${TMP}/manifest.json" >/dev/null 2>&1; then
+  fail "short git commit must fail closed"
+fi
+cat >"${TMP}/manifest.json" <<'EOF'
+{ "intent": "run", "source": {
+  "kind": "git",
+  "url": "https://example.com/repo.git",
+  "commit": "0123456789ABCDEF0123456789ABCDEF01234567",
+  "path": "."
+}}
+EOF
+[[ "$(artifact_source_git_commit "$(artifact_source_from_manifest "${TMP}/manifest.json")")" == "0123456789abcdef0123456789abcdef01234567" ]] \
+  || fail "uppercase git commit must canonicalize to lowercase"
+cat >"${TMP}/manifest.json" <<'EOF'
+{ "intent": "run", "source": { "kind": "local", "path": "../escape" } }
+EOF
+if artifact_source_from_manifest "${TMP}/manifest.json" >/dev/null 2>&1; then
+  fail "local path with .. must fail closed"
+fi
+cat >"${TMP}/manifest.json" <<'EOF'
+{ "intent": "run", "source": { "kind": "local", "path": "/abs" } }
+EOF
+if artifact_source_from_manifest "${TMP}/manifest.json" >/dev/null 2>&1; then
+  fail "absolute local path must fail closed"
+fi
+cat >"${TMP}/manifest.json" <<'EOF'
+{ "intent": "run", "source": { "kind": "local", "path": "." } }
+EOF
+[[ "$(artifact_source_artifact_path "$(artifact_source_from_manifest "${TMP}/manifest.json")")" == "." ]] \
+  || fail "local path . must be allowed"
+pass "git/local Source fail closed"
+
 # --- Environment tree vs Source: zip must not carry Artifact contracts ---
 ZIP_TREE="${TMP}/zip-wl"
 mkdir -p "${ZIP_TREE}"
@@ -137,6 +213,74 @@ if artifact_source_environment_tree_gate "${ZIP_TREE}" >/dev/null 2>&1; then
 fi
 rm -f "${ZIP_TREE}/provides.json"
 pass "zip Environment Artifact contracts fail closed"
+
+GIT_TREE="${TMP}/git-wl"
+mkdir -p "${GIT_TREE}"
+cat >"${GIT_TREE}/manifest.json" <<EOF
+{ "intent": "run", "source": {
+  "kind": "git",
+  "url": "https://example.com/repo.git",
+  "commit": "0123456789abcdef0123456789abcdef01234567",
+  "path": "."
+}}
+EOF
+printf '{}\n' >"${GIT_TREE}/binding.json"
+artifact_source_environment_tree_gate "${GIT_TREE}" \
+  || fail "git Environment Manifest+Binding must pass"
+printf '{}\n' >"${GIT_TREE}/provides.json"
+if artifact_source_environment_tree_gate "${GIT_TREE}" >/dev/null 2>&1; then
+  fail "git Environment provides.json must fail closed"
+fi
+rm -f "${GIT_TREE}/provides.json"
+pass "git Environment Artifact contracts fail closed"
+
+LOCAL_TREE="${TMP}/local-wl"
+mkdir -p "${LOCAL_TREE}"
+cat >"${LOCAL_TREE}/manifest.json" <<'EOF'
+{ "intent": "run", "source": { "kind": "local", "path": "pkg/app" } }
+EOF
+printf '{}\n' >"${LOCAL_TREE}/binding.json"
+artifact_source_environment_tree_gate "${LOCAL_TREE}" \
+  || fail "local Environment Manifest+Binding must pass"
+printf '{}\n' >"${LOCAL_TREE}/provides.json"
+if artifact_source_environment_tree_gate "${LOCAL_TREE}" >/dev/null 2>&1; then
+  fail "local Environment provides.json must fail closed"
+fi
+rm -f "${LOCAL_TREE}/provides.json"
+pass "local Environment Artifact contracts fail closed"
+
+# --- resolve Artifact path under materials (escape gate) ---
+MAT="${TMP}/materials"
+mkdir -p "${MAT}/pkg/app"
+printf 'ok\n' >"${MAT}/pkg/app/marker"
+got="$(artifact_source_resolve_artifact_root "${MAT}" "pkg/app")"
+[[ -f "${got}/marker" ]] || fail "resolve Artifact root under materials"
+got_dot="$(artifact_source_resolve_artifact_root "${MAT}" ".")"
+[[ -d "${got_dot}/pkg/app" ]] || fail "resolve path . is materials root"
+if artifact_source_resolve_artifact_root "${MAT}" "../escape" >/dev/null 2>&1; then
+  fail "resolve must refuse .. escape"
+fi
+if artifact_source_resolve_artifact_root "${MAT}" "/abs" >/dev/null 2>&1; then
+  fail "resolve must refuse absolute path"
+fi
+pass "artifact_source_resolve_artifact_root"
+
+# --- local stage: whole Projects root + path existence ---
+PROJ="${TMP}/projects-root"
+mkdir -p "${PROJ}/pkg/app" "${PROJ}/sibling"
+printf 'a\n' >"${PROJ}/pkg/app/file"
+printf 'b\n' >"${PROJ}/sibling/x"
+STAGE_MAT="${TMP}/staged-materials"
+PROPRAETOR_PROJECTS_ROOT="${PROJ}" artifact_source_stage_local_materials \
+  "$(artifact_source_from_manifest "${LOCAL_TREE}/manifest.json")" "${STAGE_MAT}" \
+  || fail "local stage must succeed"
+[[ -f "${STAGE_MAT}/pkg/app/file" ]] || fail "stage must copy Artifact path tree"
+[[ -f "${STAGE_MAT}/sibling/x" ]] || fail "stage must copy whole Projects root"
+if PROPRAETOR_PROJECTS_ROOT="${PROJ}" artifact_source_stage_local_materials \
+  '{"kind":"local","path":"missing/pkg"}' "${STAGE_MAT}-bad" >/dev/null 2>&1; then
+  fail "local stage must fail when Artifact path missing"
+fi
+pass "artifact_source_stage_local_materials"
 
 PATH_TREE="${TMP}/path-wl"
 mkdir -p "${PATH_TREE}/vendor"

@@ -148,4 +148,107 @@ if workload_materialize_tree "${Q_TREE}" "${OUT}" >/dev/null 2>&1; then
 fi
 pass "retired quadlets/ on Environment fails closed"
 
+# --- local Source: staged materials + Artifact path ---
+LOCAL_ENV="${TMP}/local-env"
+LOCAL_MAT="${TMP}/local-mat"
+LOCAL_ART_REL="pkg/inbox"
+mkdir -p "${LOCAL_ENV}" "${LOCAL_MAT}/${LOCAL_ART_REL}/www" "${LOCAL_MAT}/${LOCAL_ART_REL}/systemd"
+printf '{}\n' >"${LOCAL_ENV}/binding.json"
+cat >"${LOCAL_ENV}/manifest.json" <<EOF
+{ "intent": "run", "source": { "kind": "local", "path": "${LOCAL_ART_REL}" } }
+EOF
+printf '{ "directories": { "www": "static", "systemd": "units" } }\n' \
+  >"${LOCAL_MAT}/${LOCAL_ART_REL}/provides.json"
+printf '{ "database": false, "cache": false }\n' \
+  >"${LOCAL_MAT}/${LOCAL_ART_REL}/requires.json"
+printf 'from-local\n' >"${LOCAL_MAT}/${LOCAL_ART_REL}/www/index.html"
+printf '[Container]\nImage=localhost/local\n' \
+  >"${LOCAL_MAT}/${LOCAL_ART_REL}/systemd/local.container"
+if workload_materialize_tree "${LOCAL_ENV}" "${OUT}" >/dev/null 2>&1; then
+  fail "local Source without materials dir must fail closed"
+fi
+rm -rf "${OUT}"
+workload_materialize_tree "${LOCAL_ENV}" "${OUT}" "${LOCAL_MAT}" \
+  || fail "local Source materialize must succeed"
+grep -Fxq 'from-local' "${OUT}/www/index.html" \
+  || fail "local Provides directories must materialize"
+[[ -f "${OUT}/systemd/local.container" ]] \
+  || fail "local must materialize systemd bag"
+[[ ! -d "${OUT}/pkg" ]] \
+  || fail "local must land Artifact root only, not materials tree"
+pass "local Source materialize from staged materials"
+
+# --- git Source: stub git obtain ---
+GIT_ENV="${TMP}/git-env"
+GIT_STUBS="${TMP}/git-stubs"
+mkdir -p "${GIT_ENV}" "${GIT_STUBS}"
+printf '{}\n' >"${GIT_ENV}/binding.json"
+cat >"${GIT_ENV}/manifest.json" <<'EOF'
+{ "intent": "run", "source": {
+  "kind": "git",
+  "url": "https://example.com/repo.git",
+  "commit": "0123456789abcdef0123456789abcdef01234567",
+  "path": "app"
+}}
+EOF
+cat >"${GIT_STUBS}/git" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+# Emulate: git -C MATERIALS init|remote|fetch|checkout
+# Args vary; last non-option after -C is the materials dir when present.
+materials=""
+args=("$@")
+i=0
+while [[ $i -lt ${#args[@]} ]]; do
+  if [[ "${args[$i]}" == "-C" ]]; then
+    i=$((i + 1))
+    materials="${args[$i]}"
+  fi
+  i=$((i + 1))
+done
+cmd=""
+for a in "$@"; do
+  case "$a" in
+    init|remote|fetch|checkout) cmd="$a"; break ;;
+  esac
+done
+case "${cmd}" in
+  init|remote|fetch) exit 0 ;;
+  checkout)
+    [[ -n "${materials}" ]] || exit 1
+    mkdir -p "${materials}/app/www" "${materials}/app/systemd"
+    printf '{ "directories": { "www": "static", "systemd": "units" } }\n' \
+      >"${materials}/app/provides.json"
+    printf '{ "database": false, "cache": false }\n' \
+      >"${materials}/app/requires.json"
+    printf 'from-git\n' >"${materials}/app/www/index.html"
+    printf '[Container]\nImage=localhost/git\n' \
+      >"${materials}/app/systemd/git.container"
+    exit 0
+    ;;
+  *) exit 1 ;;
+esac
+EOF
+chmod +x "${GIT_STUBS}/git"
+rm -rf "${OUT}"
+PATH="${GIT_STUBS}:${PATH}" workload_materialize_tree "${GIT_ENV}" "${OUT}" \
+  || fail "git Source materialize must succeed with stub git"
+grep -Fxq 'from-git' "${OUT}/www/index.html" \
+  || fail "git Provides directories must materialize"
+pass "git Source materialize via Host obtain"
+
+# --- missing git binary fails closed ---
+GIT_HIDE="${TMP}/nogit-path"
+mkdir -p "${GIT_HIDE}"
+# PATH without git: only empty dir + essential bins via system — use env -i subset.
+if PATH="${GIT_HIDE}:/usr/bin:/bin" command -v git >/dev/null 2>&1; then
+  pass "skip missing-git check (git still on PATH)"
+else
+  if PATH="${GIT_HIDE}:/usr/bin:/bin" workload_materialize_tree "${GIT_ENV}" "${OUT}" \
+    >/dev/null 2>&1; then
+    fail "git Source without git binary must fail closed"
+  fi
+  pass "git Source fails closed without git"
+fi
+
 echo "All workload-materialize-host offline tests passed."

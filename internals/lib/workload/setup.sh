@@ -28,7 +28,7 @@ workload_setup_stage_payload() {
   local stage="${1:?workload_setup_stage_payload: STAGE required}"
   local remote_root="${2:?workload_setup_stage_payload: REMOTE_ROOT required}"
   local manifest_dir="${3:?workload_setup_stage_payload: MANIFEST_DIR required}"
-  local wl_name manifest_abs binding_abs requires_abs env_dir wl_source
+  local wl_name manifest_abs binding_abs requires_abs env_dir wl_source wl_kind
 
   [[ -d "${stage}" ]] || {
     echo "workload_setup_stage_payload: STAGE is not a directory: ${stage}" >&2
@@ -54,8 +54,9 @@ workload_setup_stage_payload() {
   }
 
   wl_source="$(artifact_source_from_manifest "${manifest_abs}")" || return 1
+  wl_kind="$(artifact_source_kind "${wl_source}")" || return 1
   requires_abs="${manifest_dir}/requires.json"
-  if [[ "${wl_source}" == "internal" ]]; then
+  if [[ "${wl_kind}" == "internal" ]]; then
     [[ -f "${requires_abs}" ]] || {
       echo "requires.json missing in ${manifest_dir}/" >&2
       return 1
@@ -90,6 +91,11 @@ workload_setup_stage_payload() {
 
   mkdir -p "${stage}/${wl_name}" || return 1
   cp -a "${manifest_dir}/." "${stage}/${wl_name}/" || return 1
+
+  if [[ "${wl_kind}" == "local" ]]; then
+    artifact_source_stage_local_materials \
+      "${wl_source}" "${stage}/workload-materials/${wl_name}" || return 1
+  fi
 
   environment_configuration_stage_for_setup \
     "${stage}" "${binding_abs}" "${requires_abs}" "${env_dir}" "${manifest_dir}" \

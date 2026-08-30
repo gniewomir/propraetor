@@ -3,6 +3,8 @@
     "routes/inbox-prototype.conf": "Proxy to inbox-prototype on the Service Network"
   },
   "directories": {
-    "www": "Inbox prototype static HTML"
+    "www": "Inbox prototype static HTML",
+    "systemd": "Workload units",
+    "routes": "Edge route fragments"
   }
 }

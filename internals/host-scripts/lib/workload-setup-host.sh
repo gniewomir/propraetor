@@ -43,7 +43,7 @@ workload_setup_apply() {
   local env_resolved="${2-}"
   local user_name="${PLATFORM_USER:-platform}"
   local manifest="${tree}/manifest.json"
-  local wl_name wl_persist sot_tree prev_owned mat_tree systemd_stage
+  local wl_name wl_persist sot_tree prev_owned mat_tree systemd_stage materials stage_root
 
   [[ -d "${tree}" ]] || {
     echo "workload tree missing: ${tree}" >&2
@@ -97,7 +97,12 @@ workload_setup_apply() {
   # Materialize → fulfill → units preflight → commit (shared projection module).
   # Preflight before commit refuses Component/cross-Workload collisions without
   # writing colliding systemd/ into Host Volume SoT first.
-  workload_materialize_tree "${tree}" "${mat_tree}" || return 1
+  materials=""
+  stage_root="$(cd "$(dirname "${tree}")" && pwd)" || return 1
+  if [[ -d "${stage_root}/workload-materials/${wl_name}" ]]; then
+    materials="${stage_root}/workload-materials/${wl_name}"
+  fi
+  workload_materialize_tree "${tree}" "${mat_tree}" "${materials}" || return 1
   environment_configuration_fulfill_after_materialize "${mat_tree}" || return 1
 
   # Identity contract (permission markers + shapes) must be validated fail-closed
