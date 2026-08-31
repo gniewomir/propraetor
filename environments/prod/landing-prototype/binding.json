@@ -1,0 +1,6 @@
+{
+  "domains": {
+    "nopile.today": ["routes/landing-prototype.conf"],
+    "www.nopile.today": ["routes/landing-prototype.conf"]
+  }
+}

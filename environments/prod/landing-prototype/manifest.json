@@ -1,0 +1,8 @@
+{
+  "intent": "run",
+  "description": "nopile.today landing prototype",
+  "source": {
+    "kind": "local",
+    "path": "tyrant/prototype/landing"
+  }
+}
