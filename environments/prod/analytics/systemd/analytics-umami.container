@@ -5,6 +5,9 @@ Description=Umami web analytics
 Image=ghcr.io/umami-software/umami:3.3.1
 ContainerName=analytics-umami
 Pod=analytics.pod
+# Umami image USER is nextjs (1001); Platform Database client.key is 0600 for
+# platform — stay UID 0 inside the user namespace so Prisma can read mTLS material.
+User=0
 Volume=../scripts/entrypoint.sh:/opt/platform/entrypoint.sh:ro
 Volume=../persist:/var/lib/workload:rw
 Entrypoint=/bin/sh
