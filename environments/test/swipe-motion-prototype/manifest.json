@@ -1,0 +1,8 @@
+{
+  "intent": "run",
+  "description": "Swipe motion lab prototype",
+  "source": {
+    "kind": "local",
+    "path": "tyrant/prototype/swipe-motion"
+  }
+}

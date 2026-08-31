@@ -1,0 +1,5 @@
+{
+  "domains": {
+    "swipe-motion-prototype.enraged.dev": ["routes/swipe-motion-prototype.conf"]
+  }
+}
