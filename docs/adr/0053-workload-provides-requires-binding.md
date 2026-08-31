@@ -13,3 +13,5 @@ Workloads still bind to many Domains, but an external Artifact must not encode P
 **Amended by ADR-0057:** Provides gains `permissions` and `oidc_callback`; Requires gains `identity` and optional client `permissions`; Binding no longer determines token audience/resource for permission catalogs (Identity audience is Environment-scoped).
 
 **Amended by ADR-0058 / #259:** Source gains discriminated kinds `git` (pinned https url + commit + path) and `local` (Projects-root-relative, unpinned, operator-staged); optional Artifact Build via `build.json` on Host materialize; “non-zip origins are not v1” lifted for those kinds.
+
+**Amended by ADR-0059:** Host delivery is staged zip only (**Artifact cache** + **Artifact staging**); Mirror does not evaluate Manifest **Source** for obtain; Environment tree gate is Source-kind (`internal` allows inline Artifact contracts; `git` / `local` / `zip` require Manifest + Binding only); **Source** is prep-facing (see ADR-0059).

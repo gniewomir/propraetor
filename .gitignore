@@ -9,3 +9,6 @@
 # Python bytecode caches.
 **/__pycache__/
 *.py[cod]
+
+# Operator Artifact Prep output (ADR-0059).
+**/.artifact-cache/
