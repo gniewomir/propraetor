@@ -28,11 +28,7 @@ for wl_dir in "${STAGE_WORKLOADS}"/*; do
   [[ -d "${wl_dir}" ]] || continue
   wl_name="$(basename "${wl_dir}")"
   [[ "${wl_name}" != .* ]] || continue
-  materials=""
-  if [[ -d "${HERE}/workload-materials/${wl_name}" ]]; then
-    materials="${HERE}/workload-materials/${wl_name}"
-  fi
-  workload_project_to_host "${wl_dir}" "${WORKLOADS_ROOT}/${wl_name}" "${materials}" || exit 1
+  workload_project_to_host "${wl_dir}" "${WORKLOADS_ROOT}/${wl_name}" || exit 1
 done
 
 chown -R "${USER_NAME}:${USER_NAME}" "${WORKLOADS_ROOT}" 2>/dev/null || true

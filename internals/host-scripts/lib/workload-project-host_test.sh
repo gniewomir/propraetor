@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Unit tests: Host Workload projection Persist contract (ADR-0054 / #228).
+# Unit tests: Host Workload projection Persist contract (ADR-0054 / #228 / ADR-0059).
 # Seam: workload_project_to_host — Persist preserve + empty create live here,
 # not in dual Mirror/Setup harnesses.
 set -euo pipefail
@@ -14,9 +14,22 @@ pass() { echo "PASS: $*"; }
 TMP="$(umask 077; mktemp -d "${TMPDIR:-/tmp}/wl-project.XXXXXX")"
 trap 'rm -rf "${TMP}"' EXIT
 
+stage_artifact_for_tree() {
+  local env_tree="${1:?}"
+  local art_dir="${2:?}"
+  local env_root zip_file
+
+  env_root="$(dirname "${env_tree}")"
+  zip_file="${TMP}/stage-$(basename "${env_tree}").zip"
+  (cd "${art_dir}" && zip -qr "${zip_file}" .)
+  artifact_staging_write "${env_root}" "$(basename "${env_tree}")" "${zip_file}" >/dev/null
+}
+
 write_internal_tree() {
   local tree="$1"
-  mkdir -p "${tree}/systemd" "${tree}/www"
+  local art_dir
+  art_dir="${TMP}/art-$(basename "${tree}")"
+  mkdir -p "${tree}/systemd" "${tree}/www" "${art_dir}/systemd" "${art_dir}/www"
   printf '{}\n' >"${tree}/binding.json"
   # Internal Source: Environment is Artifact — do not list systemd in Provides
   # directories (filename merge would collide with the Environment bag).
@@ -27,9 +40,14 @@ write_internal_tree() {
 EOF
   printf '[Container]\nImage=localhost/proj\n' >"${tree}/systemd/proj.container"
   printf 'content-v1\n' >"${tree}/www/index.html"
+  cp -a "${tree}/provides.json" "${art_dir}/provides.json"
+  cp -a "${tree}/requires.json" "${art_dir}/requires.json"
+  cp -a "${tree}/systemd/." "${art_dir}/systemd/"
+  cp -a "${tree}/www/." "${art_dir}/www/"
+  stage_artifact_for_tree "${tree}" "${art_dir}"
 }
 
-ENV_TREE="${TMP}/env-wl"
+ENV_TREE="${TMP}/env-root/env-wl"
 DEST="${TMP}/host-wl"
 write_internal_tree "${ENV_TREE}"
 
@@ -50,6 +68,9 @@ mkdir -p "${DEST}/persist/nested"
 printf 'durable\n' >"${DEST}/persist/nested/state.bin"
 printf 'stale-sot\n' >"${DEST}/stale.txt"
 printf 'content-v2\n' >"${ENV_TREE}/www/index.html"
+art_dir="${TMP}/art-$(basename "${ENV_TREE}")"
+printf 'content-v2\n' >"${art_dir}/www/index.html"
+stage_artifact_for_tree "${ENV_TREE}" "${art_dir}"
 
 workload_project_to_host "${ENV_TREE}" "${DEST}" \
   || fail "re-project must succeed with existing Persist"
@@ -62,7 +83,7 @@ grep -Fxq 'durable' "${DEST}/persist/nested/state.bin" \
 pass "workload_project_to_host preserves Persist on replace"
 
 # --- Environment persist/ fails closed (materialize refuse via projection) ---
-BAD="${TMP}/bad-env"
+BAD="${TMP}/env-root/bad-env"
 write_internal_tree "${BAD}"
 mkdir -p "${BAD}/persist"
 printf 'nope\n' >"${BAD}/persist/x"
@@ -74,7 +95,7 @@ grep -Eqi 'persist' "${TMP}/bad-err" \
 pass "workload_project_to_host refuses Environment persist/"
 
 # --- Manifest-less bag still gets empty Persist ---
-BAG="${TMP}/bag-env"
+BAG="${TMP}/env-root/bag-env"
 BAG_DEST="${TMP}/bag-dest"
 mkdir -p "${BAG}/notes"
 printf 'draft\n' >"${BAG}/notes/idea.md"

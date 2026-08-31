@@ -1,25 +1,19 @@
 #!/usr/bin/env bash
-# Unit tests: Mirror Host half — projects via workload_project_to_host (#204 / #228 / ADR-0053).
+# Unit tests: Mirror Host half — projects via workload_project_to_host (#204 / #228 / ADR-0059).
 # Seam: ensure-mirror-host.sh (shared projection per Workload).
-# Offline: temp Host Volume + staged Workload trees. No SSH / live Host.
+# Offline: temp Host Volume + staged Environment Workloads + Artifact staging.
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 HOST_SCRIPT="${REPO_ROOT}/internals/host-scripts/ensure-mirror-host.sh"
+# shellcheck source=../../lib/artifact/staging.sh
+source "${REPO_ROOT}/internals/lib/artifact/staging.sh"
 
 fail() { echo "FAIL: $*" >&2; exit 1; }
 pass() { echo "PASS: $*"; }
 
 TMP="$(umask 077; mktemp -d "${TMPDIR:-/tmp}/ensure-mirror.XXXXXX")"
-HTTP_PID=""
-cleanup() {
-  if [[ -n "${HTTP_PID}" ]]; then
-    kill "${HTTP_PID}" 2>/dev/null || true
-    wait "${HTTP_PID}" 2>/dev/null || true
-  fi
-  rm -rf "${TMP}"
-}
-trap cleanup EXIT
+trap 'rm -rf "${TMP}"' EXIT
 
 HV="${TMP}/host-volume"
 STAGE="${TMP}/stage"
@@ -42,6 +36,16 @@ chmod +x "${TMP}/bin/chown"
 export PATH="${TMP}/bin:${PATH}"
 
 USER_NAME="$(id -un)"
+ENV_ROOT="${STAGE}/workloads"
+
+stage_artifact_zip() {
+  local basename="${1:?}"
+  local art_dir="${2:?}"
+  local zip_file="${TMP}/mirror-${basename}.zip"
+
+  (cd "${art_dir}" && zip -qr "${zip_file}" .)
+  artifact_staging_write "${ENV_ROOT}" "${basename}" "${zip_file}" >/dev/null
+}
 
 write_internal_stubs() {
   local tree="$1"
@@ -59,9 +63,14 @@ printf 'keep-orphan\n' >"${HV}/workloads/orphan-left/routes/orphan.conf"
 printf 'durable\n' >"${HV}/workloads/orphan-left/persist/state.bin"
 
 # --- internal Source: Environment bag + Provides directories ---
+ALPHA_ART="${TMP}/alpha-art"
 mkdir -p "${STAGE}/workloads/alpha/routes" \
   "${STAGE}/workloads/alpha/www/usage" \
-  "${STAGE}/workloads/alpha/scripts"
+  "${STAGE}/workloads/alpha/scripts" \
+  "${ALPHA_ART}/routes" \
+  "${ALPHA_ART}/www/usage" \
+  "${ALPHA_ART}/scripts" \
+  "${ALPHA_ART}/systemd"
 write_internal_stubs "${STAGE}/workloads/alpha"
 cat >"${STAGE}/workloads/alpha/manifest.json" <<'EOF'
 {
@@ -82,6 +91,13 @@ printf 'route-a\n' >"${STAGE}/workloads/alpha/routes/a.conf"
 printf 'home\n' >"${STAGE}/workloads/alpha/www/index.html"
 printf 'nested\n' >"${STAGE}/workloads/alpha/www/usage/index.html"
 printf '#!/bin/bash\necho ok\n' >"${STAGE}/workloads/alpha/scripts/alpha-job.sh"
+cp -a "${STAGE}/workloads/alpha/provides.json" "${ALPHA_ART}/provides.json"
+cp -a "${STAGE}/workloads/alpha/requires.json" "${ALPHA_ART}/requires.json"
+cp -a "${STAGE}/workloads/alpha/systemd/." "${ALPHA_ART}/systemd/"
+cp -a "${STAGE}/workloads/alpha/routes/." "${ALPHA_ART}/routes/"
+cp -a "${STAGE}/workloads/alpha/www/." "${ALPHA_ART}/www/"
+cp -a "${STAGE}/workloads/alpha/scripts/." "${ALPHA_ART}/scripts/"
+stage_artifact_zip "alpha" "${ALPHA_ART}"
 
 # Manifest-less staged Workload must still be upserted (ADR-0047)
 mkdir -p "${STAGE}/workloads/gamma/notes"
@@ -118,6 +134,9 @@ grep -Fq 'echo ok' "${HV}/workloads/alpha/scripts/alpha-job.sh" \
   || fail "stale authored file must be pruned within Mirrored tree"
 grep -Fq 'static site' "${HV}/workloads/alpha/provides.json" \
   || fail "alpha Provides must land on Host"
+staged_alpha_zip="$(artifact_staging_read "${ENV_ROOT}" "alpha")"
+[[ -f "${HV}/workloads/alpha/$(basename "${staged_alpha_zip}")" ]] \
+  || fail "alpha staged zip must be retained on Host"
 pass "Mirror materializes internal Source + Provides directories"
 
 # Leaves orphans alone (definition tree + durable data)
@@ -156,7 +175,8 @@ pass "Mirror fails closed on invalid Manifest Source resolution"
 
 # Reserved collision: root Provides pull onto dest with Manifest/Binding
 rm -rf "${STAGE}/workloads"
-mkdir -p "${STAGE}/workloads/collide/extra"
+COLLIDE_ART="${TMP}/collide-art"
+mkdir -p "${STAGE}/workloads/collide/extra" "${COLLIDE_ART}/extra" "${COLLIDE_ART}/systemd"
 write_internal_stubs "${STAGE}/workloads/collide"
 cat >"${STAGE}/workloads/collide/manifest.json" <<'EOF'
 { "intent": "stop", "source": "internal" }
@@ -165,13 +185,18 @@ cat >"${STAGE}/workloads/collide/provides.json" <<'EOF'
 { "directories": { ".": "entire artifact root" } }
 EOF
 printf 'payload\n' >"${STAGE}/workloads/collide/extra/file.txt"
+cp -a "${STAGE}/workloads/collide/provides.json" "${COLLIDE_ART}/provides.json"
+cp -a "${STAGE}/workloads/collide/requires.json" "${COLLIDE_ART}/requires.json"
+cp -a "${STAGE}/workloads/collide/systemd/." "${COLLIDE_ART}/systemd/"
+cp -a "${STAGE}/workloads/collide/extra/." "${COLLIDE_ART}/extra/"
+stage_artifact_zip "collide" "${COLLIDE_ART}"
 cp "${TMP}/mirror-run.sh" "${STAGE}/ensure-mirror-host.sh"
 if bash "${STAGE}/ensure-mirror-host.sh" "${USER_NAME}" >/dev/null 2>&1; then
   fail "root Provides directories onto reserved Host files must fail closed"
 fi
 pass "Mirror fails closed on reserved Provides destination collision"
 
-# --- zip Source: Environment holds Manifest+Binding; Artifact content from zip ---
+# --- zip Source: Environment holds Manifest+Binding; Artifact content from staging ---
 rm -rf "${STAGE}/workloads"
 ZIP_ROOT="${TMP}/zip-artifact"
 ZIP_DIR="${TMP}/zip-http"
@@ -188,30 +213,7 @@ printf '{ "database": false, "cache": false }\n' >"${ZIP_ROOT}/requires.json"
 printf 'from-zip-unit\n' >"${ZIP_ROOT}/systemd/zippy.container"
 printf 'from-zip-www\n' >"${ZIP_ROOT}/www/index.html"
 (cd "${ZIP_ROOT}" && zip -qr "${ZIP_DIR}/artifact.zip" .)
-
-# Bind HTTP server to a free port
-PORT_FILE="${TMP}/http-port"
-python3 - "${ZIP_DIR}" "${PORT_FILE}" <<'PY' &
-import http.server, socketserver, sys, pathlib
-directory, port_file = sys.argv[1], sys.argv[2]
-class Handler(http.server.SimpleHTTPRequestHandler):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, directory=directory, **kwargs)
-    def log_message(self, fmt, *args):
-        pass
-with socketserver.TCPServer(("127.0.0.1", 0), Handler) as httpd:
-    port = httpd.server_address[1]
-    pathlib.Path(port_file).write_text(str(port), encoding="utf-8")
-    httpd.serve_forever()
-PY
-HTTP_PID=$!
-for _ in 1 2 3 4 5 6 7 8 9 10; do
-  [[ -f "${PORT_FILE}" ]] && break
-  sleep 0.1
-done
-[[ -f "${PORT_FILE}" ]] || fail "HTTP server did not publish port"
-HTTP_PORT="$(cat "${PORT_FILE}")"
-ZIP_URI="http://127.0.0.1:${HTTP_PORT}/artifact.zip"
+ZIP_URI="http://127.0.0.1:1/artifact.zip"
 
 mkdir -p "${STAGE}/workloads/zippy"
 printf '{}\n' >"${STAGE}/workloads/zippy/binding.json"
@@ -221,20 +223,21 @@ cat >"${STAGE}/workloads/zippy/manifest.json" <<EOF
   "source": "${ZIP_URI}"
 }
 EOF
+stage_artifact_zip "zippy" "${ZIP_ROOT}"
 
 cp "${TMP}/mirror-run.sh" "${STAGE}/ensure-mirror-host.sh"
 bash "${STAGE}/ensure-mirror-host.sh" "${USER_NAME}" \
-  || fail "ensure-mirror-host failed for zip Source"
+  || fail "ensure-mirror-host failed for staged zip Source"
 
 grep -Fxq 'from-zip-unit' \
   "${HV}/workloads/zippy/systemd/zippy.container" \
-  || fail "zip Provides directories must materialize systemd"
+  || fail "staged zip Provides directories must materialize systemd"
 grep -Fxq 'from-zip-www' "${HV}/workloads/zippy/www/index.html" \
-  || fail "zip Provides directories must materialize www"
+  || fail "staged zip Provides directories must materialize www"
 grep -Fq 'units' "${HV}/workloads/zippy/provides.json" \
-  || fail "zip Artifact Provides must land on Host"
+  || fail "staged zip Artifact Provides must land on Host"
 grep -Fq 'database' "${HV}/workloads/zippy/requires.json" \
-  || fail "zip Artifact Requires must land on Host"
+  || fail "staged zip Artifact Requires must land on Host"
 python3 - "${HV}/workloads/zippy/manifest.json" <<'PY' || fail "zip Manifest must remain Environment SoT"
 import json, sys
 m = json.load(open(sys.argv[1], encoding="utf-8"))
@@ -243,26 +246,31 @@ assert str(m.get("source", "")).endswith(".zip")
 PY
 [[ -f "${HV}/workloads/zippy/binding.json" ]] \
   || fail "zip Environment Binding must remain on Host"
-pass "Mirror materializes zip URI Source via Provides directories"
+staged_zippy_zip="$(artifact_staging_read "${ENV_ROOT}" "zippy")"
+[[ -f "${HV}/workloads/zippy/$(basename "${staged_zippy_zip}")" ]] \
+  || fail "staged zip must be retained on Host with content-addressed name"
+pass "Mirror materializes staged zip Source via Provides directories"
 
-# --- path zip Source: same Artifact, local file, zip remains on Host ---
+# --- path zip Source: same Artifact, local manifest path, staged zip on Host ---
 rm -rf "${STAGE}/workloads"
 mkdir -p "${STAGE}/workloads/zippath"
 printf '{}\n' >"${STAGE}/workloads/zippath/binding.json"
-cp "${ZIP_DIR}/artifact.zip" "${STAGE}/workloads/zippath/artifact.zip"
 cat >"${STAGE}/workloads/zippath/manifest.json" <<'EOF'
 {
   "intent": "run",
   "source": "artifact.zip"
 }
 EOF
+stage_artifact_zip "zippath" "${ZIP_ROOT}"
+
 cp "${TMP}/mirror-run.sh" "${STAGE}/ensure-mirror-host.sh"
 bash "${STAGE}/ensure-mirror-host.sh" "${USER_NAME}" \
   || fail "ensure-mirror-host failed for path zip Source"
 grep -Fxq 'from-zip-www' "${HV}/workloads/zippath/www/index.html" \
-  || fail "path zip Provides directories must materialize www"
-[[ -f "${HV}/workloads/zippath/artifact.zip" ]] \
-  || fail "path zip must remain on Host as Environment bag"
-pass "Mirror materializes path zip Source via Provides directories"
+  || fail "staged path zip Provides directories must materialize www"
+staged_zippath_zip="$(artifact_staging_read "${ENV_ROOT}" "zippath")"
+[[ -f "${HV}/workloads/zippath/$(basename "${staged_zippath_zip}")" ]] \
+  || fail "staged zip must be retained on Host with content-addressed name"
+pass "Mirror materializes path zip Source via staged Artifact cache"
 
 echo "All ensure-mirror-host offline tests passed."

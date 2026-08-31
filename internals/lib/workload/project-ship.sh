@@ -28,6 +28,6 @@ workload_project_stage_ship_inventory() {
     "${dest}/host-volume-paths-host.sh" || return 1
   cp "${_WL_PROJ_SHIP_ARTIFACT}/source.sh" "${dest}/source.sh" || return 1
   cp "${_WL_PROJ_SHIP_ARTIFACT}/provides.sh" "${dest}/provides.sh" || return 1
-  cp "${_WL_PROJ_SHIP_ARTIFACT}/build.sh" "${dest}/build.sh" || return 1
+  cp "${_WL_PROJ_SHIP_ARTIFACT}/staging.sh" "${dest}/staging.sh" || return 1
   return 0
 }

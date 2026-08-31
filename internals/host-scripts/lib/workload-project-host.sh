@@ -6,9 +6,8 @@
 #   Sync materialized MAT_TREE into DEST in place (never replace Persist) and
 #   ensure DEST/persist exists (empty when missing).
 #
-# workload_project_to_host ENV_TREE DEST [MATERIALS_DIR]
+# workload_project_to_host ENV_TREE DEST
 #   Materialize ENV_TREE then commit. Mirror uses this end-to-end path.
-#   MATERIALS_DIR is required for local Source (operator-staged Project root).
 #   Workload Setup may materialize → units preflight → commit so foreign
 #   unit basenames are refused before SoT mutation.
 
@@ -37,7 +36,6 @@ workload_project_commit() {
 workload_project_to_host() {
   local env_tree="${1:?workload_project_to_host: Environment Workload tree required}"
   local dest="${2:?workload_project_to_host: Host Volume owner tree required}"
-  local materials_dir="${3-}"
   local mat_tmp
 
   [[ -d "${env_tree}" ]] || {
@@ -46,7 +44,7 @@ workload_project_to_host() {
   }
 
   mat_tmp="$(umask 077; mktemp -d "${TMPDIR:-/tmp}/platform-wl-project.XXXXXX")" || return 1
-  if ! workload_materialize_tree "${env_tree}" "${mat_tmp}" "${materials_dir}"; then
+  if ! workload_materialize_tree "${env_tree}" "${mat_tmp}"; then
     rm -rf "${mat_tmp}"
     return 1
   fi

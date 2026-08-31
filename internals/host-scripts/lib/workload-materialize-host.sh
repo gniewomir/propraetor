@@ -1,27 +1,23 @@
 #!/usr/bin/env bash
-# Host-local Workload materialize (ADR-0053 / ADR-0058 / #204 / #259).
+# Host-local Workload materialize (ADR-0053 / ADR-0059 / #204 / #262).
 # Shared by Mirror and singular Workload Setup — one projection rule.
 #
-# workload_materialize_tree ENV_TREE OUT [MATERIALS_DIR]
+# workload_materialize_tree ENV_TREE OUT
 #   Build the Host Workload projection into OUT:
-#   Environment tree upsert → resolve Manifest Source into materials →
-#   optional Artifact Build → land Artifact root via Provides directories
+#   Environment tree upsert → read Artifact staging → ship staged zip →
+#   extract (ADR-0053 peel) → land Artifact root via Provides directories
 #   (fail closed on reserved collisions). Manifest-less ENV_TREE is bag
-#   upsert only. OUT is replaced.
-#   MATERIALS_DIR is required when Source kind is local (operator-staged
-#   Project root; staged Manifest path is Project-root-relative). Ignored
-#   for other kinds.
+#   upsert only. OUT is replaced. Symlink + Environment contract gates run
+#   on ENV_TREE; path zip file gate is skipped (Host zip is staging-only).
 #
-# Internal Source paths are relative to ENV_TREE; zip paths to zip root
-# (after optional sole-wrapper peel). git/local Artifact root is the
-# declared path inside materials. After resolve, Artifact provides.json +
-# requires.json are placed on OUT so Host shape matches (external ⊂ internal).
-# Zip/git/local Environment trees must not already contain those contracts
-# (fail closed before obtain). Path obtain keeps the `.zip` on OUT as
-# Environment bag.
+# Staging resolves from ENVIRONMENT_ROOT/.artifact-cache/<basename>.staging
+# where ENVIRONMENT_ROOT=$(dirname ENV_TREE) and basename=$(basename ENV_TREE).
+# After extract, Artifact provides.json + requires.json are placed on OUT so
+# Host shape matches (external ⊂ internal). Zip/git/local Environment trees
+# must not already contain those contracts (fail closed before staging read).
 
 _MAT_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# Host Volume / stage ships copies of internals/lib/artifact/{source,provides,build}.sh
+# Host Volume / stage ships copies of internals/lib/artifact/{source,provides,staging}.sh
 # beside this file. Unit Tests fall back to the in-tree Artifact libs.
 _mat_source_lib="${_MAT_LIB_DIR}/source.sh"
 if [[ ! -f "${_mat_source_lib}" ]]; then
@@ -31,20 +27,20 @@ _mat_provides_lib="${_MAT_LIB_DIR}/provides.sh"
 if [[ ! -f "${_mat_provides_lib}" ]]; then
   _mat_provides_lib="${_MAT_LIB_DIR}/../../lib/artifact/provides.sh"
 fi
-_mat_build_lib="${_MAT_LIB_DIR}/build.sh"
-if [[ ! -f "${_mat_build_lib}" ]]; then
-  _mat_build_lib="${_MAT_LIB_DIR}/../../lib/artifact/build.sh"
+_mat_staging_lib="${_MAT_LIB_DIR}/staging.sh"
+if [[ ! -f "${_mat_staging_lib}" ]]; then
+  _mat_staging_lib="${_MAT_LIB_DIR}/../../lib/artifact/staging.sh"
 fi
-if [[ ! -f "${_mat_source_lib}" || ! -f "${_mat_provides_lib}" || ! -f "${_mat_build_lib}" ]]; then
-  echo "workload-materialize-host: Artifact Source/Provides/Build libraries missing" >&2
+if [[ ! -f "${_mat_source_lib}" || ! -f "${_mat_provides_lib}" || ! -f "${_mat_staging_lib}" ]]; then
+  echo "workload-materialize-host: Artifact Source/Provides/Staging libraries missing" >&2
   return 1
 fi
 # shellcheck source=../../lib/artifact/source.sh
 source "${_mat_source_lib}"
 # shellcheck source=../../lib/artifact/provides.sh
 source "${_mat_provides_lib}"
-# shellcheck source=../../lib/artifact/build.sh
-source "${_mat_build_lib}"
+# shellcheck source=../../lib/artifact/staging.sh
+source "${_mat_staging_lib}"
 # shellcheck source=unit-consumers-host.sh
 source "${_MAT_LIB_DIR}/unit-consumers-host.sh"
 
@@ -140,64 +136,6 @@ _workload_materialize_require_systemd_bag() {
   unit_require_systemd_bag_nonempty "${tree}/systemd" "materialized Workload" || return 1
 }
 
-_workload_materialize_fetch_uri() {
-  local uri="${1:?}"
-  local extract_root="${2:?}"
-  local zip_path
-
-  command -v curl >/dev/null || {
-    echo "workload_materialize_tree: curl required to fetch zip Source" >&2
-    return 1
-  }
-
-  zip_path="$(umask 077; mktemp "${TMPDIR:-/tmp}/platform-wl-src.XXXXXX.zip")" || return 1
-  if ! curl -fsSL --connect-timeout 30 --max-time 300 -o "${zip_path}" "${uri}"; then
-    rm -f "${zip_path}"
-    echo "workload_materialize_tree: failed to fetch Source zip: ${uri}" >&2
-    return 1
-  fi
-  if ! artifact_source_zip_extract "${zip_path}" "${extract_root}"; then
-    rm -f "${zip_path}"
-    return 1
-  fi
-  rm -f "${zip_path}"
-}
-
-_workload_materialize_git_obtain() {
-  local url="${1:?}"
-  local commit="${2:?}"
-  local materials="${3:?}"
-
-  command -v git >/dev/null || {
-    echo "workload_materialize_tree: git required for git Source" >&2
-    return 1
-  }
-
-  rm -rf "${materials}"
-  mkdir -p "${materials}" || return 1
-  if ! git -C "${materials}" init --quiet; then
-    echo "workload_materialize_tree: git init failed" >&2
-    return 1
-  fi
-  if ! git -C "${materials}" remote add origin "${url}"; then
-    echo "workload_materialize_tree: git remote add failed" >&2
-    return 1
-  fi
-  # Full-sha pin: fetch that commit (HTTPS). Fail closed on auth / missing object.
-  if ! git -C "${materials}" fetch --quiet --depth 1 origin "${commit}"; then
-    # Some remotes refuse shallow fetch of arbitrary commits; retry unshallow fetch.
-    if ! git -C "${materials}" fetch --quiet origin "${commit}"; then
-      echo "workload_materialize_tree: git fetch failed for ${url} @ ${commit}" >&2
-      return 1
-    fi
-  fi
-  if ! git -C "${materials}" checkout --quiet --detach "${commit}"; then
-    echo "workload_materialize_tree: git checkout failed for commit ${commit}" >&2
-    return 1
-  fi
-  return 0
-}
-
 _workload_materialize_refuse_persist() {
   local tree="${1:?}"
   local label="${2:?}"
@@ -207,20 +145,20 @@ _workload_materialize_refuse_persist() {
   fi
 }
 
-# ENV_TREE → OUT (Host Workload projection). Optional MATERIALS_DIR for local.
+# ENV_TREE → OUT (Host Workload projection).
 workload_materialize_tree() {
   local env_tree="${1:?workload_materialize_tree: Environment Workload tree required}"
   local out="${2:?workload_materialize_tree: output tree required}"
-  local materials_arg="${3-}"
-  local manifest wl_source wl_kind materials artifact_root extract_tmp provides requires dir_key
-  local git_url git_commit art_path
+  local environment_root wl_basename staged_zip_path zip_basename extract_tmp
+  local artifact_root provides requires dir_key manifest
 
   [[ -d "${env_tree}" ]] || {
     echo "workload_materialize_tree: Environment tree missing: ${env_tree}" >&2
     return 1
   }
 
-  artifact_source_tree_gate "${env_tree}" || return 1
+  artifact_source_symlink_gate "${env_tree}" || return 1
+  artifact_source_environment_tree_gate "${env_tree}" || return 1
   _workload_materialize_refuse_persist "${env_tree}" "Environment tree" || return 1
   _workload_materialize_refuse_quadlets "${env_tree}" "Environment tree" || return 1
 
@@ -233,111 +171,44 @@ workload_materialize_tree() {
     return 0
   fi
 
-  wl_source="$(artifact_source_from_manifest "${manifest}")" || {
-    echo "workload_materialize_tree: Source resolution failed for ${env_tree}" >&2
-    return 1
-  }
-  wl_kind="$(artifact_source_kind "${wl_source}")" || return 1
+  environment_root="$(dirname "${env_tree}")"
+  wl_basename="$(basename "${env_tree}")"
+  staged_zip_path="$(artifact_staging_read "${environment_root}" "${wl_basename}")" || return 1
 
-  extract_tmp=""
-  materials=""
-  artifact_root=""
+  zip_basename="$(basename "${staged_zip_path}")"
+  cp -a "${staged_zip_path}" "${out}/${zip_basename}" || return 1
 
-  case "${wl_kind}" in
-    internal)
-      materials="${env_tree}"
-      artifact_root="${env_tree}"
-      ;;
-    path)
-      extract_tmp="$(umask 077; mktemp -d "${TMPDIR:-/tmp}/platform-wl-zip.XXXXXX")" || return 1
-      if ! artifact_source_zip_extract "${env_tree}/${wl_source}" "${extract_tmp}"; then
-        rm -rf "${extract_tmp}"
-        return 1
-      fi
-      materials="${extract_tmp}"
-      artifact_root="${extract_tmp}"
-      ;;
-    uri)
-      extract_tmp="$(umask 077; mktemp -d "${TMPDIR:-/tmp}/platform-wl-zip.XXXXXX")" || return 1
-      if ! _workload_materialize_fetch_uri "${wl_source}" "${extract_tmp}"; then
-        rm -rf "${extract_tmp}"
-        return 1
-      fi
-      materials="${extract_tmp}"
-      artifact_root="${extract_tmp}"
-      ;;
-    git)
-      extract_tmp="$(umask 077; mktemp -d "${TMPDIR:-/tmp}/platform-wl-git.XXXXXX")" || return 1
-      git_url="$(artifact_source_git_url "${wl_source}")" || {
-        rm -rf "${extract_tmp}"
-        return 1
-      }
-      git_commit="$(artifact_source_git_commit "${wl_source}")" || {
-        rm -rf "${extract_tmp}"
-        return 1
-      }
-      art_path="$(artifact_source_artifact_path "${wl_source}")" || {
-        rm -rf "${extract_tmp}"
-        return 1
-      }
-      if ! _workload_materialize_git_obtain "${git_url}" "${git_commit}" "${extract_tmp}"; then
-        rm -rf "${extract_tmp}"
-        return 1
-      fi
-      materials="${extract_tmp}"
-      if ! artifact_root="$(artifact_source_resolve_artifact_root "${materials}" "${art_path}")"; then
-        rm -rf "${extract_tmp}"
-        return 1
-      fi
-      ;;
-    local)
-      [[ -n "${materials_arg}" ]] || {
-        echo "workload_materialize_tree: local Source requires staged materials dir" >&2
-        return 1
-      }
-      [[ -d "${materials_arg}" ]] || {
-        echo "workload_materialize_tree: staged materials missing: ${materials_arg}" >&2
-        return 1
-      }
-      art_path="$(artifact_source_artifact_path "${wl_source}")" || return 1
-      materials="${materials_arg}"
-      artifact_root="$(artifact_source_resolve_artifact_root "${materials}" "${art_path}")" || return 1
-      ;;
-    *)
-      echo "workload_materialize_tree: unknown Source kind: ${wl_kind}" >&2
-      return 1
-      ;;
-  esac
-
-  if ! artifact_build_run "${materials}" "${artifact_root}" "${artifact_root}/build.json"; then
-    [[ -n "${extract_tmp}" ]] && rm -rf "${extract_tmp}"
+  extract_tmp="$(umask 077; mktemp -d "${TMPDIR:-/tmp}/platform-wl-staging.XXXXXX")" || return 1
+  if ! artifact_source_zip_extract "${staged_zip_path}" "${extract_tmp}"; then
+    rm -rf "${extract_tmp}"
     return 1
   fi
+  artifact_root="${extract_tmp}"
 
   if ! _workload_materialize_refuse_persist "${artifact_root}" "Artifact"; then
-    [[ -n "${extract_tmp}" ]] && rm -rf "${extract_tmp}"
+    rm -rf "${extract_tmp}"
     return 1
   fi
   if ! _workload_materialize_refuse_quadlets "${artifact_root}" "Artifact"; then
-    [[ -n "${extract_tmp}" ]] && rm -rf "${extract_tmp}"
+    rm -rf "${extract_tmp}"
     return 1
   fi
 
   provides="${artifact_root}/provides.json"
   requires="${artifact_root}/requires.json"
   if [[ ! -f "${provides}" ]]; then
-    [[ -n "${extract_tmp}" ]] && rm -rf "${extract_tmp}"
-    echo "workload_materialize_tree: Artifact provides.json missing under Source root" >&2
+    rm -rf "${extract_tmp}"
+    echo "workload_materialize_tree: Artifact provides.json missing under staged zip" >&2
     return 1
   fi
   if [[ ! -f "${requires}" ]]; then
-    [[ -n "${extract_tmp}" ]] && rm -rf "${extract_tmp}"
-    echo "workload_materialize_tree: Artifact requires.json missing under Source root" >&2
+    rm -rf "${extract_tmp}"
+    echo "workload_materialize_tree: Artifact requires.json missing under staged zip" >&2
     return 1
   fi
 
   if ! artifact_provides_reserved_collision "${out}" "${provides}"; then
-    [[ -n "${extract_tmp}" ]] && rm -rf "${extract_tmp}"
+    rm -rf "${extract_tmp}"
     echo "workload_materialize_tree: reserved-file collision applying Provides directories" >&2
     return 1
   fi
@@ -345,29 +216,29 @@ workload_materialize_tree() {
   while IFS= read -r dir_key; do
     [[ -n "${dir_key}" ]] || continue
     if ! _workload_materialize_apply_directory "${artifact_root}" "${out}" "${dir_key}"; then
-      [[ -n "${extract_tmp}" ]] && rm -rf "${extract_tmp}"
+      rm -rf "${extract_tmp}"
       return 1
     fi
   done < <(artifact_provides_directories "${provides}")
 
   cp -a "${provides}" "${out}/provides.json" || {
-    [[ -n "${extract_tmp}" ]] && rm -rf "${extract_tmp}"
+    rm -rf "${extract_tmp}"
     return 1
   }
   cp -a "${requires}" "${out}/requires.json" || {
-    [[ -n "${extract_tmp}" ]] && rm -rf "${extract_tmp}"
+    rm -rf "${extract_tmp}"
     return 1
   }
 
   if ! _workload_materialize_refuse_persist "${out}" "materialized tree"; then
-    [[ -n "${extract_tmp}" ]] && rm -rf "${extract_tmp}"
+    rm -rf "${extract_tmp}"
     return 1
   fi
   if ! _workload_materialize_require_systemd_bag "${out}"; then
-    [[ -n "${extract_tmp}" ]] && rm -rf "${extract_tmp}"
+    rm -rf "${extract_tmp}"
     return 1
   fi
 
-  [[ -n "${extract_tmp}" ]] && rm -rf "${extract_tmp}"
+  rm -rf "${extract_tmp}"
   return 0
 }
