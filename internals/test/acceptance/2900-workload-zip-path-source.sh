@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Acceptance Test: path zip Source extract on a Deployed Host (ADR-0053).
+# Acceptance Test: path zip Source extract on a Deployed Host (ADR-0053 / ADR-0059).
+# Prep stages content-addressed zip; Mirror lands Artifact from staged zip only.
 # Case-generated Artifact zip (no committed blob). URI obtain stays Unit-only.
 set -euo pipefail
 # shellcheck source=lib.sh
