@@ -16,6 +16,9 @@
 #
 # artifact_prep_workload WORKLOAD_DIR
 #   Dispatch Prep by Manifest Source kind.
+#
+# artifact_prep_environment ENV_DIR
+#   Discover Workloads with manifest.json, Prep each; print count on stdout.
 
 _prep_lib_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=staging.sh
@@ -26,6 +29,28 @@ source "${_prep_lib_dir}/source.sh"
 source "${_prep_lib_dir}/build.sh"
 # shellcheck source=manifest.sh
 source "${_prep_lib_dir}/manifest.sh"
+# shellcheck source=../environment/environment-workloads.sh
+source "${_prep_lib_dir}/../environment/environment-workloads.sh"
+
+artifact_prep_environment() {
+  local env_dir="${1:?artifact_prep_environment: ENV_DIR required}"
+  local wl_name wl_dir prepped=0
+
+  [[ -d "${env_dir}" ]] || {
+    echo "artifact_prep_environment: not a directory: ${env_dir}" >&2
+    return 1
+  }
+
+  while IFS= read -r wl_name; do
+    [[ -n "${wl_name}" ]] || continue
+    wl_dir="${env_dir}/${wl_name}"
+    [[ -f "${wl_dir}/manifest.json" ]] || continue
+    artifact_prep_workload "${wl_dir}" >/dev/null || return 1
+    prepped=$((prepped + 1))
+  done < <(environment_discover_workloads "${env_dir}")
+
+  printf '%s\n' "${prepped}"
+}
 
 artifact_prep_zip_from_tree() {
   local artifact_root="${1:?artifact_prep_zip_from_tree: Artifact root required}"

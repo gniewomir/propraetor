@@ -18,11 +18,12 @@ DEPLOY="${REPO_ROOT}/deploy.sh"
 [[ -x "${DEPLOY}" ]] || fail "deploy.sh not executable"
 pass "ensure.sh and deploy.sh entrypoints exist"
 
-# Ladder order: Fabric → Mirror → Orphan Reap → Components pre-workloads →
+# Ladder order: Prep → Fabric → Mirror → Orphan Reap → Components pre-workloads →
 # Workloads → Components post-workloads (no Purge — ADR-0054 / #217).
-want_order=$'ensure-fabric.sh\nensure-mirror.sh\npurge-orphans.sh\nensure-components.sh pre-workloads\nensure-workloads.sh\nensure-components.sh post-workloads'
+want_order=$'prep.sh\nensure-fabric.sh\nensure-mirror.sh\npurge-orphans.sh\nensure-components.sh pre-workloads\nensure-workloads.sh\nensure-components.sh post-workloads'
 got_order="$(
   awk '
+    /prep\.sh/ { print "prep.sh"; next }
     /ensure-fabric\.sh/ { print "ensure-fabric.sh"; next }
     /ensure-mirror\.sh/ { print "ensure-mirror.sh"; next }
     /purge-orphans\.sh/ { print "purge-orphans.sh"; next }

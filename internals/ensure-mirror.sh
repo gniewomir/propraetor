@@ -31,6 +31,8 @@ source "${REPO_ROOT}/internals/lib/operator/operator-dotenv.sh"
 source "${REPO_ROOT}/internals/lib/operator/operator-configuration.sh"
 # shellcheck source=lib/artifact/source.sh
 source "${REPO_ROOT}/internals/lib/artifact/source.sh"
+# shellcheck source=lib/artifact/staging.sh
+source "${REPO_ROOT}/internals/lib/artifact/staging.sh"
 # shellcheck source=lib/workload/project-ship.sh
 source "${REPO_ROOT}/internals/lib/workload/project-ship.sh"
 
@@ -54,6 +56,8 @@ IP="$(host_session_ip)"
 
 ENV_DIR="$(environments_dir_for "${PLATFORM_ENV}")" || exit 1
 
+artifact_staging_require_all "${ENV_DIR}" || exit 1
+
 STAGE="$(umask 077; mktemp -d "${TMPDIR:-/tmp}/platform-ensure-mirror-stage.XXXXXX")"
 trap 'rm -rf "${STAGE}"' EXIT
 
@@ -69,18 +73,10 @@ while IFS= read -r wl_name; do
   dest="${STAGE}/workloads/${wl_name}"
   mkdir -p "${dest}"
   cp -a "${src}/." "${dest}/"
-  # local Source: stage Project root as materials; rewrite staged Manifest path.
-  if [[ -f "${src}/manifest.json" ]]; then
-    wl_source="$(artifact_source_from_manifest "${src}/manifest.json")" || exit 1
-    wl_kind="$(artifact_source_kind "${wl_source}")" || exit 1
-    if [[ "${wl_kind}" == "local" ]]; then
-      mat_dest="${STAGE}/workload-materials/${wl_name}"
-      artifact_source_stage_local_materials \
-        "${wl_source}" "${mat_dest}" "${dest}/manifest.json" || exit 1
-    fi
-  fi
   mirrored=$((mirrored + 1))
 done < <(environment_discover_workloads "${ENV_DIR}")
+
+artifact_staging_ship_cache "${ENV_DIR}" "${STAGE}/workloads" || exit 1
 
 host_delivery_run "${STAGE}" "/tmp/platform-ensure-mirror" \
   "bash /tmp/platform-ensure-mirror/ensure-mirror-host.sh ${USER_NAME}"

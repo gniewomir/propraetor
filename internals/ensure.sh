@@ -29,6 +29,7 @@ environment_activate "${STACK_DIR}" "${CLI_env}" || exit 1
 
 ENV_FLAG=(--env "${PLATFORM_ENV}")
 
+"${REPO_ROOT}/internals/prep.sh" "${ENV_FLAG[@]}"
 "${REPO_ROOT}/internals/ensure-fabric.sh" "${ENV_FLAG[@]}"
 "${REPO_ROOT}/internals/ensure-mirror.sh" "${ENV_FLAG[@]}"
 "${REPO_ROOT}/internals/purge-orphans.sh" "${ENV_FLAG[@]}"

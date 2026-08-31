@@ -140,4 +140,51 @@ if artifact_staging_read "${ENV_ROOT}" '' >/dev/null 2>&1; then
 fi
 pass "basename validation on read"
 
+# --- require (gate) ---
+artifact_staging_require "${ENV_ROOT}" "${BASENAME}" \
+  || fail "require must succeed when staging is valid"
+if artifact_staging_require "${ENV_ROOT}" "${OTHER}" >/dev/null 2>&1; then
+  fail "require must fail closed without staging"
+fi
+pass "artifact_staging_require gate"
+
+# --- require_all + ship_cache ---
+ENV2="${TMP}/env2"
+WL_A="${ENV2}/alpha"
+WL_B="${ENV2}/beta"
+mkdir -p "${WL_A}" "${WL_B}"
+printf '{ "intent": "run", "source": "internal" }\n' >"${WL_A}/manifest.json"
+printf '{}\n' >"${WL_A}/binding.json"
+printf '{ "database": false, "cache": false, "environment": {} }\n' \
+  >"${WL_A}/requires.json"
+printf '{}\n' >"${WL_A}/provides.json"
+printf '{ "intent": "run", "source": "internal" }\n' >"${WL_B}/manifest.json"
+printf '{}\n' >"${WL_B}/binding.json"
+printf '{ "database": false, "cache": false, "environment": {} }\n' \
+  >"${WL_B}/requires.json"
+printf '{}\n' >"${WL_B}/provides.json"
+
+if artifact_staging_require_all "${ENV2}" >/dev/null 2>&1; then
+  fail "require_all must fail closed before prep"
+fi
+artifact_staging_write "${ENV2}" alpha "${ZIP_SRC}" >/dev/null \
+  || fail "seed alpha staging"
+if artifact_staging_require_all "${ENV2}" >/dev/null 2>&1; then
+  fail "require_all must fail closed when any Workload lacks staging"
+fi
+artifact_staging_write "${ENV2}" beta "${ZIP_SRC}" >/dev/null \
+  || fail "seed beta staging"
+artifact_staging_require_all "${ENV2}" \
+  || fail "require_all must succeed when every Workload is staged"
+
+SHIP_DEST="${TMP}/ship"
+mkdir -p "${SHIP_DEST}"
+artifact_staging_ship_cache "${ENV2}" "${SHIP_DEST}" \
+  || fail "ship_cache must succeed"
+[[ -f "${SHIP_DEST}/.artifact-cache/alpha.staging" ]] \
+  || fail "ship_cache must copy staging records"
+[[ -f "${SHIP_DEST}/.artifact-cache/beta.staging" ]] \
+  || fail "ship_cache must copy all staging records"
+pass "artifact_staging_require_all and ship_cache"
+
 echo "All artifact staging offline tests passed."

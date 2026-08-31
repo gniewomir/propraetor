@@ -20,6 +20,8 @@ source "${REPO_ROOT}/internals/lib/cli.sh"
 source "${REPO_ROOT}/internals/lib/artifact/manifest.sh"
 # shellcheck source=lib/artifact/source.sh
 source "${REPO_ROOT}/internals/lib/artifact/source.sh"
+# shellcheck source=lib/artifact/staging.sh
+source "${REPO_ROOT}/internals/lib/artifact/staging.sh"
 # shellcheck source=lib/environment/environment.sh
 source "${REPO_ROOT}/internals/lib/environment/environment.sh"
 # shellcheck source=lib/ssh.sh
@@ -68,6 +70,7 @@ MANIFEST_ABS="${MANIFEST_DIR}/manifest.json"
 }
 artifact_manifest_validate "${MANIFEST_ABS}" || exit 1
 artifact_source_tree_gate "${MANIFEST_DIR}" || exit 1
+artifact_staging_require "${ENV_DIR}" "${WL_NAME}" || exit 1
 
 command -v terraform >/dev/null || { echo "terraform not found" >&2; exit 1; }
 command -v ssh >/dev/null || { echo "ssh not found" >&2; exit 1; }

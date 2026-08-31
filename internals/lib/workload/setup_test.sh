@@ -6,6 +6,8 @@ set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"
 # shellcheck source=setup.sh
 source "${REPO_ROOT}/internals/lib/workload/setup.sh"
+# shellcheck source=../artifact/prep.sh
+source "${REPO_ROOT}/internals/lib/artifact/prep.sh"
 
 fail() { echo "FAIL: $*" >&2; exit 1; }
 pass() { echo "PASS: $*"; }
@@ -29,6 +31,9 @@ STAGE="${TMP}/stage"
 mkdir -p "${STAGE}"
 REMOTE_ROOT="/tmp/platform-ensure-workload-test"
 
+artifact_prep_workload "${WL_DIR}" >/dev/null \
+  || fail "prep must succeed before stage_payload"
+
 workload_setup_stage_payload "${STAGE}" "${REMOTE_ROOT}" "${WL_DIR}" \
   || fail "stage_payload must succeed for internal Workload"
 
@@ -37,6 +42,9 @@ workload_setup_stage_payload "${STAGE}" "${REMOTE_ROOT}" "${WL_DIR}" \
 [[ -f "${STAGE}/workload-identity-host.sh" ]] || fail "missing identity module"
 [[ -d "${STAGE}/demo" ]] || fail "Workload tree not staged"
 [[ -f "${STAGE}/demo/manifest.json" ]] || fail "Manifest not staged"
+[[ -f "${STAGE}/.artifact-cache/demo.staging" ]] \
+  || fail "stage_payload must ship artifact cache"
+pass "stage_payload ships projection + Setup inventory, Workload tree, and cache"
 
 for f in \
   sync-tree-host.sh \

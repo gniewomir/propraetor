@@ -23,6 +23,8 @@ source "${_WL_SETUP_DIR}/../environment/environment-configuration.sh"
 source "${_WL_SETUP_HOST_LIB}/workload-identity-host.sh"
 # shellcheck source=../artifact/source.sh
 source "${_WL_SETUP_ARTIFACT}/source.sh"
+# shellcheck source=../artifact/staging.sh
+source "${_WL_SETUP_ARTIFACT}/staging.sh"
 
 workload_setup_stage_payload() {
   local stage="${1:?workload_setup_stage_payload: STAGE required}"
@@ -92,11 +94,7 @@ workload_setup_stage_payload() {
   mkdir -p "${stage}/${wl_name}" || return 1
   cp -a "${manifest_dir}/." "${stage}/${wl_name}/" || return 1
 
-  if [[ "${wl_kind}" == "local" ]]; then
-    artifact_source_stage_local_materials \
-      "${wl_source}" "${stage}/workload-materials/${wl_name}" \
-      "${stage}/${wl_name}/manifest.json" || return 1
-  fi
+  artifact_staging_ship_cache "${env_dir}" "${stage}" || return 1
 
   environment_configuration_stage_for_setup \
     "${stage}" "${binding_abs}" "${requires_abs}" "${env_dir}" "${manifest_dir}" \

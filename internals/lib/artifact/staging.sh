@@ -14,6 +14,15 @@
 #
 # artifact_staging_read ENVIRONMENT_ROOT BASENAME
 #   Read staging, validate 64-char lowercase hex, verify zip exists; print absolute zip path.
+#
+# artifact_staging_require ENVIRONMENT_ROOT BASENAME
+#   Fail closed when staging record or referenced zip is missing (gate helper).
+#
+# artifact_staging_require_all ENV_DIR
+#   Require valid staging for every discovered Workload with manifest.json.
+#
+# artifact_staging_ship_cache ENVIRONMENT_ROOT DEST_ROOT
+#   Copy .artifact-cache/ to DEST_ROOT/.artifact-cache/ (Mirror/Setup ship layout).
 
 _artifact_staging_py_lib() {
   cat <<'PY'
@@ -181,4 +190,43 @@ from pathlib import Path
 
 print(str((Path(sys.argv[1]) / sys.argv[2]).resolve()))
 PY
+}
+
+artifact_staging_require() {
+  artifact_staging_read "$@" >/dev/null
+}
+
+artifact_staging_require_all() {
+  local env_dir="${1:?artifact_staging_require_all: ENV_DIR required}"
+  local wl_name
+
+  [[ -d "${env_dir}" ]] || {
+    echo "artifact_staging_require_all: not a directory: ${env_dir}" >&2
+    return 1
+  }
+
+  # shellcheck source=../environment/environment-workloads.sh
+  source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../environment/environment-workloads.sh"
+
+  while IFS= read -r wl_name; do
+    [[ -n "${wl_name}" ]] || continue
+    [[ -f "${env_dir}/${wl_name}/manifest.json" ]] || continue
+    artifact_staging_require "${env_dir}" "${wl_name}" || return 1
+  done < <(environment_discover_workloads "${env_dir}")
+}
+
+artifact_staging_ship_cache() {
+  local environment_root="${1:?artifact_staging_ship_cache: environment root required}"
+  local dest_root="${2:?artifact_staging_ship_cache: dest root required}"
+  local cache_dir dest_cache
+
+  cache_dir="$(artifact_cache_dir "${environment_root}")" || return 1
+  [[ -d "${cache_dir}" ]] || {
+    echo "artifact_staging_ship_cache: cache missing: ${cache_dir}" >&2
+    return 1
+  }
+
+  dest_cache="${dest_root}/.artifact-cache"
+  mkdir -p "${dest_cache}" || return 1
+  cp -a "${cache_dir}/." "${dest_cache}/" || return 1
 }
