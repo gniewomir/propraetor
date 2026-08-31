@@ -1,0 +1,6 @@
+{
+  "domains": {
+    "swipe-motion-prototype.gniewomir.pl": ["routes/swipe-motion-prototype.conf"],
+    "swipe-motion-prototype.nopile.today": ["routes/swipe-motion-prototype.conf"]
+  }
+}
