@@ -1,0 +1,9 @@
+{
+  "domains": {
+    "analytics.gniewomir.pl": ["routes/analytics.conf"],
+    "analytics.nopile.today": ["routes/analytics.conf"]
+  },
+  "environment": {
+    "ANALYTICS_APP_SECRET": "APP_SECRET"
+  }
+}

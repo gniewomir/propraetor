@@ -6,7 +6,8 @@
       "propreator",
       "auth",
       "inbox-prototype",
-      "ui-prototype"
+      "ui-prototype",
+      "analytics"
     ]
   },
   "nopile.today": {
@@ -14,7 +15,8 @@
       "@",
       "www",
       "inbox-prototype",
-      "ui-prototype"
+      "ui-prototype",
+      "analytics"
     ]
   }
 }

@@ -1,0 +1,19 @@
+[Unit]
+Description=Umami web analytics
+
+[Container]
+Image=ghcr.io/umami-software/umami:3.3.1
+ContainerName=analytics-umami
+Pod=analytics.pod
+Volume=../scripts/entrypoint.sh:/opt/platform/entrypoint.sh:ro
+Volume=../persist:/var/lib/workload:rw
+Entrypoint=/bin/sh
+Exec=/opt/platform/entrypoint.sh
+Environment=DISABLE_TELEMETRY=1
+Environment=CLIENT_IP_HEADER=X-Real-IP
+
+[Service]
+Restart=on-failure
+
+[Install]
+WantedBy=default.target

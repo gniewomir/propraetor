@@ -1,0 +1,7 @@
+{
+  "database": true,
+  "cache": false,
+  "environment": {
+    "APP_SECRET": "Umami session and auth token signing secret"
+  }
+}
