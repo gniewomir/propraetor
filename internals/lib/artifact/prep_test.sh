@@ -41,7 +41,7 @@ PY
 
 setup_internal_workload() {
   mkdir -p "${WORKLOAD}/systemd" "${WORKLOAD}/persist"
-  printf '{"source":"internal"}\n' >"${WORKLOAD}/manifest.json"
+  printf '{"intent":"run","source":{"kind":"internal"}}\n' >"${WORKLOAD}/manifest.json"
   printf '{}\n' >"${WORKLOAD}/binding.json"
   printf 'provides\n' >"${WORKLOAD}/provides.json"
   printf 'requires\n' >"${WORKLOAD}/requires.json"
@@ -102,7 +102,7 @@ pass "artifact_prep_internal happy path staging"
 # --- manifest source unchanged ---
 source_before="$(artifact_source_from_manifest "${WORKLOAD}/manifest.json")"
 source_after="$(artifact_source_from_manifest "${WORKLOAD}/manifest.json")"
-[[ "${source_after}" == "${source_before}" && "${source_before}" == "internal" ]] \
+[[ "${source_after}" == "${source_before}" && "${source_before}" == '{"kind":"internal"}' ]] \
   || fail "manifest source must remain internal after prep"
 pass "manifest source unchanged"
 
@@ -120,7 +120,7 @@ pass "persist/ excluded"
 # --- non-internal source fails closed ---
 rm -rf "${WORKLOAD}"
 mkdir -p "${WORKLOAD}"
-printf '{"source":"artifact.zip"}\n' >"${WORKLOAD}/manifest.json"
+printf '{"intent":"run","source":{"kind":"zip","path":"artifact.zip"}}\n' >"${WORKLOAD}/manifest.json"
 if artifact_prep_internal "${WORKLOAD}" >/dev/null 2>&1; then
   fail "non-internal source must fail closed"
 fi
@@ -135,7 +135,7 @@ fi
 pass "missing manifest fails closed"
 
 # --- invalid manifest fails closed ---
-printf '{"source":"Internal"}\n' >"${WORKLOAD}/manifest.json"
+printf '{"intent":"run","source":{"kind":"Internal"}}\n' >"${WORKLOAD}/manifest.json"
 if artifact_prep_internal "${WORKLOAD}" >/dev/null 2>&1; then
   fail "invalid manifest source must fail closed"
 fi
@@ -203,7 +203,7 @@ ZIP_WL="${ENV_ROOT}/zip-path"
 mkdir -p "${ZIP_WL}"
 printf '{}\n' >"${ZIP_WL}/binding.json"
 cat >"${ZIP_WL}/manifest.json" <<'EOF'
-{ "intent": "run", "source": "artifact.zip" }
+{ "intent": "run", "source": {"kind":"zip","path":"artifact.zip"} }
 EOF
 ARTIFACT_SRC="${TMP}/zip-artifact-src"
 mkdir -p "${ARTIFACT_SRC}/www"
@@ -233,7 +233,7 @@ URI_WL="${ENV_ROOT}/zip-uri"
 mkdir -p "${URI_WL}"
 printf '{}\n' >"${URI_WL}/binding.json"
 cat >"${URI_WL}/manifest.json" <<'EOF'
-{ "intent": "run", "source": "http://127.0.0.1:9/remote.zip" }
+{ "intent": "run", "source": {"kind":"zip","uri":"http://127.0.0.1:9/remote.zip"} }
 EOF
 URI_ARTIFACT_SRC="${TMP}/uri-artifact-src"
 mkdir -p "${URI_ARTIFACT_SRC}"
@@ -388,7 +388,7 @@ INLINE_WL="${ENV_ROOT}/inline-wl"
 mkdir -p "${INLINE_WL}"
 printf '{}\n' >"${INLINE_WL}/binding.json"
 cat >"${INLINE_WL}/manifest.json" <<'EOF'
-{ "intent": "run", "source": "artifact.zip" }
+{ "intent": "run", "source": {"kind":"zip","path":"artifact.zip"} }
 EOF
 printf '{}\n' >"${INLINE_WL}/provides.json"
 if artifact_prep_workload "${INLINE_WL}" >/dev/null 2>&1; then
@@ -401,7 +401,7 @@ BUILD_ZIP_WL="${ENV_ROOT}/build-zip-wl"
 mkdir -p "${BUILD_ZIP_WL}"
 printf '{}\n' >"${BUILD_ZIP_WL}/binding.json"
 cat >"${BUILD_ZIP_WL}/manifest.json" <<'EOF'
-{ "intent": "run", "source": "artifact.zip" }
+{ "intent": "run", "source": {"kind":"zip","path":"artifact.zip"} }
 EOF
 BUILD_ARTIFACT_SRC="${TMP}/build-artifact-src"
 mkdir -p "${BUILD_ARTIFACT_SRC}"

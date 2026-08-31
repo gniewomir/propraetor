@@ -34,7 +34,7 @@ acceptance_write_artifact_stubs "${FIX_DIR}/${WL}"
 cat >"${FIX_DIR}/${WL}/manifest.json" <<'EOF'
 {
   "intent": "run",
-  "source": "internal",
+  "source": {"kind":"internal"},
   "description": "Ephemeral Acceptance probe: echo proxied request headers."
 }
 EOF

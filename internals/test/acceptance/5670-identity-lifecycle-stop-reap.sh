@@ -44,7 +44,7 @@ stage_wl() {
   cat >"${FIX_DIR}/${name}/manifest.json" <<EOF
 {
   "intent": "run",
-  "source": "internal",
+  "source": {"kind":"internal"},
   "description": "Identity lifecycle probe ${name}"
 }
 EOF
@@ -192,7 +192,7 @@ pass "minted token authorizes API while Workload Intent is run"
 cat >"${FIX_DIR}/${WL}/manifest.json" <<EOF
 {
   "intent": "stop",
-  "source": "internal",
+  "source": {"kind":"internal"},
   "description": "Identity lifecycle probe ${WL}"
 }
 EOF

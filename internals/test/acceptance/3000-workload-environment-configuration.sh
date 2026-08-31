@@ -65,7 +65,7 @@ write_thin_manifest() {
   cat >"${dir}/manifest.json" <<'EOF'
 {
   "intent": "run",
-  "source": "internal"
+  "source": {"kind":"internal"}
 }
 EOF
 }
@@ -99,7 +99,7 @@ printf 'ENVCFG_TOKEN=x\nENVCFG_MODE=y\n' >"${ENV_FILE}"
 cat >"${FIX_DIR}/${WL}/manifest.json" <<'EOF'
 {
   "intent": "run",
-  "source": "internal",
+  "source": {"kind":"internal"},
   "environment": ["ENVCFG_TOKEN", "ENVCFG_MODE"],
   "public_hostnames": ["nope.example.test"]
 }
@@ -113,7 +113,7 @@ pass "allowlist still rejects unknown keys alongside environment"
 cat >"${FIX_DIR}/${WL}/manifest.json" <<'EOF'
 {
   "intent": "run",
-  "source": "internal",
+  "source": {"kind":"internal"},
   "environment": ["ENVCFG_TOKEN", "ENVCFG_MODE"]
 }
 EOF

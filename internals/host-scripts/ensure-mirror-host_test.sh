@@ -58,7 +58,7 @@ write_internal_stubs() {
 
 # Seed an orphan on the Host that must survive Mirror
 mkdir -p "${HV}/workloads/orphan-left/routes" "${HV}/workloads/orphan-left/persist"
-printf '{"intent":"run","source":"internal"}\n' >"${HV}/workloads/orphan-left/manifest.json"
+printf '{"intent":"run","source": {"kind":"internal"}}\n' >"${HV}/workloads/orphan-left/manifest.json"
 printf 'keep-orphan\n' >"${HV}/workloads/orphan-left/routes/orphan.conf"
 printf 'durable\n' >"${HV}/workloads/orphan-left/persist/state.bin"
 
@@ -75,7 +75,7 @@ write_internal_stubs "${STAGE}/workloads/alpha"
 cat >"${STAGE}/workloads/alpha/manifest.json" <<'EOF'
 {
   "intent": "run",
-  "source": "internal"
+  "source": {"kind":"internal"}
 }
 EOF
 cat >"${STAGE}/workloads/alpha/provides.json" <<'EOF'
@@ -109,7 +109,7 @@ printf 'acme\n' >"${STAGE}/workloads/gamma/www/.well-known/probe"
 
 # Pre-existing Host tree for alpha that Mirror must update (upsert)
 mkdir -p "${HV}/workloads/alpha/routes"
-printf '{"intent":"stop","source":"internal"}\n' >"${HV}/workloads/alpha/manifest.json"
+printf '{"intent":"stop","source": {"kind":"internal"}}\n' >"${HV}/workloads/alpha/manifest.json"
 printf 'stale\n' >"${HV}/workloads/alpha/routes/stale.conf"
 printf 'old-a\n' >"${HV}/workloads/alpha/routes/a.conf"
 
@@ -120,7 +120,7 @@ bash "${STAGE}/ensure-mirror-host.sh" "${USER_NAME}" \
 python3 - "${HV}/workloads/alpha/manifest.json" <<'PY' || fail "alpha Manifest not upserted"
 import json, sys
 m = json.load(open(sys.argv[1], encoding="utf-8"))
-assert m.get("intent") == "run" and m.get("source") == "internal", m
+assert m.get("intent") == "run" and m.get("source") == {"kind": "internal"}, m
 PY
 grep -Fxq 'route-a' "${HV}/workloads/alpha/routes/a.conf" \
   || fail "alpha route not materialized"
@@ -179,7 +179,7 @@ COLLIDE_ART="${TMP}/collide-art"
 mkdir -p "${STAGE}/workloads/collide/extra" "${COLLIDE_ART}/extra" "${COLLIDE_ART}/systemd"
 write_internal_stubs "${STAGE}/workloads/collide"
 cat >"${STAGE}/workloads/collide/manifest.json" <<'EOF'
-{ "intent": "stop", "source": "internal" }
+{ "intent": "stop", "source": {"kind":"internal"} }
 EOF
 cat >"${STAGE}/workloads/collide/provides.json" <<'EOF'
 { "directories": { ".": "entire artifact root" } }
@@ -220,7 +220,7 @@ printf '{}\n' >"${STAGE}/workloads/zippy/binding.json"
 cat >"${STAGE}/workloads/zippy/manifest.json" <<EOF
 {
   "intent": "run",
-  "source": "${ZIP_URI}"
+  "source": { "kind": "zip", "uri": "${ZIP_URI}" }
 }
 EOF
 stage_artifact_zip "zippy" "${ZIP_ROOT}"
@@ -242,7 +242,8 @@ python3 - "${HV}/workloads/zippy/manifest.json" <<'PY' || fail "zip Manifest mus
 import json, sys
 m = json.load(open(sys.argv[1], encoding="utf-8"))
 assert m.get("intent") == "run"
-assert str(m.get("source", "")).endswith(".zip")
+src = m.get("source")
+assert isinstance(src, dict) and src.get("kind") == "zip" and src.get("uri", "").endswith(".zip")
 PY
 [[ -f "${HV}/workloads/zippy/binding.json" ]] \
   || fail "zip Environment Binding must remain on Host"
@@ -258,7 +259,7 @@ printf '{}\n' >"${STAGE}/workloads/zippath/binding.json"
 cat >"${STAGE}/workloads/zippath/manifest.json" <<'EOF'
 {
   "intent": "run",
-  "source": "artifact.zip"
+  "source": {"kind":"zip","path":"artifact.zip"}
 }
 EOF
 stage_artifact_zip "zippath" "${ZIP_ROOT}"

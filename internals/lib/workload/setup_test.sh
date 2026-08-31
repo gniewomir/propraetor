@@ -19,7 +19,7 @@ ENV_DIR="${TMP}/env"
 WL_DIR="${ENV_DIR}/demo"
 mkdir -p "${WL_DIR}/systemd"
 cat >"${WL_DIR}/manifest.json" <<'EOF'
-{ "intent": "run", "source": "internal" }
+{ "intent": "run", "source": {"kind":"internal"} }
 EOF
 printf '{}\n' >"${WL_DIR}/binding.json"
 printf '{ "database": false, "cache": false, "environment": {} }\n' \

@@ -1,5 +1,5 @@
 {
   "intent": "run",
   "description": "Self-hosted Umami web analytics",
-  "source": "internal"
+  "source": {"kind":"internal"}
 }

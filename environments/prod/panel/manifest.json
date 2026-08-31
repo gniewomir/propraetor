@@ -1,5 +1,5 @@
 {
   "intent": "run",
   "description": "Propraetor panel",
-  "source": "internal"
+  "source": {"kind":"internal"}
 }

@@ -16,7 +16,7 @@ trap 'rm -rf "${TMP}"' EXIT
 TREE="${TMP}/demo"
 mkdir -p "${TREE}/systemd"
 cat >"${TREE}/manifest.json" <<'EOF'
-{ "intent": "run", "source": "internal" }
+{ "intent": "run", "source": {"kind":"internal"} }
 EOF
 printf '[Container]\nImage=localhost/demo\n' >"${TREE}/systemd/demo.container"
 printf '{}\n' >"${TREE}/provides.json"

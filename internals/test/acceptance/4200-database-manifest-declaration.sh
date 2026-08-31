@@ -44,7 +44,7 @@ EOF
 cat >"${FIX_DIR}/${WL}/manifest.json" <<'EOF'
 {
   "intent": "run",
-  "source": "internal",
+  "source": {"kind":"internal"},
   "database": true,
   "public_hostnames": ["nope.example.test"]
 }
@@ -57,7 +57,7 @@ pass "allowlist still rejects unknown keys alongside database"
 cat >"${FIX_DIR}/${WL}/manifest.json" <<'EOF'
 {
   "intent": "run",
-  "source": "internal",
+  "source": {"kind":"internal"},
   "database": "true"
 }
 EOF
@@ -70,7 +70,7 @@ pass "retired Manifest database fails closed"
 cat >"${FIX_DIR}/${WL}/manifest.json" <<'EOF'
 {
   "intent": "run",
-  "source": "internal",
+  "source": {"kind":"internal"},
   "environment": ["ROOT_DB_USER"]
 }
 EOF
@@ -91,7 +91,7 @@ pass "ROOT_DB_USER on Manifest environment fails closed"
 cat >"${FIX_DIR}/${WL}/manifest.json" <<'EOF'
 {
   "intent": "run",
-  "source": "internal",
+  "source": {"kind":"internal"},
   "environment": ["ROOT_DB_PASSWORD"]
 }
 EOF
@@ -104,7 +104,7 @@ pass "ROOT_DB_PASSWORD on Manifest environment fails closed"
 cat >"${FIX_DIR}/${WL}/manifest.json" <<'EOF'
 {
   "intent": "run",
-  "source": "internal",
+  "source": {"kind":"internal"},
   "description": "Requires database claimant — Setup must not fulfill Database"
 }
 EOF

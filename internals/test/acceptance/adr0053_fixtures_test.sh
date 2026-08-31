@@ -46,7 +46,7 @@ trap 'rm -rf "${TMP}"' EXIT
 mkdir -p "${TMP}/retired-env"
 acceptance_write_artifact_stubs "${TMP}/retired-env"
 cat >"${TMP}/retired-env/manifest.json" <<'EOF'
-{ "intent": "run", "source": "internal", "environment": ["ENV_KEY"] }
+{ "intent": "run", "source": {"kind":"internal"}, "environment": ["ENV_KEY"] }
 EOF
 if (acceptance_assert_artifact_tree "${TMP}/retired-env" "retired-env") >/dev/null 2>&1; then
   fail "Manifest environment must fail artifact-tree assert"
@@ -56,7 +56,7 @@ pass "retired Manifest environment fails artifact-tree assert"
 mkdir -p "${TMP}/retired-db"
 acceptance_write_artifact_stubs "${TMP}/retired-db"
 cat >"${TMP}/retired-db/manifest.json" <<'EOF'
-{ "intent": "run", "source": "internal", "database": true }
+{ "intent": "run", "source": {"kind":"internal"}, "database": true }
 EOF
 if (acceptance_assert_artifact_tree "${TMP}/retired-db" "retired-db") >/dev/null 2>&1; then
   fail "Manifest database must fail artifact-tree assert"
@@ -66,7 +66,7 @@ pass "retired Manifest database fails artifact-tree assert"
 mkdir -p "${TMP}/retired-cache"
 acceptance_write_artifact_stubs "${TMP}/retired-cache"
 cat >"${TMP}/retired-cache/manifest.json" <<'EOF'
-{ "intent": "run", "source": "internal", "cache": true }
+{ "intent": "run", "source": {"kind":"internal"}, "cache": true }
 EOF
 if (acceptance_assert_artifact_tree "${TMP}/retired-cache" "retired-cache") >/dev/null 2>&1; then
   fail "Manifest cache must fail artifact-tree assert"
@@ -76,7 +76,7 @@ pass "retired Manifest cache fails artifact-tree assert"
 mkdir -p "${TMP}/ok"
 acceptance_write_artifact_stubs "${TMP}/ok"
 cat >"${TMP}/ok/manifest.json" <<'EOF'
-{ "intent": "run", "source": "internal" }
+{ "intent": "run", "source": {"kind":"internal"} }
 EOF
 acceptance_assert_artifact_tree "${TMP}/ok" "stub tree"
 pass "thin stub tree passes artifact-tree assert"

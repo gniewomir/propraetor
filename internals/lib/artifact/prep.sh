@@ -248,26 +248,24 @@ artifact_prep_internal() {
 artifact_prep_zip() {
   local workload_dir="${1:?artifact_prep_zip: Workload dir required}"
   local source="${2:?artifact_prep_zip: Source required}"
-  local kind="${3:?artifact_prep_zip: kind required}"
-  local extract_tmp materials artifact_root zip_path
-
-  [[ "${kind}" == "path" || "${kind}" == "uri" ]] || {
-    echo "artifact_prep_zip: kind must be path or uri" >&2
-    return 1
-  }
+  local extract_tmp materials artifact_root zip_path zip_uri
 
   extract_tmp="$(umask 077; mktemp -d "${TMPDIR:-/tmp}/artifact-prep-zip.XXXXXX")" || return 1
-  if [[ "${kind}" == "path" ]]; then
-    zip_path="${workload_dir}/${source}"
+  if zip_path="$(artifact_source_zip_path "${source}" 2>/dev/null)"; then
+    zip_path="${workload_dir}/${zip_path}"
     if ! artifact_source_zip_extract "${zip_path}" "${extract_tmp}"; then
       rm -rf "${extract_tmp}"
       return 1
     fi
-  else
-    if ! _artifact_prep_fetch_uri "${source}" "${extract_tmp}"; then
+  elif zip_uri="$(artifact_source_zip_uri "${source}" 2>/dev/null)"; then
+    if ! _artifact_prep_fetch_uri "${zip_uri}" "${extract_tmp}"; then
       rm -rf "${extract_tmp}"
       return 1
     fi
+  else
+    echo "artifact_prep_zip: zip Source must have path or uri" >&2
+    rm -rf "${extract_tmp}"
+    return 1
   fi
 
   materials="${extract_tmp}"
@@ -352,8 +350,8 @@ artifact_prep_workload() {
     internal)
       artifact_prep_internal "${workload_dir}"
       ;;
-    path | uri)
-      artifact_prep_zip "${workload_dir}" "${source}" "${kind}"
+    zip)
+      artifact_prep_zip "${workload_dir}" "${source}"
       ;;
     git)
       artifact_prep_git "${workload_dir}" "${source}"

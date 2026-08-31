@@ -22,7 +22,7 @@ cat >"${FIX_DIR}/alpha/manifest.json" <<'EOF'
 {
   "intent": "run",
   "description": "alpha probe — ignored by automation",
-  "source": "internal"
+  "source": {"kind":"internal"}
 }
 EOF
 cat >"${FIX_DIR}/alpha/systemd/alpha-probe.container" <<'EOF'
@@ -87,7 +87,7 @@ mkdir -p "${FIX_DIR}/sourced"
 cat >"${FIX_DIR}/sourced/manifest.json" <<'EOF'
 {
   "intent": "run",
-  "source": "https://example.test/bundle.tar"
+  "source": {"kind":"zip","uri":"https://example.test/bundle.tar"}
 }
 EOF
 
@@ -95,7 +95,7 @@ mkdir -p "${FIX_DIR}/retired-env"
 cat >"${FIX_DIR}/retired-env/manifest.json" <<'EOF'
 {
   "intent": "run",
-  "source": "internal",
+  "source": {"kind":"internal"},
   "environment": ["ENV_KEY"]
 }
 EOF
@@ -104,7 +104,7 @@ mkdir -p "${FIX_DIR}/retired-db"
 cat >"${FIX_DIR}/retired-db/manifest.json" <<'EOF'
 {
   "intent": "run",
-  "source": "internal",
+  "source": {"kind":"internal"},
   "database": true
 }
 EOF
@@ -114,7 +114,7 @@ acceptance_write_artifact_stubs "${FIX_DIR}/zero"
 cat >"${FIX_DIR}/zero/manifest.json" <<'EOF'
 {
   "intent": "run",
-  "source": "internal"
+  "source": {"kind":"internal"}
 }
 EOF
 cat >"${FIX_DIR}/zero/systemd/zero-probe.container" <<'EOF'
@@ -138,7 +138,7 @@ acceptance_write_artifact_stubs "${FIX_DIR}/clash"
 cat >"${FIX_DIR}/clash/manifest.json" <<'EOF'
 {
   "intent": "run",
-  "source": "internal"
+  "source": {"kind":"internal"}
 }
 EOF
 # Collide with Component unit basename already on the Host.
@@ -162,10 +162,10 @@ mkdir -p "${FIX_DIR}/owner-a/systemd" "${FIX_DIR}/owner-b/systemd"
 acceptance_write_artifact_stubs "${FIX_DIR}/owner-a"
 acceptance_write_artifact_stubs "${FIX_DIR}/owner-b"
 cat >"${FIX_DIR}/owner-a/manifest.json" <<'EOF'
-{ "intent": "run", "source": "internal" }
+{ "intent": "run", "source": {"kind":"internal"} }
 EOF
 cat >"${FIX_DIR}/owner-b/manifest.json" <<'EOF'
-{ "intent": "run", "source": "internal" }
+{ "intent": "run", "source": {"kind":"internal"} }
 EOF
 cat >"${FIX_DIR}/owner-a/systemd/shared-name.container" <<'EOF'
 [Unit]

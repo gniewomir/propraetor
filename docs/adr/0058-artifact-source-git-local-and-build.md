@@ -8,8 +8,8 @@ Operators need to materialize a package from another repository (or a workstatio
 
 **Source kinds (v1):**
 
-- **`internal`** — unchanged: Artifact is the Environment Workload directory beside Manifest and Binding. Authored as the string `"internal"` (same as today). Materials = Artifact.
-- **`zip`** — unchanged: relative `.zip` under the Workload directory or unauthenticated http(s) zip URI (string forms as today); Environment tree is Manifest + Binding (+ path zip); peel rules as ADR-0053. Materials = Artifact (zip root after peel).
+- **`internal`** — `{ "kind": "internal" }` (ADR-0060). Artifact is the Environment Workload directory beside Manifest and Binding. Materials = Artifact.
+- **`zip`** — `{ "kind": "zip", "path" }` or `{ "kind": "zip", "uri" }` (ADR-0060). Relative `.zip` under the Workload directory or unauthenticated http(s) zip URI; Environment tree is Manifest + Binding (+ path zip); peel rules as ADR-0053. Materials = Artifact (zip root after peel).
 - **`git`** — object `{ "kind": "git", "url", "commit", "path" }`. Environment tree is Manifest + Binding only (≈ zip layout). Materials = repository tree at full-sha `commit` (HTTPS fetch; missing `git` fails closed). Artifact root = `path` inside that tree (`.` allowed). No branch, SSH, or credentials in v1. Pin is mandatory.
 - **`local`** — object `{ "kind": "local", "path" }`. Unpinned on purpose. Operator Configuration **Projects root** (`PROPRAETOR_PROJECTS_ROOT`: absolute or `~/…`, existing directory) roots the Manifest `path` (Artifact directory under that tree; no `..`, no absolute, no escape) — it is **not** materials. **Project root** = `git` toplevel of the repository that contains that Artifact; missing git / no toplevel fails closed. Operator stages the Project root as materials (Host never reads the workstation path) and rewrites the **staged** Manifest `source.path` to the Artifact path relative to that Project root (operator SoT Manifest stays Projects-root-relative). Host materialize then matches `git`: materials = repo tree, Artifact = path inside it. Project root must lie under Projects root. Allowed in any Environment. Missing Projects root when Source is `local` fails closed.
 
@@ -20,5 +20,7 @@ Operators need to materialize a package from another repository (or a workstatio
 **Tracking:** #259
 
 **Rejected:** Propraetor reading `package.json` / inventing npm; host-native (non-container) build; materialize-time build on the operator as a second path; local commit pinning; absolute local paths in Manifest; Host reading operator filesystem paths; private / SSH git in v1; build output replacing Artifact contracts; folding Artifact Build into Ensure `.build`; digest-mandatory builder images in v1; build result cache in v1; leaving the full materials tree as the Host Workload owner tree; staging the whole Projects root as materials for `local`; sparse Projects-root-shaped stage trees or Host sidecars instead of rewriting staged Manifest `path` to Project-root-relative.
+
+**Amended by ADR-0060:** Source authoring shape (object-only `internal` / `zip` / `git` / `local`).
 
 **Deferred:** private remotes (Operator Configuration credentials); build/materials cache keyed by commit + `build.json` + image; zip integrity pinning (unchanged deferral from ADR-0053); tighter overlay ⊆ Provides `directories` check; sparse materials (subset of a Project root) instead of whole-repo obtain.

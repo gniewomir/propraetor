@@ -36,7 +36,7 @@ write_internal_tree() {
   printf '{ "directories": { "www": "static" } }\n' >"${tree}/provides.json"
   printf '{ "database": false, "cache": false }\n' >"${tree}/requires.json"
   cat >"${tree}/manifest.json" <<'EOF'
-{ "intent": "run", "source": "internal" }
+{ "intent": "run", "source": {"kind":"internal"} }
 EOF
   printf '[Container]\nImage=localhost/proj\n' >"${tree}/systemd/proj.container"
   printf 'content-v1\n' >"${tree}/www/index.html"

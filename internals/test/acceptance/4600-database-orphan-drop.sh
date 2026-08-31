@@ -33,7 +33,7 @@ stage_wl() {
   cat >"${FIX_DIR}/${name}/manifest.json" <<EOF
 {
   "intent": "run",
-  "source": "internal",
+  "source": {"kind":"internal"},
   "description": "Database Orphan Reap drop probe"
 }
 EOF

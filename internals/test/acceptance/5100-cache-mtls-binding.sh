@@ -28,7 +28,7 @@ mkdir -p "${FIX_DIR}/${WL}/systemd"
 cat >"${FIX_DIR}/${WL}/manifest.json" <<'EOF'
 {
   "intent": "run",
-  "source": "internal",
+  "source": {"kind":"internal"},
   "description": "passwordless mTLS Cache probe"
 }
 EOF

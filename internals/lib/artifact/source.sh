@@ -1,19 +1,21 @@
 #!/usr/bin/env bash
-# Workload Source contract (ADR-0053 / ADR-0058 / #199 / #259).
+# Workload Source contract (ADR-0060 / ADR-0053 / ADR-0058 / ADR-0059).
 # Sourced by Mirror / Manifest readers and Host materialize.
 #
 # artifact_source_validate VALUE
-#   Print canonical Source when VALUE is "internal", a relative zip path, an
-#   unauthenticated http(s) zip URI, or compact JSON for kind git|local.
+#   Print canonical Source JSON object for kind internal|zip|git|local.
 #
 # artifact_source_kind VALUE
-#   Print internal | path | uri | git | local after validating VALUE.
+#   Print internal | zip | git | local after validating VALUE.
 #
 # artifact_source_from_manifest MANIFEST
 #   Read Manifest `source` and validate via artifact_source_validate.
 #
 # artifact_source_git_url / artifact_source_git_commit / artifact_source_artifact_path VALUE
-#   Field readers for object Sources (path also works for local).
+#   Field readers for git/local Sources.
+#
+# artifact_source_zip_path / artifact_source_zip_uri VALUE
+#   Field readers for zip Sources (path XOR uri).
 #
 # artifact_source_resolve_artifact_root MATERIALS REL
 #   Resolve REL under MATERIALS; refuse absolute / .. / escape.
@@ -35,7 +37,7 @@
 #   resolving TREE itself, so an Environment-level Workload-dir symlink is OK).
 #
 # artifact_source_path_file_gate TREE
-#   When Manifest Source is a zip path: fail closed unless that path is a
+#   When Manifest Source is zip with path: fail closed unless that path is a
 #   regular file (not a symlink) under TREE.
 #
 # artifact_source_tree_gate TREE
@@ -75,25 +77,9 @@ def rel_path_ok(path, label):
     return path
 
 
-def validate_zip_string(value):
-    if value == "internal":
-        return value
-    if not value:
-        die(
-            'Source must be "internal", a relative zip path, an unauthenticated '
-            "http(s) zip URI, or an object {kind:git|local,...}"
-        )
-    parsed = urlparse(value)
-    scheme = (parsed.scheme or "").lower()
-    if scheme in ("http", "https"):
-        if not parsed.netloc:
-            die("Source URI must be http(s) with a host")
-        path = parsed.path or ""
-        if not path.lower().endswith(".zip"):
-            die("Source URI path must end with .zip")
-        return value
-    if scheme:
-        die("Source URI must be http(s) with a host")
+def validate_zip_path_string(value):
+    if not isinstance(value, str) or not value:
+        die("zip Source path must be a non-empty string")
     if value.startswith("/") or "\\" in value:
         die("Source zip path must be relative to the Workload directory")
     parts = value.split("/")
@@ -103,6 +89,45 @@ def validate_zip_string(value):
     if not last.lower().endswith(".zip") or len(last) <= 4:
         die("Source zip path must end with .zip")
     return value
+
+
+def validate_zip_uri_string(value):
+    if not isinstance(value, str) or not value:
+        die("zip Source uri must be a non-empty string")
+    parsed = urlparse(value)
+    scheme = (parsed.scheme or "").lower()
+    if scheme not in ("http", "https"):
+        die("Source URI must be http(s) with a host")
+    if not parsed.netloc:
+        die("Source URI must be http(s) with a host")
+    path = parsed.path or ""
+    if not path.lower().endswith(".zip"):
+        die("Source URI path must end with .zip")
+    return value
+
+
+def validate_internal(obj):
+    extra = sorted(set(obj) - {"kind"})
+    if extra:
+        die("internal Source unknown keys: " + ", ".join(extra))
+    if obj.get("kind") != "internal":
+        die('internal Source kind must be "internal"')
+    return {"kind": "internal"}
+
+
+def validate_zip(obj):
+    extra = sorted(set(obj) - {"kind", "path", "uri"})
+    if extra:
+        die("zip Source unknown keys: " + ", ".join(extra))
+    has_path = "path" in obj
+    has_uri = "uri" in obj
+    if has_path == has_uri:
+        die("zip Source must have exactly one of path or uri")
+    if has_path:
+        path = validate_zip_path_string(obj["path"])
+        return {"kind": "zip", "path": path}
+    uri = validate_zip_uri_string(obj["uri"])
+    return {"kind": "zip", "uri": uri}
 
 
 def validate_git(obj):
@@ -137,36 +162,30 @@ def validate_local(obj):
 
 
 def validate_value(raw):
-    if isinstance(raw, dict):
-        kind = raw.get("kind")
-        if kind == "git":
-            return validate_git(raw)
-        if kind == "local":
-            return validate_local(raw)
-        die('Source object kind must be "git" or "local"')
-    if isinstance(raw, str):
-        return validate_zip_string(raw)
-    die("Source must be a string or object")
+    if not isinstance(raw, dict):
+        die('Source must be an object with kind "internal", "zip", "git", or "local"')
+    kind = raw.get("kind")
+    if kind == "internal":
+        return validate_internal(raw)
+    if kind == "zip":
+        return validate_zip(raw)
+    if kind == "git":
+        return validate_git(raw)
+    if kind == "local":
+        return validate_local(raw)
+    die('Source object kind must be "internal", "zip", "git", or "local"')
 
 
 def canonical(value):
     validated = validate_value(value)
-    if isinstance(validated, dict):
-        return json.dumps(validated, separators=(",", ":"), sort_keys=True)
-    return validated
+    return json.dumps(validated, separators=(",", ":"), sort_keys=True)
 
 
 def kind_of(canonical_src):
-    if canonical_src == "internal":
-        return "internal"
-    if canonical_src.startswith("{"):
-        obj = json.loads(canonical_src)
-        return obj["kind"]
-    parsed = urlparse(canonical_src)
-    scheme = (parsed.scheme or "").lower()
-    if scheme in ("http", "https"):
-        return "uri"
-    return "path"
+    if not canonical_src.startswith("{"):
+        die("Source must be a canonical object")
+    obj = json.loads(canonical_src)
+    return obj["kind"]
 
 
 def parse_object(canonical_src):
@@ -177,17 +196,14 @@ PY
 }
 
 _artifact_source_py_validate() {
-  # VALUE may be a string form or compact JSON object.
+  # VALUE is compact JSON for a Source object.
   python3 -c "
 $(_artifact_source_py_lib)
 raw = sys.argv[1]
-if raw.startswith('{'):
-    try:
-        value = json.loads(raw)
-    except json.JSONDecodeError:
-        die('Source object is not valid JSON')
-else:
-    value = raw
+try:
+    value = json.loads(raw)
+except json.JSONDecodeError:
+    die('Source object is not valid JSON')
 print(canonical(value))
 " "${1-}"
 }
@@ -269,6 +285,34 @@ obj = parse_object(sys.argv[1])
 if obj.get('kind') not in ('git', 'local'):
     die('Source has no Artifact path field')
 print(obj['path'])
+" "${value}"
+}
+
+artifact_source_zip_path() {
+  local value
+  value="$(artifact_source_validate "${1-}")" || return 1
+  python3 -c "
+$(_artifact_source_py_lib)
+obj = parse_object(sys.argv[1])
+if obj.get('kind') != 'zip':
+    die('Source is not zip')
+if 'path' not in obj:
+    die('zip Source has no path')
+print(obj['path'])
+" "${value}"
+}
+
+artifact_source_zip_uri() {
+  local value
+  value="$(artifact_source_validate "${1-}")" || return 1
+  python3 -c "
+$(_artifact_source_py_lib)
+obj = parse_object(sys.argv[1])
+if obj.get('kind') != 'zip':
+    die('Source is not zip')
+if 'uri' not in obj:
+    die('zip Source has no uri')
+print(obj['uri'])
 " "${value}"
 }
 
@@ -483,7 +527,7 @@ PY
 
 artifact_source_path_file_gate() {
   local tree="${1:?artifact_source_path_file_gate: Workload tree required}"
-  local manifest source kind zip_path
+  local manifest source kind zip_rel zip_path
 
   [[ -d "${tree}" ]] || {
     echo "artifact_source_path_file_gate: tree missing: ${tree}" >&2
@@ -495,8 +539,11 @@ artifact_source_path_file_gate() {
   fi
   source="$(artifact_source_from_manifest "${manifest}")" || return 1
   kind="$(artifact_source_kind "${source}")" || return 1
-  [[ "${kind}" == "path" ]] || return 0
-  zip_path="${tree}/${source}"
+  [[ "${kind}" == "zip" ]] || return 0
+  if ! zip_rel="$(artifact_source_zip_path "${source}" 2>/dev/null)"; then
+    return 0
+  fi
+  zip_path="${tree}/${zip_rel}"
   if [[ -L "${zip_path}" ]]; then
     echo "zip path Source must be a regular file, not a symlink: ${zip_path}" >&2
     return 1

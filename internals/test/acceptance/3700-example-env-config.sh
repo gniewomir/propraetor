@@ -106,7 +106,7 @@ sot_grep="$(host_ssh "grep -R -F '${GREETING}' /host-volume/workloads/${WL} 2>/d
 pass "bag values absent from Host Volume SoT"
 
 cat >"${FIX_DIR}/${WL}/manifest.json" <<'EOF'
-{ "intent": "stop", "source": "internal" }
+{ "intent": "stop", "source": {"kind":"internal"} }
 EOF
 "${REPO_ROOT}/internals/ensure-workload.sh" "${WL}" --env "${ENV_SLUG}"
 rm -f "${ENV_FILE}"

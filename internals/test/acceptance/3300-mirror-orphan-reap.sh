@@ -21,7 +21,7 @@ stage_wl() {
   cat >"${FIX_DIR}/${name}/manifest.json" <<EOF
 {
   "intent": "stop",
-  "source": "internal"
+  "source": {"kind":"internal"}
 }
 EOF
   cat >"${FIX_DIR}/${name}/systemd/${name}.container" <<EOF
@@ -69,7 +69,7 @@ host_ssh "test -L /home/platform/.config/containers/systemd/workload-gone-soon" 
 rm -rf "${FIX_DIR}/gone-soon"
 
 # Mirror upserts keep-alive and must leave the orphan alone (incl. Persist)
-printf '{"intent":"stop","source":"internal","description":"mirrored"}\n' >"${FIX_DIR}/keep-alive/manifest.json"
+printf '{"intent":"stop","source": {"kind":"internal"},"description":"mirrored"}\n' >"${FIX_DIR}/keep-alive/manifest.json"
 acceptance_prep_workload "${FIX_DIR}/keep-alive"
 "${REPO_ROOT}/internals/ensure-mirror.sh" --env "${ENV_SLUG}"
 

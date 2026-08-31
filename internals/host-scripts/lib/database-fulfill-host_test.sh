@@ -96,7 +96,7 @@ write_claim_tree() {
   local intent="$2"
   local database_json="$3"
   mkdir -p "${dir}"
-  printf '%s\n' "{\"intent\":\"${intent}\",\"source\":\"internal\"}" >"${dir}/manifest.json"
+  printf '%s\n' "{\"intent\":\"${intent}\",\"source\":{\"kind\":\"internal\"}}" >"${dir}/manifest.json"
   printf '%s\n' "${database_json}" >"${dir}/requires.json"
 }
 
@@ -118,7 +118,7 @@ pass "Requires database claim is gated on Intent run; trash rejected"
 
 # Manifest database must not claim (clean break; retired key).
 mkdir -p "${CLAIM}"
-printf '%s\n' '{"intent":"run","source":"internal","database":true}' \
+printf '%s\n' '{"intent":"run","source": {"kind":"internal"},"database":true}' \
   >"${CLAIM}/manifest.json"
 printf '%s\n' '{ "database": false, "cache": false }' >"${CLAIM}/requires.json"
 [[ "$(database_workload_is_run_claimant "${CLAIM}")" == "0" ]] \

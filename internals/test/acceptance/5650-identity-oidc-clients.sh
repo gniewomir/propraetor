@@ -42,7 +42,7 @@ for wl in "${API_A}" "${API_B}"; do
   cat >"${FIX_DIR}/${wl}/manifest.json" <<EOF
 {
   "intent": "run",
-  "source": "internal",
+  "source": {"kind":"internal"},
   "description": "Identity API catalog for OIDC client probe"
 }
 EOF
@@ -76,7 +76,7 @@ mkdir -p "${FIX_DIR}/${SPA}/systemd"
 cat >"${FIX_DIR}/${SPA}/manifest.json" <<EOF
 {
   "intent": "run",
-  "source": "internal",
+  "source": {"kind":"internal"},
   "description": "Identity OIDC client probe"
 }
 EOF

@@ -45,7 +45,7 @@ mk_wl() {
   local name="${2:?name required}"
   mkdir -p "${dir}"
   cat >"${dir}/manifest.json" <<EOF
-{ "intent": "run", "source": "internal" }
+{ "intent": "run", "source": {"kind":"internal"} }
 EOF
   # Caller writes requires.json / provides.json.
   :

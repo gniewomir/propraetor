@@ -54,7 +54,7 @@ printf '{}\n' >"${FIX_DIR}/${WL}/binding.json"
 cat >"${FIX_DIR}/${WL}/manifest.json" <<'EOF'
 {
   "intent": "stop",
-  "source": "artifact.zip"
+  "source": {"kind":"zip","path":"artifact.zip"}
 }
 EOF
 [[ ! -f "${FIX_DIR}/${WL}/provides.json" ]] \

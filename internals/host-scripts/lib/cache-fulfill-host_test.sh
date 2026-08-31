@@ -94,7 +94,7 @@ write_claim_tree() {
   local intent="$2"
   local requires_json="$3"
   mkdir -p "${dir}"
-  printf '%s\n' "{\"intent\":\"${intent}\",\"source\":\"internal\"}" >"${dir}/manifest.json"
+  printf '%s\n' "{\"intent\":\"${intent}\",\"source\":{\"kind\":\"internal\"}}" >"${dir}/manifest.json"
   printf '%s\n' "${requires_json}" >"${dir}/requires.json"
 }
 
@@ -116,7 +116,7 @@ pass "Requires cache claim is gated on Intent run; trash rejected"
 
 # Manifest must not claim (Requires is SoT).
 mkdir -p "${CLAIM}"
-printf '%s\n' '{"intent":"run","source":"internal"}' >"${CLAIM}/manifest.json"
+printf '%s\n' '{"intent":"run","source": {"kind":"internal"}}' >"${CLAIM}/manifest.json"
 printf '%s\n' '{ "database": false, "cache": false }' >"${CLAIM}/requires.json"
 [[ "$(cache_workload_is_run_claimant "${CLAIM}")" == "0" ]] \
   || fail "Requires cache:false must not claim"

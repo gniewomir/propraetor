@@ -16,7 +16,7 @@ MANIFEST="${TMP}/manifest.json"
 
 # --- allowlist {intent, description, source} ---
 cat >"${MANIFEST}" <<'EOF'
-{ "intent": "run", "source": "internal" }
+{ "intent": "run", "source": {"kind":"internal"} }
 EOF
 artifact_manifest_validate "${MANIFEST}" || fail "intent+source must pass"
 pass "intent + source"
@@ -25,7 +25,7 @@ cat >"${MANIFEST}" <<'EOF'
 {
   "intent": "stop",
   "description": "human only",
-  "source": "internal"
+  "source": {"kind":"internal"}
 }
 EOF
 artifact_manifest_validate "${MANIFEST}" || fail "optional description must pass"
@@ -33,13 +33,13 @@ pass "intent + description + source"
 
 zip_uri='https://example.com/artifact.zip'
 cat >"${MANIFEST}" <<EOF
-{ "intent": "run", "source": "${zip_uri}" }
+{ "intent": "run", "source": { "kind": "zip", "uri": "${zip_uri}" } }
 EOF
 artifact_manifest_validate "${MANIFEST}" || fail "zip URI Source must pass"
 pass "zip URI Source"
 
 cat >"${MANIFEST}" <<'EOF'
-{ "intent": "run", "source": "vendor/app.zip" }
+{ "intent": "run", "source": {"kind":"zip","path":"vendor/app.zip"} }
 EOF
 artifact_manifest_validate "${MANIFEST}" || fail "zip path Source must pass"
 pass "zip path Source"
@@ -54,7 +54,7 @@ fi
 pass "missing Source fails closed"
 
 cat >"${MANIFEST}" <<'EOF'
-{ "intent": "run", "source": "https://example.test/bundle.tar" }
+{ "intent": "run", "source": {"kind":"zip","uri":"https://example.test/bundle.tar"} }
 EOF
 if artifact_manifest_validate "${MANIFEST}" >/dev/null 2>&1; then
   fail "non-zip Source URI must fail closed"
@@ -63,25 +63,25 @@ pass "invalid Source fails closed"
 
 # --- retired / unknown keys fail closed ---
 cat >"${MANIFEST}" <<'EOF'
-{ "intent": "run", "source": "internal", "environment": ["A"] }
+{ "intent": "run", "source": {"kind":"internal"}, "environment": ["A"] }
 EOF
 if artifact_manifest_validate "${MANIFEST}" >/dev/null 2>&1; then
   fail "Manifest environment must fail closed"
 fi
 cat >"${MANIFEST}" <<'EOF'
-{ "intent": "run", "source": "internal", "database": true }
+{ "intent": "run", "source": {"kind":"internal"}, "database": true }
 EOF
 if artifact_manifest_validate "${MANIFEST}" >/dev/null 2>&1; then
   fail "Manifest database must fail closed"
 fi
 cat >"${MANIFEST}" <<'EOF'
-{ "intent": "run", "source": "internal", "cache": true }
+{ "intent": "run", "source": {"kind":"internal"}, "cache": true }
 EOF
 if artifact_manifest_validate "${MANIFEST}" >/dev/null 2>&1; then
   fail "Manifest cache must fail closed"
 fi
 cat >"${MANIFEST}" <<'EOF'
-{ "intent": "run", "source": "internal", "name": "x" }
+{ "intent": "run", "source": {"kind":"internal"}, "name": "x" }
 EOF
 if artifact_manifest_validate "${MANIFEST}" >/dev/null 2>&1; then
   fail "unknown Manifest key must fail closed"
@@ -90,7 +90,7 @@ pass "retired and unknown keys fail closed"
 
 # --- description type ---
 cat >"${MANIFEST}" <<'EOF'
-{ "intent": "run", "source": "internal", "description": 1 }
+{ "intent": "run", "source": {"kind":"internal"}, "description": 1 }
 EOF
 if artifact_manifest_validate "${MANIFEST}" >/dev/null 2>&1; then
   fail "non-string description must fail closed"

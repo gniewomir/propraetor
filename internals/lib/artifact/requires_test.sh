@@ -144,7 +144,7 @@ pass "invalid Requires fails closed"
 
 # --- Manifest does not declare Cache need (ADR-0055 / #220) ---
 cat >"${MANIFEST}" <<'EOF'
-{ "intent": "run", "source": "internal", "cache": true }
+{ "intent": "run", "source": {"kind":"internal"}, "cache": true }
 EOF
 if artifact_manifest_validate "${MANIFEST}" >/dev/null 2>&1; then
   fail "Manifest cache must fail closed"

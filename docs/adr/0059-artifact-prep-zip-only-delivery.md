@@ -6,12 +6,12 @@ Every Workload reaches the Host as a zip: **Artifact Prep** evaluates committed 
 
 **Checksum** is the **output content hash** (SHA-256 hex of the staged zip bytes). It is the deploy identity for that Workload on this run — what Mirror must land on the Host — not an input pin and not a skip-build key. Prep always rebuilds; Mirror always extracts and applies Provides (Host checksum no-op deferred).
 
-**Manifest Source (prep-facing)** declares where **materials** or a finished Artifact come from. Discriminated kinds (v1):
+**Manifest Source (prep-facing)** declares where **materials** or a finished Artifact come from. Authoring shape: ADR-0060. Discriminated kinds (v1):
 
-- **`zip`** — finished Artifact zip: relative `.zip` under the Workload directory or unauthenticated http(s) zip URI. Prep extracts, validates Artifact layout, re-zips — staged checksum is of the normalized Propraetor zip. Optional `build.json` inside the obtained Artifact root runs **Artifact Build** before re-zip (same overlay rules as ADR-0058).
+- **`zip`** — `{ "kind": "zip", "path" }` or `{ "kind": "zip", "uri" }`. Prep extracts, validates Artifact layout, re-zips — staged checksum is of the normalized Propraetor zip. Optional `build.json` inside the obtained Artifact root runs **Artifact Build** before re-zip (same overlay rules as ADR-0058).
 - **`git`** — `{ "kind": "git", "url", "commit", "path" }`. Prep HTTPS-fetches repo at `commit`; **materials** = repo tree; Artifact root = `path` inside it.
 - **`local`** — `{ "kind": "local", "path" }`. Prep resolves **Projects root** + relative `path`; **Project root** = git toplevel containing that Artifact; **materials** = Project root tree; Artifact root = path inside it.
-- **`internal`** — string `"internal"`. The Environment Workload directory is the authoring home for the whole Workload: **materials** = that directory excluding `manifest.json` and `binding.json` only (inline `provides.json`, `requires.json`, `systemd/`, route fragments, and other Artifact bytes are allowed and are Prep input). Optional `build.json` at the Artifact root runs **Artifact Build** before zipping. Never zip `persist/`. Host delivery is still the staged zip from **Artifact cache**.
+- **`internal`** — `{ "kind": "internal" }`. The Environment Workload directory is the authoring home for the whole Workload: **materials** = that directory excluding `manifest.json` and `binding.json` only (inline `provides.json`, `requires.json`, `systemd/`, route fragments, and other Artifact bytes are allowed and are Prep input). Optional `build.json` at the Artifact root runs **Artifact Build** before zipping. Never zip `persist/`. Host delivery is still the staged zip from **Artifact cache**.
 
 Optional **`build.json`** at the Artifact root (inside materials): Prep runs containerized build on the **operator** with materials visible; overlay `output` only; never replace `provides.json`, `requires.json`, `build.json`, `systemd/`, or `persist/` from build output. Distinct from Ensure Quadlet `.build`.
 
@@ -19,7 +19,7 @@ Optional **`build.json`** at the Artifact root (inside materials): Prep runs con
 
 **Mirror** (and singular `ensure-mirror` / `ensure-workload`) upserts Manifest + Binding, reads **Artifact staging** for each Workload, ships the referenced `.artifact-cache/<basename>-<sha256>.zip`, extracts on the Host (ADR-0053 peel rules), applies Provides directories, and retains the zip on the Host Workload tree. Missing staging record or missing referenced zip fails closed — no Host Workload materialization without Prep.
 
-**Amends:** ADR-0053 (Host obtain is staged zip only; Environment tree gate is Source-kind; **Source** is prep-facing); ADR-0041 (Deploy requires Artifact Prep before Mirror; Prep is Deploy phase 0); ADR-0038 (Projects root remains Operator Configuration for Prep `local` Source).
+**Amends:** ADR-0053 (Host obtain is staged zip only; Environment tree gate is Source-kind; **Source** is prep-facing); ADR-0041 (Deploy requires Artifact Prep before Mirror; Prep is Deploy phase 0); ADR-0038 (Projects root remains Operator Configuration for Prep `local` Source); ADR-0060 (Source authoring shape SoT).
 
 **Supersedes:** ADR-0058 Host obtain/build/materialize path only — Prep retains obtain/build semantics from ADR-0058 on the operator; Host side is cut.
 

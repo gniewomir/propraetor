@@ -41,7 +41,7 @@ stage_wl() {
   cat >"${FIX_DIR}/${name}/manifest.json" <<EOF
 {
   "intent": "${intent}",
-  "source": "internal"
+  "source": {"kind":"internal"}
 }
 EOF
   cat >"${FIX_DIR}/${name}/requires.json" <<'EOF'
@@ -95,7 +95,7 @@ pass "run Setup injects Binding×Requires Environment Configuration"
 cat >"${FIX_DIR}/${WL_STOP}/manifest.json" <<EOF
 {
   "intent": "stop",
-  "source": "internal"
+  "source": {"kind":"internal"}
 }
 EOF
 "${REPO_ROOT}/internals/ensure-workload.sh" "${WL_STOP}" --env "${ENV_SLUG}"
@@ -109,7 +109,7 @@ pass "Intent stop retains unit file and EnvironmentFile"
 cat >"${FIX_DIR}/${WL_KEEP}/manifest.json" <<EOF
 {
   "intent": "run",
-  "source": "internal"
+  "source": {"kind":"internal"}
 }
 EOF
 "${REPO_ROOT}/internals/ensure-workload.sh" "${WL_KEEP}" --env "${ENV_SLUG}"

@@ -27,7 +27,7 @@ acceptance_write_minimal_workload_quadlet "${FIX_DIR}/${WL}" "${WL}"
 cat >"${FIX_DIR}/${WL}/manifest.json" <<EOF
 {
   "intent": "run",
-  "source": "internal"
+  "source": {"kind":"internal"}
 }
 EOF
 cat >"${FIX_DIR}/${WL}/routes/probe.conf" <<EOF

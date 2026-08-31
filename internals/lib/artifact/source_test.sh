@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Unit tests: Workload Source parse/validate (ADR-0053 / #199).
+# Unit tests: Workload Source parse/validate (ADR-0060 / ADR-0053).
 # Seam: artifact_source_validate / artifact_source_kind /
 # artifact_source_from_manifest / artifact_source_environment_tree_gate /
 # artifact_source_tree_gate / artifact_source_zip_extract.
@@ -15,29 +15,37 @@ pass() { echo "PASS: $*"; }
 TMP="$(umask 077; mktemp -d "${TMPDIR:-/tmp}/artifact-source.XXXXXX")"
 trap 'rm -rf "${TMP}"' EXIT
 
+INTERNAL_SRC='{"kind":"internal"}'
+zip_uri='https://github.com/example/repo/archive/refs/tags/v1.0.0.zip'
+ZIP_URI_SRC="{\"kind\":\"zip\",\"uri\":\"${zip_uri}\"}"
+http_uri='http://cdn.example.com/artifacts/app.zip'
+HTTP_URI_SRC="{\"kind\":\"zip\",\"uri\":\"${http_uri}\"}"
+loopback_uri='http://127.0.0.1:9/artifact.ZIP'
+LOOPBACK_URI_SRC="{\"kind\":\"zip\",\"uri\":\"${loopback_uri}\"}"
+ZIP_PATH_SRC='{"kind":"zip","path":"artifact.zip"}'
+ZIP_NESTED_SRC='{"kind":"zip","path":"vendor/app.zip"}'
+ZIP_CASE_SRC='{"kind":"zip","path":"vendor/App.ZIP"}'
+
 # --- internal ---
-[[ "$(artifact_source_validate internal)" == "internal" ]] \
+[[ "$(artifact_source_validate "${INTERNAL_SRC}")" == "${INTERNAL_SRC}" ]] \
   || fail "internal Source must validate"
 pass "internal Source"
 
 # --- zip URI (unauthenticated http(s), including loopback) ---
-zip_uri='https://github.com/example/repo/archive/refs/tags/v1.0.0.zip'
-[[ "$(artifact_source_validate "${zip_uri}")" == "${zip_uri}" ]] \
+[[ "$(artifact_source_validate "${ZIP_URI_SRC}")" == "${ZIP_URI_SRC}" ]] \
   || fail "https zip URI must validate"
-http_uri='http://cdn.example.com/artifacts/app.zip'
-[[ "$(artifact_source_validate "${http_uri}")" == "${http_uri}" ]] \
+[[ "$(artifact_source_validate "${HTTP_URI_SRC}")" == "${HTTP_URI_SRC}" ]] \
   || fail "http zip URI must validate"
-loopback_uri='http://127.0.0.1:9/artifact.ZIP'
-[[ "$(artifact_source_validate "${loopback_uri}")" == "${loopback_uri}" ]] \
+[[ "$(artifact_source_validate "${LOOPBACK_URI_SRC}")" == "${LOOPBACK_URI_SRC}" ]] \
   || fail "loopback zip URI with case-folded suffix must validate"
 pass "zip URI Source"
 
 # --- relative zip path ---
-[[ "$(artifact_source_validate 'artifact.zip')" == "artifact.zip" ]] \
+[[ "$(artifact_source_validate "${ZIP_PATH_SRC}")" == "${ZIP_PATH_SRC}" ]] \
   || fail "basename zip path must validate"
-[[ "$(artifact_source_validate 'vendor/app.zip')" == "vendor/app.zip" ]] \
+[[ "$(artifact_source_validate "${ZIP_NESTED_SRC}")" == "${ZIP_NESTED_SRC}" ]] \
   || fail "nested zip path must validate"
-[[ "$(artifact_source_validate 'vendor/App.ZIP')" == "vendor/App.ZIP" ]] \
+[[ "$(artifact_source_validate "${ZIP_CASE_SRC}")" == "${ZIP_CASE_SRC}" ]] \
   || fail "nested zip path with case-folded suffix must validate"
 pass "relative zip path Source"
 
@@ -45,53 +53,59 @@ pass "relative zip path Source"
 if artifact_source_validate '' >/dev/null 2>&1; then
   fail "empty Source must fail closed"
 fi
-if artifact_source_validate 'git' >/dev/null 2>&1; then
-  fail "non-zip Source must fail closed"
+if artifact_source_validate 'internal' >/dev/null 2>&1; then
+  fail "string internal Source must fail closed"
 fi
-if artifact_source_validate 'https://example.com/app.tar.gz' >/dev/null 2>&1; then
+if artifact_source_validate 'artifact.zip' >/dev/null 2>&1; then
+  fail "string zip path Source must fail closed"
+fi
+if artifact_source_validate '{"kind":"zip","uri":"https://example.com/app.tar.gz"}' >/dev/null 2>&1; then
   fail "non-zip URI must fail closed"
 fi
-if artifact_source_validate 'ftp://example.com/app.zip' >/dev/null 2>&1; then
+if artifact_source_validate '{"kind":"zip","uri":"ftp://example.com/app.zip"}' >/dev/null 2>&1; then
   fail "non-http(s) URI must fail closed"
 fi
-if artifact_source_validate 'file:///tmp/app.zip' >/dev/null 2>&1; then
+if artifact_source_validate '{"kind":"zip","uri":"file:///tmp/app.zip"}' >/dev/null 2>&1; then
   fail "file:// Source must fail closed"
 fi
-if artifact_source_validate 'Internal' >/dev/null 2>&1; then
-  fail "Source internal is case-sensitive"
+if artifact_source_validate '{"kind":"Internal"}' >/dev/null 2>&1; then
+  fail "Source internal kind is case-sensitive"
 fi
-if artifact_source_validate './artifact.zip' >/dev/null 2>&1; then
+if artifact_source_validate '{"kind":"zip","path":"./artifact.zip"}' >/dev/null 2>&1; then
   fail "./ zip path must fail closed"
 fi
-if artifact_source_validate '../artifact.zip' >/dev/null 2>&1; then
+if artifact_source_validate '{"kind":"zip","path":"../artifact.zip"}' >/dev/null 2>&1; then
   fail ".. zip path must fail closed"
 fi
-if artifact_source_validate '/tmp/artifact.zip' >/dev/null 2>&1; then
+if artifact_source_validate '{"kind":"zip","path":"/tmp/artifact.zip"}' >/dev/null 2>&1; then
   fail "absolute zip path must fail closed"
 fi
-if artifact_source_validate 'vendor/./app.zip' >/dev/null 2>&1; then
+if artifact_source_validate '{"kind":"zip","path":"vendor/./app.zip"}' >/dev/null 2>&1; then
   fail "dot-segment zip path must fail closed"
 fi
-if artifact_source_validate '.zip' >/dev/null 2>&1; then
+if artifact_source_validate '{"kind":"zip","path":".zip"}' >/dev/null 2>&1; then
   fail "empty-basename .zip must fail closed"
+fi
+if artifact_source_validate '{"kind":"zip","path":"vendor/app.zip","uri":"https://x/a.zip"}' >/dev/null 2>&1; then
+  fail "zip Source with both path and uri must fail closed"
 fi
 pass "invalid Source fails closed"
 
 # --- from Manifest ---
 cat >"${TMP}/manifest.json" <<EOF
-{ "intent": "run", "source": "internal" }
+{ "intent": "run", "source": { "kind": "internal" } }
 EOF
-[[ "$(artifact_source_from_manifest "${TMP}/manifest.json")" == "internal" ]] \
+[[ "$(artifact_source_from_manifest "${TMP}/manifest.json")" == "${INTERNAL_SRC}" ]] \
   || fail "Manifest source=internal"
 cat >"${TMP}/manifest.json" <<EOF
-{ "intent": "run", "source": "${zip_uri}" }
+{ "intent": "run", "source": { "kind": "zip", "uri": "${zip_uri}" } }
 EOF
-[[ "$(artifact_source_from_manifest "${TMP}/manifest.json")" == "${zip_uri}" ]] \
+[[ "$(artifact_source_from_manifest "${TMP}/manifest.json")" == "${ZIP_URI_SRC}" ]] \
   || fail "Manifest source=zip URI"
 cat >"${TMP}/manifest.json" <<'EOF'
-{ "intent": "run", "source": "vendor/app.zip" }
+{ "intent": "run", "source": { "kind": "zip", "path": "vendor/app.zip" } }
 EOF
-[[ "$(artifact_source_from_manifest "${TMP}/manifest.json")" == "vendor/app.zip" ]] \
+[[ "$(artifact_source_from_manifest "${TMP}/manifest.json")" == "${ZIP_NESTED_SRC}" ]] \
   || fail "Manifest source=zip path"
 cat >"${TMP}/manifest.json" <<'EOF'
 { "intent": "run" }
@@ -107,14 +121,18 @@ if artifact_source_from_manifest "${TMP}/manifest.json" >/dev/null 2>&1; then
 fi
 pass "artifact_source_from_manifest"
 
-[[ "$(artifact_source_kind internal)" == "internal" ]] \
+[[ "$(artifact_source_kind "${INTERNAL_SRC}")" == "internal" ]] \
   || fail "kind internal"
-[[ "$(artifact_source_kind "${zip_uri}")" == "uri" ]] \
-  || fail "kind uri"
-[[ "$(artifact_source_kind artifact.zip)" == "path" ]] \
-  || fail "kind path"
-[[ "$(artifact_source_kind vendor/app.zip)" == "path" ]] \
-  || fail "kind nested path"
+[[ "$(artifact_source_kind "${ZIP_URI_SRC}")" == "zip" ]] \
+  || fail "kind zip uri"
+[[ "$(artifact_source_kind "${ZIP_PATH_SRC}")" == "zip" ]] \
+  || fail "kind zip path"
+[[ "$(artifact_source_kind "${ZIP_NESTED_SRC}")" == "zip" ]] \
+  || fail "kind zip nested path"
+[[ "$(artifact_source_zip_uri "${ZIP_URI_SRC}")" == "${zip_uri}" ]] \
+  || fail "zip uri field"
+[[ "$(artifact_source_zip_path "${ZIP_NESTED_SRC}")" == "vendor/app.zip" ]] \
+  || fail "zip path field"
 pass "artifact_source_kind"
 
 # --- git / local object Source (ADR-0058) ---
@@ -197,7 +215,7 @@ pass "git/local Source fail closed"
 ZIP_TREE="${TMP}/zip-wl"
 mkdir -p "${ZIP_TREE}"
 cat >"${ZIP_TREE}/manifest.json" <<EOF
-{ "intent": "run", "source": "${zip_uri}" }
+{ "intent": "run", "source": { "kind": "zip", "uri": "${zip_uri}" } }
 EOF
 printf '{}\n' >"${ZIP_TREE}/binding.json"
 artifact_source_environment_tree_gate "${ZIP_TREE}" \
@@ -319,7 +337,7 @@ pass "artifact_source_stage_local_materials"
 PATH_TREE="${TMP}/path-wl"
 mkdir -p "${PATH_TREE}/vendor"
 cat >"${PATH_TREE}/manifest.json" <<'EOF'
-{ "intent": "run", "source": "vendor/app.zip" }
+{ "intent": "run", "source": { "kind": "zip", "path": "vendor/app.zip" } }
 EOF
 printf '{}\n' >"${PATH_TREE}/binding.json"
 printf 'not-a-real-zip\n' >"${PATH_TREE}/vendor/app.zip"
@@ -335,7 +353,7 @@ pass "path zip Environment Artifact contracts fail closed"
 INT_TREE="${TMP}/int-wl"
 mkdir -p "${INT_TREE}"
 cat >"${INT_TREE}/manifest.json" <<'EOF'
-{ "intent": "run", "source": "internal" }
+{ "intent": "run", "source": { "kind": "internal" } }
 EOF
 printf '{}\n' >"${INT_TREE}/binding.json"
 printf '{}\n' >"${INT_TREE}/provides.json"
@@ -354,14 +372,14 @@ fi
 printf 'not-a-real-zip\n' >"${PATH_TREE}/vendor/app.zip"
 ln -s app.zip "${PATH_TREE}/vendor/link.zip"
 cat >"${PATH_TREE}/manifest.json" <<'EOF'
-{ "intent": "run", "source": "vendor/link.zip" }
+{ "intent": "run", "source": { "kind": "zip", "path": "vendor/link.zip" } }
 EOF
 if artifact_source_tree_gate "${PATH_TREE}" >/dev/null 2>&1; then
   fail "symlink path zip must fail tree gate"
 fi
 rm -f "${PATH_TREE}/vendor/link.zip"
 cat >"${PATH_TREE}/manifest.json" <<'EOF'
-{ "intent": "run", "source": "vendor/app.zip" }
+{ "intent": "run", "source": { "kind": "zip", "path": "vendor/app.zip" } }
 EOF
 pass "path zip file gate"
 

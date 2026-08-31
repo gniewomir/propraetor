@@ -29,7 +29,7 @@ write_catalog_workload() {
   local -a perms=("$@")
   local dir="${WORKLOADS_ROOT}/${name}"
   mkdir -p "${dir}/systemd"
-  printf '%s\n' '{"intent":"run","source":"internal"}' >"${dir}/manifest.json"
+  printf '%s\n' '{"intent":"run","source": {"kind":"internal"}}' >"${dir}/manifest.json"
   printf '%s\n' '{"identity":true,"database":false,"cache":false}' >"${dir}/requires.json"
   python3 - "${dir}/provides.json" "${name}" "${perms[@]}" <<'PY'
 import json, sys
@@ -56,7 +56,7 @@ write_client_workload() {
   local -a perms=("$@")
   local dir="${WORKLOADS_ROOT}/${name}"
   mkdir -p "${dir}/systemd"
-  printf '%s\n' '{"intent":"run","source":"internal"}' >"${dir}/manifest.json"
+  printf '%s\n' '{"intent":"run","source": {"kind":"internal"}}' >"${dir}/manifest.json"
   python3 - "${dir}/requires.json" "${name}" "${perms[@]}" <<'PY'
 import json, sys
 keys = sys.argv[3:]
@@ -107,7 +107,7 @@ pass "permission catalog merge across workloads"
 write_catalog_workload claim-wl "claim-wl:api=API"
 [[ "$(identity_catalog_workload_is_run_claimant "${WORKLOADS_ROOT}/claim-wl")" == "1" ]] \
   || fail "catalog claimant must claim"
-printf '%s\n' '{"intent":"stop","source":"internal"}' \
+printf '%s\n' '{"intent":"stop","source": {"kind":"internal"}}' \
   >"${WORKLOADS_ROOT}/claim-wl/manifest.json"
 [[ "$(identity_catalog_workload_is_run_claimant "${WORKLOADS_ROOT}/claim-wl")" == "0" ]] \
   || fail "Intent stop must not claim"
@@ -329,7 +329,7 @@ cp -a "${WORKLOADS_ROOT}/stop-api" "${STOP_ROOT}/"
 identity_fulfill_declarations "${STOP_ROOT}" test || fail "stop-api fulfill should succeed"
 stop_binding="$(workload_identity_binding_dir stop-api)/resource-server.env"
 [[ -f "${stop_binding}" ]] || fail "expected resource-server binding for run catalog claimant"
-printf '%s\n' '{"intent":"stop","source":"internal"}' >"${STOP_ROOT}/stop-api/manifest.json"
+printf '%s\n' '{"intent":"stop","source": {"kind":"internal"}}' >"${STOP_ROOT}/stop-api/manifest.json"
 identity_fulfill_declarations "${STOP_ROOT}" test || fail "intent stop fulfill should succeed"
 [[ ! -f "${stop_binding}" ]] || fail "Intent stop must unpublish catalog resource-server binding"
 python3 - "${POCKET_ID_STATE}" <<'PY'
@@ -448,7 +448,7 @@ grep -Fx 'IDENTITY_CALLBACK_URLS=https://alpha.example.test/oauth/callback https
 pass "published OIDC client binding with scope across multiple APIs"
 
 # Intent stop unpublishes client binding but leaves Pocket ID client.
-printf '%s\n' '{"intent":"stop","source":"internal"}' >"${CLIENT_ROOT}/my-spa/manifest.json"
+printf '%s\n' '{"intent":"stop","source": {"kind":"internal"}}' >"${CLIENT_ROOT}/my-spa/manifest.json"
 identity_fulfill_declarations "${CLIENT_ROOT}" test || fail "intent stop fulfill should succeed"
 [[ ! -f "${client_binding}" ]] || fail "Intent stop must unpublish client binding"
 python3 - "${POCKET_ID_STATE}" <<'PY'

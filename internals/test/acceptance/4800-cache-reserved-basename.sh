@@ -19,7 +19,7 @@ trap 'rm -f "${err}"; acceptance_wl_cleanup' EXIT
 
 mkdir -p "${FIX_DIR}/${WL}/systemd"
 cat >"${FIX_DIR}/${WL}/manifest.json" <<'EOF'
-{ "intent": "run", "source": "internal" }
+{ "intent": "run", "source": {"kind":"internal"} }
 EOF
 cat >"${FIX_DIR}/${WL}/systemd/${WL}.container" <<'EOF'
 [Unit]

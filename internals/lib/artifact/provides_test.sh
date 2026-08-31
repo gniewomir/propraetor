@@ -158,7 +158,7 @@ pass "directories reserved key fails closed"
 # --- destination collision when applying directories ---
 DEST="${TMP}/dest"
 mkdir -p "${DEST}"
-printf '{ "intent": "run", "source": "internal" }\n' >"${DEST}/manifest.json"
+printf '{ "intent": "run", "source": {"kind":"internal"} }\n' >"${DEST}/manifest.json"
 cat >"${PROVIDES}" <<'EOF'
 { "directories": { ".": "." } }
 EOF

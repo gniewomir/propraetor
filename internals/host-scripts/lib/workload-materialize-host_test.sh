@@ -32,7 +32,7 @@ TREE="${TMP}/env-root/zip-wl"
 mkdir -p "${TREE}"
 printf '{}\n' >"${TREE}/binding.json"
 cat >"${TREE}/manifest.json" <<'EOF'
-{ "intent": "run", "source": "http://127.0.0.1:1/missing.zip" }
+{ "intent": "run", "source": {"kind":"zip","uri":"http://127.0.0.1:1/missing.zip"} }
 EOF
 printf '{ "database": false, "cache": false }\n' >"${TREE}/requires.json"
 if err="$(workload_materialize_tree "${TREE}" "${OUT}" 2>&1)"; then
@@ -64,7 +64,7 @@ printf '[Container]\nImage=localhost/path\n' >"${PATH_ART}/systemd/path.containe
 stage_artifact_for_tree "${PATH_TREE}" "${PATH_ART}"
 printf '{}\n' >"${PATH_TREE}/binding.json"
 cat >"${PATH_TREE}/manifest.json" <<'EOF'
-{ "intent": "run", "source": "artifact.zip" }
+{ "intent": "run", "source": {"kind":"zip","path":"artifact.zip"} }
 EOF
 rm -rf "${OUT}"
 workload_materialize_tree "${PATH_TREE}" "${OUT}" \
@@ -91,7 +91,7 @@ printf '[Container]\nImage=localhost/peel\n' >"${WRAP_ART}/bundle/systemd/peel.c
 stage_artifact_for_tree "${WRAP_TREE}" "${WRAP_ART}"
 printf '{}\n' >"${WRAP_TREE}/binding.json"
 cat >"${WRAP_TREE}/manifest.json" <<'EOF'
-{ "intent": "run", "source": "wrapped.zip" }
+{ "intent": "run", "source": {"kind":"zip","path":"wrapped.zip"} }
 EOF
 rm -rf "${OUT}"
 workload_materialize_tree "${WRAP_TREE}" "${OUT}" \
@@ -116,7 +116,7 @@ PERS_ART="${TMP}/persist-art"
 mkdir -p "${PERS_TREE}/persist" "${PERS_ART}/www" "${PERS_ART}/systemd"
 printf '{}\n' >"${PERS_TREE}/binding.json"
 cat >"${PERS_TREE}/manifest.json" <<'EOF'
-{ "intent": "run", "source": "internal" }
+{ "intent": "run", "source": {"kind":"internal"} }
 EOF
 printf '{ "directories": { "www": "www" } }\n' >"${PERS_ART}/provides.json"
 printf '{ "database": false, "cache": false }\n' >"${PERS_ART}/requires.json"
@@ -135,7 +135,7 @@ MERGE_ART="${TMP}/merge-art"
 mkdir -p "${MERGE_ENV}/systemd" "${MERGE_ART}/systemd"
 printf '{}\n' >"${MERGE_ENV}/binding.json"
 cat >"${MERGE_ENV}/manifest.json" <<'MAN'
-{ "intent": "run", "source": "artifact.zip" }
+{ "intent": "run", "source": {"kind":"zip","path":"artifact.zip"} }
 MAN
 printf '[Container]\nImage=localhost/env\n' >"${MERGE_ENV}/systemd/shared.container"
 printf '{ "directories": { "systemd": "units" } }\n' >"${MERGE_ART}/provides.json"
@@ -156,7 +156,7 @@ printf '{}\n' >"${Q_TREE}/binding.json"
 printf '{}\n' >"${Q_TREE}/provides.json"
 printf '{ "database": false, "cache": false }\n' >"${Q_TREE}/requires.json"
 cat >"${Q_TREE}/manifest.json" <<'MAN'
-{ "intent": "run", "source": "internal" }
+{ "intent": "run", "source": {"kind":"internal"} }
 MAN
 printf '[Container]\nImage=localhost/x\n' >"${Q_TREE}/systemd/ok.container"
 printf '{ "directories": { "systemd": "units" } }\n' >"${Q_ART}/provides.json"
@@ -173,7 +173,7 @@ MISS_TREE="${TMP}/env-root/miss-wl"
 mkdir -p "${MISS_TREE}"
 printf '{}\n' >"${MISS_TREE}/binding.json"
 cat >"${MISS_TREE}/manifest.json" <<'EOF'
-{ "intent": "run", "source": "internal" }
+{ "intent": "run", "source": {"kind":"internal"} }
 EOF
 if workload_materialize_tree "${MISS_TREE}" "${OUT}" >/dev/null 2>&1; then
   fail "missing staging must fail closed"
@@ -186,7 +186,7 @@ BROKEN_ART="${TMP}/broken-art"
 mkdir -p "${BROKEN_TREE}" "${BROKEN_ART}/systemd"
 printf '{}\n' >"${BROKEN_TREE}/binding.json"
 cat >"${BROKEN_TREE}/manifest.json" <<'EOF'
-{ "intent": "run", "source": "internal" }
+{ "intent": "run", "source": {"kind":"internal"} }
 EOF
 printf '{ "directories": { "systemd": "units" } }\n' >"${BROKEN_ART}/provides.json"
 printf '{ "database": false, "cache": false }\n' >"${BROKEN_ART}/requires.json"

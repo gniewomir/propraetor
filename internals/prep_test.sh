@@ -22,7 +22,7 @@ mkdir -p "${WL_A}/systemd" "${WL_B}/systemd"
 
 setup_internal() {
   local wl_dir="${1:?}"
-  printf '{ "intent": "run", "source": "internal" }\n' >"${wl_dir}/manifest.json"
+  printf '{ "intent": "run", "source": {"kind":"internal"} }\n' >"${wl_dir}/manifest.json"
   printf '{}\n' >"${wl_dir}/binding.json"
   printf '{ "database": false, "cache": false, "environment": {} }\n' \
     >"${wl_dir}/requires.json"
@@ -57,7 +57,7 @@ pass "artifact_prep_environment discovers and preps Workloads"
 # --- prep fails closed on any failure ---
 BAD="${ENV_DIR}/broken"
 mkdir -p "${BAD}"
-printf '{ "intent": "run", "source": "artifact.zip" }\n' >"${BAD}/manifest.json"
+printf '{ "intent": "run", "source": {"kind":"zip","path":"artifact.zip"} }\n' >"${BAD}/manifest.json"
 printf '{}\n' >"${BAD}/binding.json"
 printf '{}\n' >"${BAD}/provides.json"
 if artifact_prep_environment "${ENV_DIR}" >/dev/null 2>&1; then

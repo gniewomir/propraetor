@@ -17,7 +17,7 @@ trap 'acceptance_wl_cleanup' EXIT
 mkdir -p "${FIX_DIR}/unified-ok/systemd"
 acceptance_write_artifact_stubs "${FIX_DIR}/unified-ok"
 cat >"${FIX_DIR}/unified-ok/manifest.json" <<'EOF'
-{ "intent": "run", "source": "internal" }
+{ "intent": "run", "source": {"kind":"internal"} }
 EOF
 cat >"${FIX_DIR}/unified-ok/systemd/unified-ok.container" <<'EOF'
 [Unit]
@@ -61,14 +61,14 @@ EOF
 mkdir -p "${FIX_DIR}/unified-empty"
 acceptance_write_artifact_stubs "${FIX_DIR}/unified-empty"
 cat >"${FIX_DIR}/unified-empty/manifest.json" <<'EOF'
-{ "intent": "run", "source": "internal" }
+{ "intent": "run", "source": {"kind":"internal"} }
 EOF
 
 # --- bad-ext: unsupported extension under systemd/ ---
 mkdir -p "${FIX_DIR}/bad-ext/systemd"
 acceptance_write_artifact_stubs "${FIX_DIR}/bad-ext"
 cat >"${FIX_DIR}/bad-ext/manifest.json" <<'EOF'
-{ "intent": "run", "source": "internal" }
+{ "intent": "run", "source": {"kind":"internal"} }
 EOF
 printf 'not-a-unit\n' >"${FIX_DIR}/bad-ext/systemd/nope.txt"
 printf '[Container]\nImage=docker.io/library/nginx:1.31.3-alpine\n' \
@@ -78,7 +78,7 @@ printf '[Container]\nImage=docker.io/library/nginx:1.31.3-alpine\n' \
 mkdir -p "${FIX_DIR}/clash-sys/systemd"
 acceptance_write_artifact_stubs "${FIX_DIR}/clash-sys"
 cat >"${FIX_DIR}/clash-sys/manifest.json" <<'EOF'
-{ "intent": "run", "source": "internal" }
+{ "intent": "run", "source": {"kind":"internal"} }
 EOF
 cat >"${FIX_DIR}/clash-sys/systemd/edge-acme.timer" <<'EOF'
 [Unit]

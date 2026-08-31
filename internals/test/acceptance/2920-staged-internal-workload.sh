@@ -42,7 +42,7 @@ EOF
 cat >"${FIX_DIR}/${WL}/manifest.json" <<'EOF'
 {
   "intent": "stop",
-  "source": "internal"
+  "source": {"kind":"internal"}
 }
 EOF
 
@@ -71,9 +71,9 @@ host_ssh "test -f /host-volume/workloads/${WL}/${STAGED_ZIP}" \
 host_ssh "python3 -c \"
 import json
 m=json.load(open('/host-volume/workloads/${WL}/manifest.json'))
-assert m.get('source')=='internal', m
+assert m.get('source')=={'kind':'internal'}, m
 \"" || fail "Manifest source must remain internal on Host"
-[[ "$(python3 -c "import json; print(json.load(open('${FIX_DIR}/${WL}/manifest.json'))['source'])")" == "internal" ]] \
+[[ "$(python3 -c "import json; print(json.load(open('${FIX_DIR}/${WL}/manifest.json'))['source']['kind'])")" == "internal" ]] \
   || fail "operator SoT Manifest source must stay internal"
 pass "staged internal Workload materializes Artifact on Host and retains content-addressed zip"
 
