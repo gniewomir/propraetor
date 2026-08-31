@@ -246,6 +246,33 @@ acceptance_env_dir() {
   printf '%s/environments/%s\n' "${REPO_ROOT}" "${PLATFORM_ENV:-test}"
 }
 
+# Artifact Prep for Acceptance (ADR-0059 / #265). Call before ensure-workload /
+# ensure-mirror when case-local fixtures need staged zips.
+acceptance_prep_env() {
+  local slug="${1:-${ENV_SLUG:-${PLATFORM_ENV:-test}}}"
+  "${REPO_ROOT}/internals/prep.sh" --env "${slug}" || fail "Artifact Prep failed for Environment ${slug}"
+}
+
+acceptance_prep_workload() {
+  local wl_dir="${1:?acceptance_prep_workload: Workload dir required}"
+  if ! declare -F artifact_prep_workload >/dev/null 2>&1; then
+    # shellcheck source=../../lib/artifact/prep.sh
+    source "${REPO_ROOT}/internals/lib/artifact/prep.sh"
+  fi
+  artifact_prep_workload "${wl_dir}" >/dev/null \
+    || fail "Artifact Prep failed for Workload ${wl_dir}"
+}
+
+acceptance_staged_zip_basename() {
+  local env_dir="${1:?acceptance_staged_zip_basename: environment dir required}"
+  local wl="${2:?acceptance_staged_zip_basename: workload basename required}"
+  if ! declare -F artifact_staging_read >/dev/null 2>&1; then
+    # shellcheck source=../../lib/artifact/staging.sh
+    source "${REPO_ROOT}/internals/lib/artifact/staging.sh"
+  fi
+  basename "$(artifact_staging_read "${env_dir}" "${wl}")"
+}
+
 # Host Volume mount root (Persist paths are relative under it). Override ACCEPTANCE_HV_DATA_ROOT for Unit Tests (no live Host).
 acceptance_hv_data_root() {
   printf '%s\n' "${ACCEPTANCE_HV_DATA_ROOT:-/host-volume}"

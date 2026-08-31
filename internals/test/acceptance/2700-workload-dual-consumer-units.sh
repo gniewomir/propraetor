@@ -101,6 +101,7 @@ rm -f /home/platform/.config/systemd/user/unified-ok-probe.service \
   /home/platform/.config/systemd/user/unified-ok-probe.timer
 REMOTE
 
+acceptance_prep_workload "${FIX_DIR}/unified-ok"
 "${REPO_ROOT}/internals/ensure-workload.sh" "unified-ok" --env "${PLATFORM_ENV:-test}"
 
 host_ssh "test -f /host-volume/workloads/unified-ok/systemd/unified-ok.container" \

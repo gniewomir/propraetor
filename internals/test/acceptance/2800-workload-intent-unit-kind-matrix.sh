@@ -157,6 +157,7 @@ REMOTE
 
 # --- Intent run ---
 write_manifest run
+acceptance_prep_env
 "${REPO_ROOT}/internals/ensure-workload.sh" "${WL}" --env "${PLATFORM_ENV:-test}"
 
 host_ssh "test -L /home/platform/.config/containers/systemd/workload-${WL}" \

@@ -63,6 +63,7 @@ host_ssh \
    rm -f /home/platform/.config/containers/systemd/workload-${WL} /home/platform/.config/containers/systemd/${WL}.container"
 
 write_manifest run
+acceptance_prep_env
 "${REPO_ROOT}/internals/ensure-workload.sh" "${WL}" --env "${PLATFORM_ENV:-test}"
 
 host_ssh \

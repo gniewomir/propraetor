@@ -109,6 +109,7 @@ cat >"${FIX_DIR}/${WL}/manifest.json" <<'EOF'
 }
 EOF
 acceptance_write_database_claim "${FIX_DIR}/${WL}"
+acceptance_prep_env "${ENV_SLUG}"
 "${REPO_ROOT}/internals/ensure-workload.sh" "${WL}" --env "${ENV_SLUG}"
 pass "thin Manifest Setup succeeds with Requires database:true"
 

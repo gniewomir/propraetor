@@ -178,6 +178,8 @@ pass "ROOT_CACHE_USER remapped into a Workload fails closed"
 # --- invalid dotenv fails ---
 write_thin_manifest "${FIX_DIR}/${WL}"
 write_env_remap "${FIX_DIR}/${WL}"
+write_container "${FIX_DIR}/${WL}" "${WL}" "${WL}"
+acceptance_prep_env "${ENV_SLUG}"
 printf 'export ENVCFG_TOKEN=nope\nENVCFG_MODE=y\n' >"${ENV_FILE}"
 if "${REPO_ROOT}/internals/ensure-workload.sh" "${WL}" --env "${ENV_SLUG}" >/dev/null 2>&1; then
   fail "invalid dotenv (export) must fail closed"
@@ -247,6 +249,7 @@ write_container "${FIX_DIR}/${WL2}" "${WL2}-a" "${WL2}-a"
 write_container "${FIX_DIR}/${WL2}" "${WL2}-b" "${WL2}-b"
 printf 'ENVCFG_TOKEN=%s\n' "${SECRET_OVERRIDE}" >"${ENV_FILE}"
 export ENVCFG_TOKEN="${SECRET_OVERRIDE}"
+acceptance_prep_workload "${FIX_DIR}/${WL2}"
 "${REPO_ROOT}/internals/ensure-workload.sh" "${WL2}" --env "${ENV_SLUG}"
 
 acceptance_wait_user_unit_active "${WL2}-a.service" \

@@ -66,6 +66,8 @@ set -euo pipefail
 rm -rf /host-volume/workloads/${WL}
 REMOTE
 
+acceptance_prep_env "${ENV_SLUG}"
+STAGED_ZIP="$(acceptance_staged_zip_basename "${FIX_DIR}" "${WL}")"
 "${REPO_ROOT}/internals/ensure-workload.sh" "${WL}" --env "${ENV_SLUG}"
 
 host_ssh "grep -Fxq from-acceptance-path-zip /host-volume/workloads/${WL}/www/index.html" \
@@ -76,8 +78,8 @@ host_ssh "grep -Fq static /host-volume/workloads/${WL}/provides.json" \
   || fail "path zip Artifact Provides must land on Host"
 host_ssh "test -f /host-volume/workloads/${WL}/requires.json" \
   || fail "path zip Artifact Requires must land on Host"
-host_ssh "test -f /host-volume/workloads/${WL}/artifact.zip" \
-  || fail "path zip must remain on Host as Environment bag"
+host_ssh "test -f /host-volume/workloads/${WL}/${STAGED_ZIP}" \
+  || fail "path zip must remain on Host as content-addressed staged zip (${STAGED_ZIP})"
 host_ssh "test -f /host-volume/workloads/${WL}/manifest.json" \
   || fail "path zip Manifest must remain Environment SoT"
 pass "path zip Source materializes Artifact on Host and keeps the zip"

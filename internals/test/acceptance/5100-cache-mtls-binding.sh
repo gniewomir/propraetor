@@ -52,6 +52,7 @@ WantedBy=default.target
 EOF
 
 # Mirror SoT first so pre-workloads gather sees the Declaration (ADR-0041 / ADR-0055).
+acceptance_prep_env "${ENV_SLUG}"
 "${REPO_ROOT}/internals/ensure-mirror.sh" --env "${ENV_SLUG}"
 ensure_cache_fulfillment
 

@@ -63,6 +63,7 @@ write_probe_workload "${WLA}"
 write_probe_workload "${WLB}"
 
 # Mirror SoT first so pre-workloads gather sees both Declarations.
+acceptance_prep_env "${ENV_SLUG}"
 "${REPO_ROOT}/internals/ensure-mirror.sh" --env "${ENV_SLUG}"
 ensure_cache_fulfillment
 

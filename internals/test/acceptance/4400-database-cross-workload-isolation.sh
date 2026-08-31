@@ -62,6 +62,7 @@ EOF
 write_probe_workload "${WLA}"
 write_probe_workload "${WLB}"
 
+acceptance_prep_env "${ENV_SLUG}"
 "${REPO_ROOT}/internals/ensure-mirror.sh" --env "${ENV_SLUG}"
 ensure_database_fulfillment
 "${REPO_ROOT}/internals/ensure-workload.sh" "${WLA}" --env "${ENV_SLUG}"

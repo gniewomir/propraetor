@@ -76,6 +76,7 @@ set -euo pipefail
 rm -rf /host-volume/workloads/${WL}
 REMOTE
 
+PROPRAETOR_PROJECTS_ROOT="${PROJ}" acceptance_prep_env "${ENV_SLUG}"
 PROPRAETOR_PROJECTS_ROOT="${PROJ}" \
   "${REPO_ROOT}/internals/ensure-workload.sh" "${WL}" --env "${ENV_SLUG}"
 

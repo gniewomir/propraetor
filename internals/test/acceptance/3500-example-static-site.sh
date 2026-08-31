@@ -68,6 +68,7 @@ rm -f /home/platform/.config/containers/systemd/workload-${WL} \
 runuser -u platform -- env XDG_RUNTIME_DIR=\$XDG_RUNTIME_DIR systemctl --user daemon-reload
 REMOTE
 
+acceptance_prep_env
 "${REPO_ROOT}/internals/ensure-workload.sh" "${WL}" --env "${PLATFORM_ENV:-test}"
 
 host_ssh \

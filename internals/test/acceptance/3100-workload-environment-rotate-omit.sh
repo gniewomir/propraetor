@@ -77,6 +77,7 @@ export ENVROT_TOKEN="${SECRET1}"
 export ENVROT_MODE=shell-only
 export ENVROT_SURPLUS="${SURPLUS}"
 
+acceptance_prep_env "${ENV_SLUG}"
 "${REPO_ROOT}/internals/ensure-workload.sh" "${WL}" --env "${ENV_SLUG}"
 
 acceptance_wait_user_unit_active "${WL}.service" \
@@ -100,6 +101,7 @@ pass "re-Setup rotates Environment Configuration in container process env"
 
 # --- empty Requires environment removes Environment Configuration from process env ---
 acceptance_write_artifact_stubs "${FIX_DIR}/${WL}"
+acceptance_prep_workload "${FIX_DIR}/${WL}"
 unset ENVROT_TOKEN ENVROT_MODE ENVROT_SURPLUS || true
 "${REPO_ROOT}/internals/ensure-workload.sh" "${WL}" --env "${ENV_SLUG}"
 
@@ -121,12 +123,14 @@ cat >"${FIX_DIR}/${WL}/binding.json" <<'EOF'
 { "environment": { "ENVROT_TOKEN": "APP_TOKEN" } }
 EOF
 export ENVROT_TOKEN="${SECRET1}"
+acceptance_prep_workload "${FIX_DIR}/${WL}"
 "${REPO_ROOT}/internals/ensure-workload.sh" "${WL}" --env "${ENV_SLUG}"
 acceptance_wait_user_unit_active "${WL}.service" \
   || fail "re-inject Setup should start ${WL}.service"
 acceptance_assert_container_env "${WL}" APP_TOKEN "${SECRET1}"
 
 acceptance_write_artifact_stubs "${FIX_DIR}/${WL}"
+acceptance_prep_workload "${FIX_DIR}/${WL}"
 unset ENVROT_TOKEN || true
 "${REPO_ROOT}/internals/ensure-workload.sh" "${WL}" --env "${ENV_SLUG}"
 acceptance_wait_user_unit_active "${WL}.service" \

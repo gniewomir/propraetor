@@ -41,6 +41,7 @@ acceptance_bind_route_fragment "${FIX_DIR}/${WL}" "routes/probe.conf" "${HOST}"
 host_ssh \
   "rm -rf /host-volume/workloads/${WL}"
 
+acceptance_prep_env
 "${REPO_ROOT}/internals/ensure-workload.sh" "${WL}" --env "${PLATFORM_ENV:-test}"
 ensure_edge_route_fulfillment
 

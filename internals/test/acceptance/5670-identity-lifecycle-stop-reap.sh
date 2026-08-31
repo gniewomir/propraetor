@@ -119,6 +119,7 @@ EOF
 stage_wl "${WL}" yes
 stage_wl "${KEEP}" no
 
+acceptance_prep_env "${ENV_SLUG}"
 "${REPO_ROOT}/internals/ensure-mirror.sh" --env "${ENV_SLUG}"
 "${REPO_ROOT}/internals/ensure-workload.sh" "${WL}" --env "${ENV_SLUG}"
 "${REPO_ROOT}/internals/ensure-workload.sh" "${KEEP}" --env "${ENV_SLUG}"

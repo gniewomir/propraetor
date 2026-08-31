@@ -82,6 +82,7 @@ location / {
 EOF
 acceptance_bind_route_fragment "${FIX_DIR}/${WL}" "routes/probe.conf" "${ROUTE_FQDN}"
 
+acceptance_prep_env
 "${REPO_ROOT}/internals/ensure-workload.sh" "${WL}" --env "${PLATFORM_ENV:-test}"
 ensure_edge_route_fulfillment
 

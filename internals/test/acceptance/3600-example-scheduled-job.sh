@@ -88,6 +88,7 @@ REMOTE
 
 # --- Intent run: Arm ---
 write_manifest run
+acceptance_prep_env
 "${REPO_ROOT}/internals/ensure-workload.sh" "${WL}" --env "${PLATFORM_ENV:-test}"
 
 host_ssh \

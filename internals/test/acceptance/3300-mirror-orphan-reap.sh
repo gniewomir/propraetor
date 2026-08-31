@@ -52,6 +52,7 @@ REMOTE
 
 stage_wl keep-alive
 stage_wl gone-soon
+acceptance_prep_env "${ENV_SLUG}"
 "${REPO_ROOT}/internals/ensure-workload.sh" keep-alive --env "${ENV_SLUG}"
 "${REPO_ROOT}/internals/ensure-workload.sh" gone-soon --env "${ENV_SLUG}"
 
@@ -69,6 +70,7 @@ rm -rf "${FIX_DIR}/gone-soon"
 
 # Mirror upserts keep-alive and must leave the orphan alone (incl. Persist)
 printf '{"intent":"stop","source":"internal","description":"mirrored"}\n' >"${FIX_DIR}/keep-alive/manifest.json"
+acceptance_prep_workload "${FIX_DIR}/keep-alive"
 "${REPO_ROOT}/internals/ensure-mirror.sh" --env "${ENV_SLUG}"
 
 host_ssh "grep -Fq mirrored /host-volume/workloads/keep-alive/manifest.json" \

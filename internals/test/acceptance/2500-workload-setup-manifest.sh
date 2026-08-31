@@ -213,6 +213,7 @@ host_ssh \
          /home/platform/.config/containers/systemd/legacy.container \
          /home/platform/.config/containers/systemd/shared-name.container"
 
+acceptance_prep_workload "${FIX_DIR}/alpha"
 "${REPO_ROOT}/internals/ensure-workload.sh" "alpha" --env "${PLATFORM_ENV:-test}"
 
 if [[ -n "${ROUTE_FQDN}" ]]; then
@@ -280,6 +281,7 @@ reject_thick "retired environment" "retired-env" "environment\|unknown keys\|all
 reject_thick "retired database" "retired-db" "database\|unknown keys\|allowlist"
 pass "Workload Setup requires Source and rejects retired Manifest keys (ADR-0024 / ADR-0053)"
 
+acceptance_prep_workload "${FIX_DIR}/zero"
 "${REPO_ROOT}/internals/ensure-workload.sh" "zero" --env "${PLATFORM_ENV:-test}"
 zero_installed="$(host_ssh \
   "ls /host-volume/components/edge/persist/routes/zero--* 2>/dev/null || true")"
@@ -288,6 +290,7 @@ host_ssh "test -f /host-volume/workloads/zero/manifest.json" \
   || fail "zero-Route Workload Manifest should still be stored"
 pass "Workload Setup succeeds with Intent run and no Binding Routes"
 
+acceptance_prep_workload "${FIX_DIR}/clash"
 set +e
 "${REPO_ROOT}/internals/ensure-workload.sh" "clash" --env "${PLATFORM_ENV:-test}" >/tmp/clash-setup.out 2>&1
 clash_rc=$?
@@ -297,6 +300,7 @@ grep -qi 'edge-nginx\|already exists\|not owned' /tmp/clash-setup.out \
   || fail "collision rejection unclear (output: $(cat /tmp/clash-setup.out))"
 pass "Workload Setup refuses unit basename colliding with Component unit"
 
+acceptance_prep_workload "${FIX_DIR}/owner-a"
 "${REPO_ROOT}/internals/ensure-workload.sh" "owner-a" --env "${PLATFORM_ENV:-test}"
 set +e
 "${REPO_ROOT}/internals/ensure-workload.sh" "owner-b" --env "${PLATFORM_ENV:-test}" >/tmp/owner-b-setup.out 2>&1

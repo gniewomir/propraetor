@@ -81,6 +81,7 @@ export ENVPURGE_TOKEN="${SECRET}"
 
 stage_wl "${WL_STOP}" run
 stage_wl "${WL_KEEP}" run
+acceptance_prep_env "${ENV_SLUG}"
 
 for name in "${WL_STOP}" "${WL_KEEP}"; do
   "${REPO_ROOT}/internals/ensure-workload.sh" "${name}" --env "${ENV_SLUG}"

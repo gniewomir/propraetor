@@ -61,6 +61,7 @@ acceptance_write_database_claim "${FIX_DIR}/${WL}"
 stage_wl "${KEEP}"
 acceptance_write_artifact_stubs "${FIX_DIR}/${KEEP}"
 
+acceptance_prep_env "${ENV_SLUG}"
 "${REPO_ROOT}/internals/ensure-mirror.sh" --env "${ENV_SLUG}"
 ensure_database_fulfillment
 "${REPO_ROOT}/internals/ensure-workload.sh" "${WL}" --env "${ENV_SLUG}"

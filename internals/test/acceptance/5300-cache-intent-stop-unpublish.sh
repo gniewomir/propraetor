@@ -57,6 +57,7 @@ Restart=on-failure
 WantedBy=default.target
 EOF
 
+acceptance_prep_env "${ENV_SLUG}"
 "${REPO_ROOT}/internals/ensure-mirror.sh" --env "${ENV_SLUG}"
 ensure_cache_fulfillment
 "${REPO_ROOT}/internals/ensure-workload.sh" "${WL}" --env "${ENV_SLUG}"
