@@ -2,7 +2,7 @@
 Description=Umami web analytics
 
 [Container]
-Image=ghcr.io/umami-software/umami:3.3.1
+Image=ghcr.io/umami-software/umami:3.4.0
 ContainerName=analytics-umami
 Pod=analytics.pod
 # Umami image USER is nextjs (1001); Platform Database client.key is 0600 for
