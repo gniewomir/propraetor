@@ -3,7 +3,7 @@ Description=Propraetor Cache Valkey
 After=network-online.target
 
 [Container]
-Image=docker.io/valkey/valkey:9.1-alpine
+Image=docker.io/valkey/valkey:9.2-alpine
 ContainerName=cache-valkey
 Pod=cache.pod
 Entrypoint=/usr/local/bin/cache-entrypoint.sh
